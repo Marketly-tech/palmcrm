@@ -1,0 +1,122 @@
+{
+  "project_name": "RRL Builders Post-Sales CRM",
+  "design_system": {
+    "typography": {
+      "font_family": {
+        "headings": "Manrope, sans-serif",
+        "body": "Inter, sans-serif",
+        "mono": "JetBrains Mono, monospace"
+      },
+      "imports": [
+        "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
+      ],
+      "scale": {
+        "h1": "text-4xl font-bold tracking-tight text-slate-900",
+        "h2": "text-3xl font-semibold tracking-tight text-slate-900",
+        "h3": "text-2xl font-semibold tracking-tight text-slate-900",
+        "h4": "text-xl font-medium text-slate-900",
+        "p": "text-base text-slate-600 leading-relaxed",
+        "small": "text-sm text-slate-500",
+        "label": "text-xs font-semibold uppercase tracking-wider text-slate-500"
+      }
+    },
+    "colors": {
+      "palette_name": "RRL Corporate Teal",
+      "theme_mode": "light",
+      "css_vars": {
+        "background": "210 40% 98%",
+        "foreground": "222 47% 11%",
+        "card": "0 0% 100%",
+        "card-foreground": "222 47% 11%",
+        "popover": "0 0% 100%",
+        "popover-foreground": "222 47% 11%",
+        "primary": "199 89% 48%",
+        "primary-foreground": "210 40% 98%",
+        "secondary": "168 80% 28%",
+        "secondary-foreground": "210 40% 98%",
+        "muted": "210 40% 96.1%",
+        "muted-foreground": "215.4 16.3% 46.9%",
+        "accent": "199 89% 96%",
+        "accent-foreground": "168 80% 28%",
+        "destructive": "0 84.2% 60.2%",
+        "destructive-foreground": "210 40% 98%",
+        "border": "214.3 31.8% 91.4%",
+        "input": "214.3 31.8% 91.4%",
+        "ring": "199 89% 48%",
+        "radius": "0.5rem"
+      },
+      "instructions": "Replace the root variables in /app/frontend/src/index.css with these values. Ensure dark mode variables are also adjusted to be legible but deep (e.g., background: 222 47% 11%)."
+    },
+    "layout": {
+      "spacing_scale": "generous",
+      "container_padding": "p-6 md:p-8 lg:p-10",
+      "grid_strategy": "bento_dashboard",
+      "sidebar_width": "w-64",
+      "header_height": "h-16"
+    },
+    "components": {
+      "buttons": {
+        "primary": "bg-primary text-white shadow-md hover:bg-primary/90 transition-all active:scale-95 rounded-md",
+        "secondary": "bg-white text-slate-700 border border-slate-200 shadow-sm hover:bg-slate-50 transition-all rounded-md",
+        "ghost": "hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-md"
+      },
+      "cards": {
+        "default": "bg-white rounded-lg border border-slate-200 shadow-sm p-6 hover:shadow-md transition-shadow duration-200",
+        "interactive": "bg-white rounded-lg border border-slate-200 shadow-sm p-6 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200"
+      },
+      "inputs": {
+        "default": "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      },
+      "sidebar": {
+        "container": "fixed left-0 top-0 h-full bg-slate-900 text-slate-300 w-64 flex flex-col border-r border-slate-800 shadow-xl z-50",
+        "link": "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md hover:bg-slate-800 hover:text-white transition-colors",
+        "link_active": "bg-primary text-white shadow-inner"
+      }
+    },
+    "assets": {
+      "images": {
+        "login_bg": "https://images.unsplash.com/photo-1627306036351-036986f292a9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBiYW5nYWxvcmUlMjBjaXR5JTIwc2t5bGluZSUyMGJsdWUlMjB0ZWFsJTIwYXJjaGl0ZWN0dXJlfGVufDB8fHx8MTc3MzM1Mzc4MXww&ixlib=rb-4.1.0&q=85",
+        "logo_placeholder": "https://placehold.co/200x60/transparent/white?text=RRL+Builders",
+        "avatar_placeholder": "https://api.dicebear.com/9.x/avataaars/svg?seed=Felix"
+      },
+      "icons": "Use 'lucide-react' for all icons. Ensure stroke width is 1.5px or 2px for clarity."
+    }
+  },
+  "implementation_steps": [
+    {
+      "step": 1,
+      "action": "Update index.html",
+      "details": "Add the Google Fonts link to public/index.html head section."
+    },
+    {
+      "step": 2,
+      "action": "Update Tailwind Config",
+      "details": "Extend the font family in tailwind.config.js to include 'Manrope' (sans) and 'Inter' (body). Ensure colors use CSS variables."
+    },
+    {
+      "step": 3,
+      "action": "Update Global CSS",
+      "details": "Replace the content of src/index.css with the new CSS variables (HSL values) provided in the 'colors' section."
+    },
+    {
+      "step": 4,
+      "action": "Create Layout Wrapper",
+      "details": "Build a 'DashboardLayout' component that includes the Sidebar and Header. Wrap all protected routes with this."
+    },
+    {
+      "step": 5,
+      "action": "Build Dashboard",
+      "details": "Construct the main dashboard using the 'Bento' grid strategy. Use Shadcn cards for metrics."
+    }
+  ],
+  "universal_guidelines": [
+    "Do NOT use gradients for backgrounds, stick to solid colors or subtle noise textures.",
+    "Use 'Manrope' font for all Headings (h1-h3).",
+    "Use 'Inter' font for all Body text and UI elements.",
+    "Ensure all interactive elements have a focus state visible.",
+    "Use generous padding (p-6+) inside cards.",
+    "For tables, use a 'compact' density but keep row height at least 48px for touch targets.",
+    "Always check contrast ratios. The Primary Blue is bright, so use white text on top of it.",
+    "Data-testid attributes are MANDATORY for all inputs and buttons."
+  ]
+}
