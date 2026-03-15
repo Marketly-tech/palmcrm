@@ -35,6 +35,8 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - Additional Parking (₹3L each)
 - UDS calculation (Saleable Area × 0.495046)
 - **Calculator tab in Customer Profile**
+- **Variable Disbursement Calculator**: Custom percentage input (30%, 50%, 70%, 100% quick buttons)
+- **Live Price Recalculation**: Price updates automatically in edit mode as values change
 - "Recalculate & Save Price" button
 
 ### Module 4: Payment Plan ✅ COMPLETED
@@ -129,10 +131,8 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 ## Prioritized Backlog
 
 ### P1 - Medium Priority
-- [ ] Configure SendGrid API for real email delivery
-- [ ] Configure Twilio API for WhatsApp messages
-- [ ] Variable disbursement percentage input in calculator
-- [ ] Live price recalculation in customer edit mode
+- [ ] Configure Twilio API for WhatsApp messages (requires API key)
+- [ ] Sales Agreement PDF template (when user provides template)
 
 ### P2 - Lower Priority
 - [ ] Sales Agreement PDF template
