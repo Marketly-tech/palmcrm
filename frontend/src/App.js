@@ -11,6 +11,8 @@ import DocumentsPage from "./pages/DocumentsPage";
 import CalculatorPage from "./pages/CalculatorPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReportsPage from "./pages/ReportsPage";
+import LeadsPage from "./pages/LeadsPage";
+import BookingFormPage from "./pages/BookingFormPage";
 import "./App.css";
 
 const ProtectedRoute = ({ children }) => {
@@ -37,6 +39,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/booking-form" element={<BookingFormPage />} />
           <Route
             path="/*"
             element={
@@ -45,6 +48,7 @@ function App() {
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/leads" element={<LeadsPage />} />
                     <Route path="/customers" element={<CustomersPage />} />
                     <Route path="/customers/:id" element={<CustomerDetailPage />} />
                     <Route path="/payments" element={<PaymentsPage />} />

@@ -48,6 +48,9 @@ import {
   Download,
   Edit,
   Save,
+  Eye,
+  Upload,
+  Trash2,
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -60,6 +63,7 @@ const CustomerDetailPage = () => {
   const [paymentSchedule, setPaymentSchedule] = useState({ items: [] });
   const [checklist, setChecklist] = useState({ items: {} });
   const [documents, setDocuments] = useState([]);
+  const [uploadedDocs, setUploadedDocs] = useState([]);
   const [communications, setCommunications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -84,6 +88,19 @@ const CustomerDetailPage = () => {
   // Document Generation
   const [docDialogOpen, setDocDialogOpen] = useState(false);
   const [docType, setDocType] = useState("");
+  
+  // Document Preview
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewContent, setPreviewContent] = useState(null);
+  
+  // Welcome Email
+  const [sendingWelcome, setSendingWelcome] = useState(false);
+  
+  // File Upload
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadDocType, setUploadDocType] = useState("");
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchCustomerData();
@@ -91,18 +108,20 @@ const CustomerDetailPage = () => {
 
   const fetchCustomerData = async () => {
     try {
-      const [customerRes, scheduleRes, checklistRes, docsRes, commsRes] = await Promise.all([
+      const [customerRes, scheduleRes, checklistRes, docsRes, commsRes, uploadedDocsRes] = await Promise.all([
         axios.get(`${API}/customers/${id}`),
         axios.get(`${API}/payments/schedule/${id}`),
         axios.get(`${API}/checklist/${id}`),
         axios.get(`${API}/documents/${id}`),
         axios.get(`${API}/communication/${id}`),
+        axios.get(`${API}/customers/${id}/documents-list`).catch(() => ({ data: [] })),
       ]);
       setCustomer(customerRes.data);
       setEditData(customerRes.data);
       setPaymentSchedule(scheduleRes.data);
       setChecklist(checklistRes.data);
       setDocuments(docsRes.data);
+      setUploadedDocs(uploadedDocsRes.data);
       setCommunications(commsRes.data);
     } catch (error) {
       toast.error("Failed to fetch customer data");
@@ -153,6 +172,16 @@ const CustomerDetailPage = () => {
     }
   };
 
+  const handleGeneratePaymentSchedule = async () => {
+    try {
+      await axios.post(`${API}/calculator/generate-schedule/${id}`);
+      fetchCustomerData();
+      toast.success("Payment schedule generated from template");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to generate schedule");
+    }
+  };
+
   const handleUpdatePaymentStatus = async (itemId, status) => {
     try {
       await axios.put(`${API}/payments/item/${id}/${itemId}`, {
@@ -196,6 +225,73 @@ const CustomerDetailPage = () => {
     }
   };
 
+  const handlePreviewDocument = async (doc) => {
+    try {
+      const response = await axios.get(`${API}/documents/html/${doc.id}`);
+      setPreviewContent(response.data.content);
+      setPreviewDialogOpen(true);
+    } catch (error) {
+      toast.error("Failed to load document preview");
+    }
+  };
+
+  const handleDownloadDocument = async (doc) => {
+    try {
+      const response = await axios.get(`${API}/documents/html/${doc.id}`);
+      // Open in new window for printing/saving as PDF
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(response.data.content);
+        printWindow.document.close();
+      }
+    } catch (error) {
+      toast.error("Failed to download document");
+    }
+  };
+
+  const handleSendWelcomeEmail = async () => {
+    setSendingWelcome(true);
+    try {
+      const response = await axios.post(`${API}/communication/send-welcome-email/${id}`);
+      toast.success(`Welcome email sent to ${customer.email} (MOCKED)`);
+      
+      // Open welcome email preview in new window
+      if (response.data.welcome_html) {
+        const previewWindow = window.open("", "_blank");
+        if (previewWindow) {
+          previewWindow.document.write(response.data.welcome_html);
+          previewWindow.document.close();
+        }
+      }
+      
+      fetchCustomerData();
+    } catch (error) {
+      toast.error("Failed to send welcome email");
+    } finally {
+      setSendingWelcome(false);
+    }
+  };
+
+  const handleGeneratePriceBreakup = async () => {
+    try {
+      const response = await axios.post(`${API}/documents/generate-pdf/${id}`);
+      toast.success("Price breakup generated");
+      
+      // Open in new window
+      if (response.data.html_content) {
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(response.data.html_content);
+          printWindow.document.close();
+        }
+      }
+      
+      fetchCustomerData();
+    } catch (error) {
+      toast.error("Failed to generate price breakup");
+    }
+  };
+
   const handleSendCommunication = async () => {
     if (!commMessage) {
       toast.error("Please enter a message");
@@ -218,6 +314,80 @@ const CustomerDetailPage = () => {
     }
   };
 
+  const handleFileUpload = async () => {
+    if (!uploadFile || !uploadDocType) {
+      toast.error("Please select a file and document type");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("doc_type", uploadDocType);
+
+      await axios.post(`${API}/customers/${id}/upload-document`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast.success("Document uploaded successfully");
+      setUploadDialogOpen(false);
+      setUploadFile(null);
+      setUploadDocType("");
+      fetchCustomerData();
+    } catch (error) {
+      toast.error("Failed to upload document");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDownloadUploadedDoc = async (doc) => {
+    try {
+      const response = await axios.get(`${API}/documents/download/${doc.id}`, {
+        responseType: "blob",
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", doc.filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error("Failed to download document");
+    }
+  };
+
+  const handlePreviewUploadedDoc = async (doc) => {
+    try {
+      const response = await axios.get(`${API}/documents/preview/${doc.id}`);
+      const { content_base64, content_type, filename } = response.data;
+      
+      // Create data URL and open in new window
+      const dataUrl = `data:${content_type};base64,${content_base64}`;
+      
+      if (content_type.startsWith("image/")) {
+        // For images, show in dialog
+        setPreviewContent(`<img src="${dataUrl}" style="max-width: 100%; height: auto;" alt="${filename}" />`);
+        setPreviewDialogOpen(true);
+      } else if (content_type === "application/pdf") {
+        // For PDFs, open in new tab
+        const pdfWindow = window.open("", "_blank");
+        if (pdfWindow) {
+          pdfWindow.document.write(`<iframe src="${dataUrl}" style="width:100%;height:100%;border:none;"></iframe>`);
+        }
+      } else {
+        // For other types, trigger download
+        handleDownloadUploadedDoc(doc);
+      }
+    } catch (error) {
+      toast.error("Failed to preview document");
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -236,6 +406,8 @@ const CustomerDetailPage = () => {
       sent: "bg-blue-100 text-blue-700",
       signed: "bg-green-100 text-green-700",
       completed: "bg-purple-100 text-purple-700",
+      pending_approval: "bg-yellow-100 text-yellow-700",
+      qualified: "bg-green-100 text-green-700",
     };
     return styles[status] || "bg-slate-100 text-slate-700";
   };
@@ -264,7 +436,28 @@ const CustomerDetailPage = () => {
             <p className="text-slate-500 font-mono">{customer.customer_id}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={handleSendWelcomeEmail}
+            disabled={sendingWelcome}
+            data-testid="send-welcome-btn"
+          >
+            {sendingWelcome ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Mail className="w-4 h-4 mr-2" />
+            )}
+            Send Welcome Email
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleGeneratePriceBreakup}
+            data-testid="generate-price-breakup-btn"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Price Breakup PDF
+          </Button>
           {editing ? (
             <>
               <Button variant="outline" onClick={() => setEditing(false)}>
@@ -285,7 +478,7 @@ const CustomerDetailPage = () => {
       </div>
 
       {/* Quick Info */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-slate-500">Project</p>
@@ -306,8 +499,14 @@ const CustomerDetailPage = () => {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-slate-500">Agreement</p>
-            <Badge className={getStatusBadge(customer.agreement_status)}>{customer.agreement_status}</Badge>
+            <p className="text-sm text-slate-500">Stage</p>
+            <Badge className={getStatusBadge(customer.stage)}>{customer.stage?.replace("_", " ")}</Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-slate-500">Received</p>
+            <p className="font-semibold text-green-600">{customer.payment_received_percentage?.toFixed(1) || 0}%</p>
           </CardContent>
         </Card>
       </div>
@@ -327,6 +526,10 @@ const CustomerDetailPage = () => {
             <FileText className="w-4 h-4 mr-2" />
             Documents
           </TabsTrigger>
+          <TabsTrigger value="uploads" data-testid="tab-uploads">
+            <Upload className="w-4 h-4 mr-2" />
+            Uploads
+          </TabsTrigger>
           <TabsTrigger value="communication" data-testid="tab-communication">
             <MessageSquare className="w-4 h-4 mr-2" />
             Communication
@@ -339,121 +542,177 @@ const CustomerDetailPage = () => {
 
         {/* Details Tab */}
         <TabsContent value="details">
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <Label>Full Name</Label>
-                    {editing ? (
-                      <Input
-                        value={editData.name}
-                        onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                      />
-                    ) : (
-                      <p className="text-slate-700">{customer.name}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Email</Label>
-                    {editing ? (
-                      <Input
-                        value={editData.email}
-                        onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                      />
-                    ) : (
-                      <p className="text-slate-700">{customer.email}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Phone</Label>
-                    {editing ? (
-                      <Input
-                        value={editData.phone}
-                        onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                      />
-                    ) : (
-                      <p className="text-slate-700">{customer.phone}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Father's Name</Label>
-                    {editing ? (
-                      <Input
-                        value={editData.father_name || ""}
-                        onChange={(e) => setEditData({ ...editData, father_name: e.target.value })}
-                      />
-                    ) : (
-                      <p className="text-slate-700">{customer.father_name || "-"}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>PAN Number</Label>
-                    {editing ? (
-                      <Input
-                        value={editData.pan_number || ""}
-                        onChange={(e) => setEditData({ ...editData, pan_number: e.target.value })}
-                      />
-                    ) : (
-                      <p className="text-slate-700">{customer.pan_number || "-"}</p>
-                    )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Full Name</Label>
+                      {editing ? (
+                        <Input
+                          value={editData.name}
+                          onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.name}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Phone</Label>
+                      {editing ? (
+                        <Input
+                          value={editData.phone}
+                          onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.phone}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Email</Label>
+                      {editing ? (
+                        <Input
+                          value={editData.email}
+                          onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.email}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Father's Name</Label>
+                      {editing ? (
+                        <Input
+                          value={editData.father_name || ""}
+                          onChange={(e) => setEditData({ ...editData, father_name: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.father_name || "-"}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>PAN Number</Label>
+                      <p className="text-slate-700 mt-1">{customer.pan_number || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>Aadhaar</Label>
+                      <p className="text-slate-700 mt-1">{customer.aadhar_number || "-"}</p>
+                    </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Property & Pricing</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <Label>Project</Label>
-                    <p className="text-slate-700">{customer.project}</p>
-                  </div>
-                  <div>
-                    <Label>Tower</Label>
-                    <p className="text-slate-700">{customer.tower}</p>
-                  </div>
-                  <div>
-                    <Label>Unit Number</Label>
-                    <p className="text-slate-700">{customer.unit_number}</p>
-                  </div>
-                  <div>
-                    <Label>Carpet Area</Label>
-                    {editing ? (
-                      <Input
-                        type="number"
-                        value={editData.carpet_area}
-                        onChange={(e) => setEditData({ ...editData, carpet_area: parseFloat(e.target.value) })}
-                      />
-                    ) : (
-                      <p className="text-slate-700">{customer.carpet_area} sq.ft</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Saleable Area</Label>
-                    {editing ? (
-                      <Input
-                        type="number"
-                        value={editData.saleable_area}
-                        onChange={(e) => setEditData({ ...editData, saleable_area: parseFloat(e.target.value) })}
-                      />
-                    ) : (
-                      <p className="text-slate-700">{customer.saleable_area} sq.ft</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Parking</Label>
-                    {editing ? (
-                      <Input
-                        value={editData.parking || ""}
-                        onChange={(e) => setEditData({ ...editData, parking: e.target.value })}
-                      />
-                    ) : (
-                      <p className="text-slate-700">{customer.parking || "-"}</p>
-                    )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>BHK Type</Label>
+                      <p className="text-slate-700 mt-1">{customer.bhk_type || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>Floor</Label>
+                      <p className="text-slate-700 mt-1">{customer.floor || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>Saleable Area</Label>
+                      <p className="text-slate-700 mt-1">{customer.saleable_area || 0} sq.ft</p>
+                    </div>
+                    <div>
+                      <Label>Rate/Sq.ft</Label>
+                      <p className="text-slate-700 mt-1">₹{customer.rate_per_sqft?.toLocaleString() || 0}</p>
+                    </div>
+                    <div>
+                      <Label>Base Price</Label>
+                      <p className="text-slate-700 mt-1">{formatCurrency(customer.base_price)}</p>
+                    </div>
+                    <div>
+                      <Label>GST (5%)</Label>
+                      <p className="text-slate-700 mt-1">{formatCurrency(customer.gst_amount)}</p>
+                    </div>
+                    <div>
+                      <Label>Total Price</Label>
+                      <p className="text-primary font-bold mt-1">{formatCurrency(customer.total_price)}</p>
+                    </div>
+                    <div>
+                      <Label>UDS</Label>
+                      <p className="text-slate-700 mt-1">{customer.uds || "-"}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Finance Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Finance Type</Label>
+                    <p className="text-slate-700 mt-1 capitalize">{customer.finance_type || "Self"}</p>
+                  </div>
+                  <div>
+                    <Label>Bank</Label>
+                    <p className="text-slate-700 mt-1">{customer.finance_bank || "-"}</p>
+                  </div>
+                  <div>
+                    <Label>Booking Amount</Label>
+                    <p className="text-slate-700 mt-1">{formatCurrency(customer.booking_amount)}</p>
+                  </div>
+                  <div>
+                    <Label>Total Received</Label>
+                    <p className="text-green-600 font-semibold mt-1">{formatCurrency(customer.total_received)}</p>
+                  </div>
+                  <div>
+                    <Label>Balance</Label>
+                    <p className="text-red-600 font-semibold mt-1">{formatCurrency(customer.balance_amount)}</p>
+                  </div>
+                  <div>
+                    <Label>Booking Date</Label>
+                    <p className="text-slate-700 mt-1">{customer.booking_date || "-"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {customer.co_applicant_name && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Co-Applicant Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Name</Label>
+                      <p className="text-slate-700 mt-1">{customer.co_applicant_name}</p>
+                    </div>
+                    <div>
+                      <Label>Phone</Label>
+                      <p className="text-slate-700 mt-1">{customer.co_applicant_phone || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>PAN</Label>
+                      <p className="text-slate-700 mt-1">{customer.co_applicant_pan || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>Aadhaar</Label>
+                      <p className="text-slate-700 mt-1">{customer.co_applicant_aadhar || "-"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         {/* Payments Tab */}
@@ -464,69 +723,71 @@ const CustomerDetailPage = () => {
                 <CardTitle>Payment Schedule</CardTitle>
                 <CardDescription>Track all payment milestones</CardDescription>
               </div>
-              <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button data-testid="add-payment-btn">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Payment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Payment Milestone</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Installment Name *</Label>
-                      <Input
-                        value={newPayment.installment_name}
-                        onChange={(e) => setNewPayment({ ...newPayment, installment_name: e.target.value })}
-                        placeholder="e.g., Booking Amount"
-                        data-testid="payment-name-input"
-                      />
-                    </div>
-                    <div>
-                      <Label>Milestone</Label>
-                      <Select
-                        value={newPayment.milestone}
-                        onValueChange={(value) => setNewPayment({ ...newPayment, milestone: value })}
-                      >
-                        <SelectTrigger data-testid="payment-milestone-select">
-                          <SelectValue placeholder="Select milestone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="booking">Booking Amount</SelectItem>
-                          <SelectItem value="agreement">Agreement Stage</SelectItem>
-                          <SelectItem value="plinth">Plinth Completion</SelectItem>
-                          <SelectItem value="slab">Slab Completion</SelectItem>
-                          <SelectItem value="possession">Final Possession</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Amount (₹) *</Label>
-                      <Input
-                        type="number"
-                        value={newPayment.amount}
-                        onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                        data-testid="payment-amount-input"
-                      />
-                    </div>
-                    <div>
-                      <Label>Due Date *</Label>
-                      <Input
-                        type="date"
-                        value={newPayment.due_date}
-                        onChange={(e) => setNewPayment({ ...newPayment, due_date: e.target.value })}
-                        data-testid="payment-date-input"
-                      />
-                    </div>
-                    <Button onClick={handleAddPayment} className="w-full" data-testid="save-payment-btn">
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleGeneratePaymentSchedule} data-testid="generate-schedule-btn">
+                  Auto-Generate
+                </Button>
+                <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button data-testid="add-payment-btn">
+                      <Plus className="w-4 h-4 mr-2" />
                       Add Payment
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Payment Milestone</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Installment Name *</Label>
+                        <Input
+                          value={newPayment.installment_name}
+                          onChange={(e) => setNewPayment({ ...newPayment, installment_name: e.target.value })}
+                          placeholder="e.g., Booking Amount"
+                        />
+                      </div>
+                      <div>
+                        <Label>Milestone</Label>
+                        <Select
+                          value={newPayment.milestone}
+                          onValueChange={(value) => setNewPayment({ ...newPayment, milestone: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select milestone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="booking">Booking</SelectItem>
+                            <SelectItem value="agreement">Agreement</SelectItem>
+                            <SelectItem value="foundation">Foundation</SelectItem>
+                            <SelectItem value="slab">Slab Completion</SelectItem>
+                            <SelectItem value="handover">Handover</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Amount (₹) *</Label>
+                        <Input
+                          type="number"
+                          value={newPayment.amount}
+                          onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Due Date *</Label>
+                        <Input
+                          type="date"
+                          value={newPayment.due_date}
+                          onChange={(e) => setNewPayment({ ...newPayment, due_date: e.target.value })}
+                        />
+                      </div>
+                      <Button onClick={handleAddPayment} className="w-full">
+                        Add Payment
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               {paymentSchedule.items.length > 0 ? (
@@ -575,20 +836,20 @@ const CustomerDetailPage = () => {
                 <div className="text-center py-8 text-slate-500">
                   <CreditCard className="w-12 h-12 mx-auto mb-4 text-slate-300" />
                   <p>No payment schedule yet</p>
-                  <p className="text-sm">Add payment milestones to track</p>
+                  <p className="text-sm mt-1">Click "Auto-Generate" to create from template</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Documents Tab */}
+        {/* Generated Documents Tab */}
         <TabsContent value="documents">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Generated Documents</CardTitle>
-                <CardDescription>Sales agreements, allotment letters, and more</CardDescription>
+                <CardDescription>Agreements, letters, and PDFs</CardDescription>
               </div>
               <Dialog open={docDialogOpen} onOpenChange={setDocDialogOpen}>
                 <DialogTrigger asChild>
@@ -605,7 +866,7 @@ const CustomerDetailPage = () => {
                     <div>
                       <Label>Document Type</Label>
                       <Select value={docType} onValueChange={setDocType}>
-                        <SelectTrigger data-testid="doc-type-select">
+                        <SelectTrigger>
                           <SelectValue placeholder="Select document type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -615,7 +876,7 @@ const CustomerDetailPage = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button onClick={handleGenerateDocument} className="w-full" data-testid="confirm-generate-btn">
+                    <Button onClick={handleGenerateDocument} className="w-full">
                       Generate
                     </Button>
                   </div>
@@ -630,7 +891,7 @@ const CustomerDetailPage = () => {
                       <div className="flex items-center gap-4">
                         <FileText className="w-8 h-8 text-primary" />
                         <div>
-                          <p className="font-medium capitalize">{doc.doc_type.replace("_", " ")}</p>
+                          <p className="font-medium capitalize">{doc.doc_type.replace(/_/g, " ")}</p>
                           <p className="text-sm text-slate-500">
                             Generated: {new Date(doc.generated_at).toLocaleDateString()}
                           </p>
@@ -638,7 +899,20 @@ const CustomerDetailPage = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={getStatusBadge(doc.status)}>{doc.status}</Badge>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePreviewDocument(doc)}
+                          data-testid={`preview-doc-${doc.id}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadDocument(doc)}
+                          data-testid={`download-doc-${doc.id}`}
+                        >
                           <Download className="w-4 h-4" />
                         </Button>
                       </div>
@@ -655,13 +929,114 @@ const CustomerDetailPage = () => {
           </Card>
         </TabsContent>
 
+        {/* Uploaded Documents Tab */}
+        <TabsContent value="uploads">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Uploaded Documents</CardTitle>
+                <CardDescription>Customer KYC and other uploaded files</CardDescription>
+              </div>
+              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button data-testid="upload-doc-btn">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Document
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Upload Document</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Document Type</Label>
+                      <Select value={uploadDocType} onValueChange={setUploadDocType}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pan_card">PAN Card</SelectItem>
+                          <SelectItem value="aadhaar">Aadhaar Card</SelectItem>
+                          <SelectItem value="passport">Passport</SelectItem>
+                          <SelectItem value="cheque">Cancelled Cheque</SelectItem>
+                          <SelectItem value="photo">Passport Photo</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>File</Label>
+                      <Input
+                        type="file"
+                        onChange={(e) => setUploadFile(e.target.files[0])}
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      />
+                    </div>
+                    <Button onClick={handleFileUpload} className="w-full" disabled={uploading}>
+                      {uploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        "Upload"
+                      )}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              {uploadedDocs.length > 0 ? (
+                <div className="space-y-4">
+                  {uploadedDocs.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <FileText className="w-8 h-8 text-blue-500" />
+                        <div>
+                          <p className="font-medium capitalize">{doc.doc_type.replace(/_/g, " ")}</p>
+                          <p className="text-sm text-slate-500">{doc.filename}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePreviewUploadedDoc(doc)}
+                          data-testid={`preview-upload-${doc.id}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadUploadedDoc(doc)}
+                          data-testid={`download-upload-${doc.id}`}
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <Upload className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                  <p>No documents uploaded yet</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Communication Tab */}
         <TabsContent value="communication">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Communication History</CardTitle>
-                <CardDescription>Emails and WhatsApp messages</CardDescription>
+                <CardDescription>Emails and messages</CardDescription>
               </div>
               <Dialog open={commDialogOpen} onOpenChange={setCommDialogOpen}>
                 <DialogTrigger asChild>
@@ -700,7 +1075,6 @@ const CustomerDetailPage = () => {
                           value={commSubject}
                           onChange={(e) => setCommSubject(e.target.value)}
                           placeholder="Email subject"
-                          data-testid="email-subject-input"
                         />
                       </div>
                     )}
@@ -711,13 +1085,12 @@ const CustomerDetailPage = () => {
                         onChange={(e) => setCommMessage(e.target.value)}
                         placeholder="Type your message..."
                         rows={4}
-                        data-testid="message-input"
                       />
                     </div>
                     <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                      Note: Messages are MOCKED. Configure SendGrid/Twilio for production.
+                      Note: Messages are MOCKED. Configure SendGrid for production.
                     </p>
-                    <Button onClick={handleSendCommunication} className="w-full" data-testid="confirm-send-btn">
+                    <Button onClick={handleSendCommunication} className="w-full">
                       Send
                     </Button>
                   </div>
@@ -739,7 +1112,7 @@ const CustomerDetailPage = () => {
                         <span className="text-sm text-slate-500">- {comm.message_type}</span>
                         <Badge variant="outline" className="ml-auto">{comm.status}</Badge>
                       </div>
-                      <p className="text-sm text-slate-600 whitespace-pre-wrap">{comm.content}</p>
+                      <p className="text-sm text-slate-600 whitespace-pre-wrap line-clamp-3">{comm.content}</p>
                       <p className="text-xs text-slate-400 mt-2">
                         {new Date(comm.sent_at).toLocaleString()}
                       </p>
@@ -771,7 +1144,6 @@ const CustomerDetailPage = () => {
                       id={key}
                       checked={value}
                       onCheckedChange={(checked) => handleUpdateChecklist(key, checked)}
-                      data-testid={`checklist-${key}`}
                     />
                     <Label htmlFor={key} className="flex-1 capitalize cursor-pointer">
                       {key.replace(/_/g, " ")}
@@ -784,6 +1156,19 @@ const CustomerDetailPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Document Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Document Preview</DialogTitle>
+          </DialogHeader>
+          <div
+            className="mt-4"
+            dangerouslySetInnerHTML={{ __html: previewContent || "" }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -23,10 +23,12 @@ import {
   X,
   Building2,
   ChevronDown,
+  UserPlus,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Leads", href: "/leads", icon: UserPlus },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Documents", href: "/documents", icon: FileText },
