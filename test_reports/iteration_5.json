@@ -1,0 +1,83 @@
+{
+  "summary": "All three new features tested and working: 1) Document delete with confirmation dialog, 2) Dashboard Payment Due Date Countdown section, 3) Customers page Agreement Filter dropdown. All 12 backend API tests passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "document_delete": {
+      "status": "PASS",
+      "tests": [
+        "Delete button (trash icon) visible next to each document - PASS",
+        "Clicking delete shows confirmation dialog - PASS",
+        "Dialog shows document name being deleted - PASS",
+        "Dialog has Cancel and Delete buttons - PASS",
+        "Warning 'This action cannot be undone' displayed - PASS",
+        "Backend DELETE /api/documents/{doc_id} returns 404 for non-existent docs - PASS",
+        "Backend DELETE /api/customers/{id}/documents/{doc_id} returns 404 for non-existent docs - PASS",
+        "Full create-delete cycle verified (generate doc, verify exists, delete, verify gone) - PASS"
+      ]
+    },
+    "dashboard_due_date_countdown": {
+      "status": "PASS",
+      "tests": [
+        "Payment Due Date Countdown section visible on dashboard - PASS",
+        "Shows customers with due dates in next 5 days - PASS",
+        "Countdown badges displayed (Due Tomorrow, 2 days left) - PASS",
+        "Customer cards are clickable and navigate to detail page - PASS",
+        "Shows booking date and due date on cards - PASS",
+        "Backend GET /api/dashboard/upcoming-due-dates returns list - PASS",
+        "Data structure includes customer_id, name, project, unit_number, booking_date, due_date, days_until_due - PASS",
+        "Filter window is -3 to +5 days from today - PASS"
+      ]
+    },
+    "customers_agreement_filter": {
+      "status": "PASS",
+      "tests": [
+        "Agreement Filter dropdown visible on Customers page - PASS",
+        "Filter option 'All Agreements' present - PASS",
+        "Filter option 'Upcoming Due (Next 5 Days)' present - PASS",
+        "Filter option 'Pending Agreement' present - PASS",
+        "Filter option 'Agreement Signing Due' present - PASS",
+        "Selecting 'Upcoming Due' filters to show 2 customers (Kirran Kumar Reddy, Ramya) - PASS",
+        "Backend supports agreement_filter query param - PASS",
+        "pending_agreement filter returns only draft/sent status customers - PASS"
+      ]
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/pytest_results_new_features.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "100% - All 3 features verified working via Playwright"
+  },
+  "test_credentials": {
+    "email": "admin@rrlbuilders.com",
+    "password": "admin123"
+  },
+  "seed_data_creation": "Two customers (Kirran Kumar Reddy and Ramya) have recent booking dates that trigger due date countdown display",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Three features verified: 1) Document delete with confirmation in CustomerDetailPage Documents/Uploads tabs - uses data-testid='delete-doc-{id}' and 'delete-upload-{id}' for delete buttons, 'confirm-delete-doc-btn' for confirm button. 2) Dashboard shows Payment Due Date Countdown section with customer cards having data-testid='due-date-card-{index}'. 3) Customers page has Agreement Filter dropdown with data-testid='filter-agreement-select' with options for all, upcoming_due, pending_agreement, agreement_due.",
+  "mocked_integrations": [
+    "Twilio WhatsApp - MOCKED"
+  ],
+  "test_data": {
+    "customers_with_due_dates": [
+      {"name": "Kirran Kumar Reddy", "due_badge": "Due Tomorrow"},
+      {"name": "Ramya", "due_badge": "2 days left"}
+    ]
+  }
+}

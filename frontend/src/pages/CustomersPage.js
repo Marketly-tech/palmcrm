@@ -62,6 +62,7 @@ const CustomersPage = () => {
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [agreementFilter, setAgreementFilter] = useState("");
   const [projects, setProjects] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -89,7 +90,7 @@ const CustomersPage = () => {
   useEffect(() => {
     fetchCustomers();
     fetchProjects();
-  }, [search, projectFilter, statusFilter]);
+  }, [search, projectFilter, statusFilter, agreementFilter]);
 
   const fetchCustomers = async () => {
     try {
@@ -97,6 +98,7 @@ const CustomersPage = () => {
       if (search) params.append("search", search);
       if (projectFilter) params.append("project", projectFilter);
       if (statusFilter) params.append("agreement_status", statusFilter);
+      if (agreementFilter) params.append("agreement_filter", agreementFilter);
 
       const response = await axios.get(`${API}/customers?${params.toString()}`);
       setCustomers(response.data.customers);
@@ -427,6 +429,17 @@ const CustomersPage = () => {
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="signed">Signed</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={agreementFilter || "all"} onValueChange={(v) => setAgreementFilter(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-full sm:w-52" data-testid="filter-agreement-select">
+                <SelectValue placeholder="Agreement Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Agreements</SelectItem>
+                <SelectItem value="upcoming_due">Upcoming Due (Next 5 Days)</SelectItem>
+                <SelectItem value="pending_agreement">Pending Agreement</SelectItem>
+                <SelectItem value="agreement_due">Agreement Signing Due</SelectItem>
               </SelectContent>
             </Select>
           </div>

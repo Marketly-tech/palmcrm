@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { ScrollArea } from "../components/ui/scroll-area";
+import { Button } from "../components/ui/button";
 import {
   Users,
   FileText,
@@ -12,6 +14,9 @@ import {
   IndianRupee,
   TrendingUp,
   Activity,
+  Calendar,
+  Bell,
+  ChevronRight,
 } from "lucide-react";
 import {
   BarChart,
@@ -31,9 +36,11 @@ const API = `${BACKEND_URL}/api`;
 
 const DashboardPage = () => {
   const { user, hasRole } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
   const [paymentsOverview, setPaymentsOverview] = useState(null);
+  const [upcomingDueDates, setUpcomingDueDates] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,14 +49,16 @@ const DashboardPage = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [statsRes, activitiesRes, paymentsRes] = await Promise.all([
+      const [statsRes, activitiesRes, paymentsRes, dueDatesRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`),
         axios.get(`${API}/dashboard/recent-activities`),
         axios.get(`${API}/payments/overview`),
+        axios.get(`${API}/dashboard/upcoming-due-dates`),
       ]);
       setStats(statsRes.data);
       setActivities(activitiesRes.data);
       setPaymentsOverview(paymentsRes.data);
+      setUpcomingDueDates(dueDatesRes.data || []);
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
@@ -63,6 +72,26 @@ const DashboardPage = () => {
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  // Calculate countdown days
+  const getCountdownDays = (dueDate) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getCountdownBadge = (days) => {
+    if (days < 0) return { text: `${Math.abs(days)} days overdue`, className: "bg-red-100 text-red-700" };
+    if (days === 0) return { text: "Due Today!", className: "bg-red-500 text-white animate-pulse" };
+    if (days === 1) return { text: "Due Tomorrow", className: "bg-orange-500 text-white" };
+    if (days <= 3) return { text: `${days} days left`, className: "bg-orange-100 text-orange-700" };
+    if (days <= 5) return { text: `${days} days left`, className: "bg-amber-100 text-amber-700" };
+    return { text: `${days} days left`, className: "bg-green-100 text-green-700" };
   };
 
   const COLORS = ["hsl(199, 89%, 48%)", "hsl(168, 80%, 28%)", "hsl(43, 74%, 66%)", "hsl(0, 84%, 60%)"];
@@ -321,6 +350,55 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Due Dates Countdown - Next 5 Days */}
+      {upcomingDueDates.length > 0 && (
+        <Card className="border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+          <CardHeader>
+            <CardTitle className="font-heading flex items-center gap-2">
+              <Bell className="h-5 w-5 text-orange-500 animate-bounce" />
+              Payment Due Date Countdown
+            </CardTitle>
+            <CardDescription>
+              Customers with payment due dates in the next 5 days (starting 10 days from booking)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {upcomingDueDates.map((item, index) => {
+                const countdownDays = getCountdownDays(item.due_date);
+                const badge = getCountdownBadge(countdownDays);
+                return (
+                  <div
+                    key={index}
+                    className="p-4 bg-white rounded-lg border border-orange-200 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/customers/${item.customer_id}`)}
+                    data-testid={`due-date-card-${index}`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-slate-900">{item.customer_name}</p>
+                        <p className="text-sm text-slate-500">{item.project} - {item.unit_number}</p>
+                      </div>
+                      <Badge className={badge.className}>
+                        {badge.text}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center mt-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Calendar className="w-4 h-4" />
+                        <span>Due: {new Date(item.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">Booked: {new Date(item.booking_date).toLocaleDateString('en-IN')}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Activity */}
       <Card>

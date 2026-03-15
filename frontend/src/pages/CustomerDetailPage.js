@@ -31,6 +31,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -99,6 +109,12 @@ const CustomerDetailPage = () => {
   const [localAttachment, setLocalAttachment] = useState(null);
   const localFileRef = useRef(null);
   
+  // Document Delete
+  const [docDeleteDialogOpen, setDocDeleteDialogOpen] = useState(false);
+  const [docToDelete, setDocToDelete] = useState(null);
+  const [docDeleteType, setDocDeleteType] = useState(null); // 'generated' or 'uploaded'
+  const [docDeleting, setDocDeleting] = useState(false);
+
   // Calculator Tab Editing
   const [calcEditing, setCalcEditing] = useState(false);
   const [calcData, setCalcData] = useState({});
@@ -489,6 +505,35 @@ const CustomerDetailPage = () => {
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(amount || 0);
+  };
+
+  // Delete document functions
+  const handleDeleteDocClick = (doc, type) => {
+    setDocToDelete(doc);
+    setDocDeleteType(type);
+    setDocDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDeleteDoc = async () => {
+    if (!docToDelete) return;
+    
+    setDocDeleting(true);
+    try {
+      const endpoint = docDeleteType === 'generated' 
+        ? `${API}/documents/${docToDelete.id}`
+        : `${API}/customers/${id}/documents/${docToDelete.id}`;
+      
+      await axios.delete(endpoint);
+      toast.success("Document deleted successfully");
+      setDocDeleteDialogOpen(false);
+      setDocToDelete(null);
+      setDocDeleteType(null);
+      fetchCustomerData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to delete document");
+    } finally {
+      setDocDeleting(false);
+    }
   };
 
   // Live price calculation function
@@ -1560,6 +1605,15 @@ const CustomerDetailPage = () => {
                         >
                           <Download className="w-4 h-4" />
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteDocClick(doc, 'generated')}
+                          data-testid={`delete-doc-${doc.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -1660,6 +1714,15 @@ const CustomerDetailPage = () => {
                           data-testid={`download-upload-${doc.id}`}
                         >
                           <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteDocClick(doc, 'uploaded')}
+                          data-testid={`delete-upload-${doc.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
@@ -1908,6 +1971,45 @@ const CustomerDetailPage = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Document Delete Confirmation Dialog */}
+      <AlertDialog open={docDeleteDialogOpen} onOpenChange={setDocDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {docToDelete && (
+                <>
+                  Are you sure you want to delete <strong>"{docToDelete.doc_type?.replace(/_/g, " ") || docToDelete.filename}"</strong>?
+                  <br /><br />
+                  <span className="text-red-600 font-medium">This action cannot be undone.</span>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={docDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteDoc}
+              disabled={docDeleting}
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="confirm-delete-doc-btn"
+            >
+              {docDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

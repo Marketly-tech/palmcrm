@@ -582,6 +582,7 @@ async def get_customers(
     search: Optional[str] = None,
     project: Optional[str] = None,
     agreement_status: Optional[str] = None,
+    agreement_filter: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
     user: dict = Depends(get_current_user)
@@ -599,8 +600,55 @@ async def get_customers(
     if agreement_status:
         query["agreement_status"] = agreement_status
     
-    customers = await db.customers.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
-    total = await db.customers.count_documents(query)
+    # Apply agreement filters
+    if agreement_filter:
+        today = datetime.now(timezone.utc).date()
+        
+        if agreement_filter == "upcoming_due":
+            # Customers with due date in next 5 days (10 days from booking)
+            # We'll filter in Python since we need date calculation
+            pass
+        elif agreement_filter == "pending_agreement":
+            # Customers with draft or sent agreement status
+            query["agreement_status"] = {"$in": ["draft", "sent"]}
+        elif agreement_filter == "agreement_due":
+            # Customers whose agreement needs signing (sent but not signed)
+            query["agreement_status"] = "sent"
+    
+    customers = await db.customers.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit * 2 if agreement_filter == "upcoming_due" else limit)
+    
+    # Post-filter for upcoming_due
+    if agreement_filter == "upcoming_due":
+        today = datetime.now(timezone.utc).date()
+        filtered_customers = []
+        
+        for customer in customers:
+            booking_date_str = customer.get('booking_date')
+            if not booking_date_str:
+                continue
+            try:
+                if isinstance(booking_date_str, str):
+                    booking_date = datetime.strptime(booking_date_str, "%Y-%m-%d").date()
+                else:
+                    booking_date = booking_date_str
+                
+                # Due date is 10 days from booking
+                due_date = booking_date + timedelta(days=10)
+                days_until_due = (due_date - today).days
+                
+                # Include if due within next 5 days (including recently overdue up to 3 days)
+                if -3 <= days_until_due <= 5:
+                    customer['_due_date'] = due_date.isoformat()
+                    customer['_days_until_due'] = days_until_due
+                    filtered_customers.append(customer)
+            except Exception:
+                continue
+        
+        # Sort by due date (closest first)
+        filtered_customers.sort(key=lambda x: x.get('_days_until_due', 999))
+        customers = filtered_customers[:limit]
+    
+    total = await db.customers.count_documents(query) if agreement_filter != "upcoming_due" else len(customers)
     
     return {"customers": customers, "total": total}
 
@@ -2136,6 +2184,61 @@ async def get_recent_activities(limit: int = 20, user: dict = Depends(get_curren
     activities = await db.activity_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return activities
 
+@api_router.get("/dashboard/upcoming-due-dates")
+async def get_upcoming_due_dates(user: dict = Depends(get_current_user)):
+    """
+    Get customers with payment due dates in the next 5 days.
+    Due date rule: 10 days from booking date.
+    """
+    today = datetime.now(timezone.utc).date()
+    
+    # Get all customers
+    customers = await db.customers.find(
+        {"stage": {"$ne": "pending_approval"}},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    upcoming = []
+    
+    for customer in customers:
+        booking_date_str = customer.get('booking_date')
+        if not booking_date_str:
+            continue
+        
+        try:
+            # Parse booking date
+            if isinstance(booking_date_str, str):
+                booking_date = datetime.strptime(booking_date_str, "%Y-%m-%d").date()
+            else:
+                booking_date = booking_date_str
+            
+            # Due date is 10 days from booking date
+            due_date = booking_date + timedelta(days=10)
+            
+            # Check if due date is within next 5 days (including overdue up to 3 days)
+            days_until_due = (due_date - today).days
+            
+            if -3 <= days_until_due <= 5:
+                upcoming.append({
+                    "customer_id": customer.get('id'),
+                    "customer_name": customer.get('name'),
+                    "project": customer.get('project'),
+                    "unit_number": customer.get('unit_number'),
+                    "booking_date": booking_date.isoformat(),
+                    "due_date": due_date.isoformat(),
+                    "days_until_due": days_until_due,
+                    "total_price": customer.get('total_price', 0),
+                    "balance_amount": customer.get('balance_amount', 0),
+                })
+        except Exception as e:
+            logger.error(f"Error parsing dates for customer {customer.get('id')}: {e}")
+            continue
+    
+    # Sort by due date (closest first)
+    upcoming.sort(key=lambda x: x['days_until_due'])
+    
+    return upcoming
+
 # ==================== ACTIVITY LOGS ====================
 @api_router.get("/activity-logs")
 async def get_activity_logs(
@@ -2624,6 +2727,47 @@ async def preview_document(doc_id: str, user: dict = Depends(get_current_user)):
         "content_type": doc.get('content_type', 'application/octet-stream'),
         "content_base64": doc['content_base64']
     }
+
+# Delete generated document
+@api_router.delete("/documents/{doc_id}")
+async def delete_generated_document(doc_id: str, user: dict = Depends(get_current_user)):
+    """Delete a generated document"""
+    doc = await db.generated_documents.find_one({"id": doc_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    await db.generated_documents.delete_one({"id": doc_id})
+    await log_activity(user['id'], user['name'], "delete", "document", doc_id, f"Deleted generated document: {doc.get('doc_type')}")
+    
+    return {"message": "Document deleted successfully"}
+
+# Delete uploaded customer document
+@api_router.delete("/customers/{customer_id}/documents/{doc_id}")
+async def delete_uploaded_document(customer_id: str, doc_id: str, user: dict = Depends(get_current_user)):
+    """Delete an uploaded customer document"""
+    doc = await db.customer_documents.find_one({"id": doc_id, "customer_id": customer_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    await db.customer_documents.delete_one({"id": doc_id})
+    
+    # Update customer's uploaded_documents dict
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if customer:
+        uploaded_docs = customer.get('uploaded_documents', {})
+        # Remove the doc_id reference from uploaded_documents
+        for key, val in list(uploaded_docs.items()):
+            if val == doc_id:
+                del uploaded_docs[key]
+                break
+        await db.customers.update_one(
+            {"id": customer_id},
+            {"$set": {"uploaded_documents": uploaded_docs}}
+        )
+    
+    await log_activity(user['id'], user['name'], "delete", "uploaded_document", doc_id, f"Deleted uploaded document: {doc.get('filename', doc.get('doc_type'))}")
+    
+    return {"message": "Document deleted successfully"}
 
 # ==================== HEALTH CHECK ====================
 @api_router.get("/")
