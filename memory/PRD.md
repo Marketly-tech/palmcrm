@@ -45,12 +45,18 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - **Variable Disbursement Calculator**: Custom percentage input (30%, 50%, 70%, 100% quick buttons)
 - **Live Price Recalculation**: Price updates automatically in edit mode as values change
 
-### Module 4: Payment Plan ✅ COMPLETED
+### Module 4: Payment Plan ✅ COMPLETED (Enhanced)
 - 13-milestone payment schedule template
 - Auto-generate schedule based on total price
 - Track payment status (Pending/Paid/Partial/Overdue)
 - Disbursement calculator (30%, 50%, 70% quick buttons)
 - Payment tracking with percentages and progress bar
+- **AUTO-SYNC Payment Tracking** (NEW - March 15, 2026):
+  - When payment status changes → customer's total_received auto-updates
+  - Balance amount recalculates automatically (total_price - total_received)
+  - Payment percentages update in real-time
+  - "Paid" items count as 100%, "Partial" items count as 50%
+- **Payment Summary Section**: Shows Total Value, Total Received, Balance Pending, Progress indicator (X of Y installments paid)
 
 ### Module 5: Document Generation ✅ COMPLETED
 - HTML templates for Sales Agreement, Allotment Letter, Disbursement Letter
@@ -120,6 +126,19 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 ## Test Credentials
 - **Email**: admin@rrlbuilders.com
 - **Password**: admin123
+
+## Recent Updates (March 15, 2026 - Session 3)
+
+### Payment Schedule Auto-Sync with Payment Tracking
+1. ✅ **Connected payment schedule with payment tracking** - When payment status changes:
+   - `total_received` auto-calculates from all "paid" items (100%) + "partial" items (50%)
+   - `balance_amount` = total_price - total_received
+   - `payment_received_percentage` and `payment_pending_percentage` auto-update
+   - Customer record updated in database automatically
+2. ✅ **Payment Summary UI** - Added summary section below payment schedule showing:
+   - Total Value, Total Received (with %), Balance Pending (with %), Progress bar with "X of Y installments paid"
+3. ✅ **Real-time UI Updates** - No page refresh needed; frontend updates immediately from API response
+4. ✅ **Toast notifications** - Shows "Payment marked as paid - Received: ₹X" confirmation
 
 ## Recent Updates (March 15, 2026 - Session 2)
 
