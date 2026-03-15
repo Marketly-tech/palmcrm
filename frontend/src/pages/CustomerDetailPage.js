@@ -51,7 +51,10 @@ import {
   Eye,
   Upload,
   Trash2,
+  Calculator,
+  RefreshCw,
 } from "lucide-react";
+import { Separator } from "../components/ui/separator";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -513,10 +516,14 @@ const CustomerDetailPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="details" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex flex-wrap">
           <TabsTrigger value="details" data-testid="tab-details">
             <User className="w-4 h-4 mr-2" />
             Details
+          </TabsTrigger>
+          <TabsTrigger value="calculator" data-testid="tab-calculator">
+            <Calculator className="w-4 h-4 mr-2" />
+            Calculator
           </TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments">
             <CreditCard className="w-4 h-4 mr-2" />
@@ -616,23 +623,102 @@ const CustomerDetailPage = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>BHK Type</Label>
-                      <p className="text-slate-700 mt-1">{customer.bhk_type || "-"}</p>
+                      {editing ? (
+                        <Select
+                          value={editData.bhk_type || ""}
+                          onValueChange={(value) => setEditData({ ...editData, bhk_type: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select BHK" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="2BHK">2 BHK</SelectItem>
+                            <SelectItem value="2.5BHK">2.5 BHK</SelectItem>
+                            <SelectItem value="3BHK">3 BHK</SelectItem>
+                            <SelectItem value="3.5BHK">3.5 BHK</SelectItem>
+                            <SelectItem value="4BHK">4 BHK</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.bhk_type || "-"}</p>
+                      )}
                     </div>
                     <div>
                       <Label>Floor</Label>
-                      <p className="text-slate-700 mt-1">{customer.floor || "-"}</p>
+                      {editing ? (
+                        <Input
+                          type="number"
+                          value={editData.floor || ""}
+                          onChange={(e) => setEditData({ ...editData, floor: parseInt(e.target.value) || 0 })}
+                          placeholder="Floor number"
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.floor || "0"}</p>
+                      )}
                     </div>
                     <div>
-                      <Label>Saleable Area</Label>
-                      <p className="text-slate-700 mt-1">{customer.saleable_area || 0} sq.ft</p>
+                      <Label>Carpet Area (sq.ft)</Label>
+                      {editing ? (
+                        <Input
+                          type="number"
+                          value={editData.carpet_area || ""}
+                          onChange={(e) => setEditData({ ...editData, carpet_area: parseFloat(e.target.value) || 0 })}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.carpet_area || 0} sq.ft</p>
+                      )}
                     </div>
                     <div>
-                      <Label>Rate/Sq.ft</Label>
-                      <p className="text-slate-700 mt-1">₹{customer.rate_per_sqft?.toLocaleString() || 0}</p>
+                      <Label>Saleable Area (sq.ft)</Label>
+                      {editing ? (
+                        <Input
+                          type="number"
+                          value={editData.saleable_area || ""}
+                          onChange={(e) => setEditData({ ...editData, saleable_area: parseFloat(e.target.value) || 0 })}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.saleable_area || 0} sq.ft</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Rate/Sq.ft (₹)</Label>
+                      {editing ? (
+                        <>
+                          <Input
+                            type="number"
+                            value={editData.rate_per_sqft || ""}
+                            onChange={(e) => setEditData({ ...editData, rate_per_sqft: parseFloat(e.target.value) || 0 })}
+                          />
+                          <p className="text-xs text-slate-500 mt-1">Floor rise: ₹50/sqft per floor</p>
+                        </>
+                      ) : (
+                        <p className="text-slate-700 mt-1">₹{customer.rate_per_sqft?.toLocaleString() || 0}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Additional Parking</Label>
+                      {editing ? (
+                        <Input
+                          type="number"
+                          min="0"
+                          value={editData.additional_parking || "0"}
+                          onChange={(e) => setEditData({ ...editData, additional_parking: parseInt(e.target.value) || 0 })}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.additional_parking || 0}</p>
+                      )}
                     </div>
                     <div>
                       <Label>Base Price</Label>
                       <p className="text-slate-700 mt-1">{formatCurrency(customer.base_price)}</p>
+                    </div>
+                    <div>
+                      <Label>Club House</Label>
+                      <p className="text-slate-700 mt-1">{formatCurrency(customer.club_house_charges)}</p>
+                    </div>
+                    <div>
+                      <Label>Labour Cess (0.70%)</Label>
+                      <p className="text-slate-700 mt-1">{formatCurrency(customer.labour_cess)}</p>
                     </div>
                     <div>
                       <Label>GST (5%)</Label>
@@ -647,6 +733,13 @@ const CustomerDetailPage = () => {
                       <p className="text-slate-700 mt-1">{customer.uds || "-"}</p>
                     </div>
                   </div>
+                  {editing && (
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-700">
+                        <strong>Note:</strong> After saving, use the "Recalculate Price" button to update the total based on new values.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -712,6 +805,198 @@ const CustomerDetailPage = () => {
                 </CardContent>
               </Card>
             )}
+          </div>
+        </TabsContent>
+
+        {/* Calculator Tab */}
+        <TabsContent value="calculator">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Price Calculator */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="w-5 h-5 text-primary" />
+                  Price Breakup Calculator
+                </CardTitle>
+                <CardDescription>
+                  Recalculate price based on updated values
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Saleable Area (sq.ft)</Label>
+                    <Input
+                      type="number"
+                      value={customer.saleable_area || 0}
+                      readOnly
+                      className="bg-slate-50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Rate/Sq.ft (₹)</Label>
+                    <Input
+                      type="number"
+                      value={customer.rate_per_sqft || 0}
+                      readOnly
+                      className="bg-slate-50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Floor Number</Label>
+                    <Input
+                      type="number"
+                      value={customer.floor || 0}
+                      readOnly
+                      className="bg-slate-50"
+                    />
+                    <p className="text-xs text-slate-500">Floor rise: ₹{(customer.floor || 0) * 50}/sqft</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Additional Parking</Label>
+                    <Input
+                      type="number"
+                      value={customer.additional_parking || 0}
+                      readOnly
+                      className="bg-slate-50"
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Base Price ({customer.saleable_area || 0} × ₹{((customer.rate_per_sqft || 0) + ((customer.floor || 0) * 50))})</span>
+                    <span className="font-semibold">{formatCurrency(customer.base_price)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Club House & Infrastructure</span>
+                    <span className="font-semibold">{formatCurrency(customer.club_house_charges || 200000)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Additional Parking ({customer.additional_parking || 0} × ₹3L)</span>
+                    <span className="font-semibold">{formatCurrency(customer.additional_parking_charges || 0)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Labour Cess (0.70%)</span>
+                    <span className="font-semibold">{formatCurrency(customer.labour_cess)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">GST (5%)</span>
+                    <span className="font-semibold">{formatCurrency(customer.gst_amount)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between text-lg">
+                    <span className="font-semibold text-primary">Total Flat Value</span>
+                    <span className="font-bold text-primary">{formatCurrency(customer.total_price)}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                  <span className="text-slate-600">UDS (Undivided Share)</span>
+                  <span className="font-semibold">{customer.uds || (customer.saleable_area * 0.495046).toFixed(2)}</span>
+                </div>
+
+                <Button 
+                  className="w-full" 
+                  onClick={async () => {
+                    try {
+                      // Recalculate and update
+                      const floor = customer.floor || 0;
+                      const floorRise = floor * 50;
+                      const effectiveRate = (customer.rate_per_sqft || 0) + floorRise;
+                      const basePrice = effectiveRate * (customer.saleable_area || 0);
+                      const clubHouse = 200000;
+                      const parkingCharges = (customer.additional_parking || 0) * 300000;
+                      const subtotal = basePrice + clubHouse + parkingCharges;
+                      const labourCess = subtotal * 0.007;
+                      const gst = subtotal * 0.05;
+                      const total = subtotal + labourCess + gst;
+                      const uds = (customer.saleable_area || 0) * 0.495046;
+                      
+                      const updates = {
+                        base_price: Math.round(basePrice),
+                        club_house_charges: clubHouse,
+                        additional_parking_charges: parkingCharges,
+                        labour_cess: Math.round(labourCess),
+                        gst_amount: Math.round(gst),
+                        total_price: Math.round(total),
+                        uds: Math.round(uds * 100) / 100,
+                        balance_amount: Math.round(total - (customer.total_received || 0)),
+                        payment_received_percentage: total > 0 ? Math.round(((customer.total_received || 0) / total) * 10000) / 100 : 0,
+                        payment_pending_percentage: total > 0 ? Math.round((1 - (customer.total_received || 0) / total) * 10000) / 100 : 100,
+                      };
+                      
+                      await axios.put(`${API}/customers/${id}`, updates);
+                      fetchCustomerData();
+                      toast.success("Price recalculated and saved!");
+                    } catch (error) {
+                      toast.error("Failed to recalculate price");
+                    }
+                  }}
+                  data-testid="recalculate-price-btn"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Recalculate & Save Price
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Payment Tracking */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Tracking</CardTitle>
+                <CardDescription>Track received vs pending payments</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <p className="text-sm text-slate-600">Received</p>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(customer.total_received)}</p>
+                    <p className="text-lg font-semibold text-green-600">{(customer.payment_received_percentage || 0).toFixed(1)}%</p>
+                  </div>
+                  <div className="text-center p-4 bg-red-50 rounded-lg">
+                    <p className="text-sm text-slate-600">Pending</p>
+                    <p className="text-2xl font-bold text-red-600">{formatCurrency(customer.balance_amount)}</p>
+                    <p className="text-lg font-semibold text-red-600">{(customer.payment_pending_percentage || 100).toFixed(1)}%</p>
+                  </div>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Payment Progress</span>
+                    <span>{(customer.payment_received_percentage || 0).toFixed(1)}%</span>
+                  </div>
+                  <div className="h-4 bg-slate-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 transition-all duration-500"
+                      style={{ width: `${customer.payment_received_percentage || 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Disbursement Calculator */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold">Quick Disbursement Calculator</h4>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <Button variant="outline" size="sm" onClick={() => toast.info(`30% Disbursement: ${formatCurrency(customer.total_price * 0.3)}`)}>
+                      30% = {formatCurrency(customer.total_price * 0.3)}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => toast.info(`50% Disbursement: ${formatCurrency(customer.total_price * 0.5)}`)}>
+                      50% = {formatCurrency(customer.total_price * 0.5)}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => toast.info(`70% Disbursement: ${formatCurrency(customer.total_price * 0.7)}`)}>
+                      70% = {formatCurrency(customer.total_price * 0.7)}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 

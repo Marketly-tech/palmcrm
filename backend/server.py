@@ -1880,6 +1880,21 @@ class BookingFormData(BaseModel):
     project: str
     tower: str
     unit_number: str
+    bhk_type: Optional[str] = ""
+    floor: int = 0
+    carpet_area: float = 0
+    saleable_area: float = 0
+    rate_per_sqft: float = 0
+    parking: Optional[str] = "1"
+    additional_parking: int = 0
+    
+    # Calculated prices (from frontend)
+    total_price: float = 0
+    base_price: float = 0
+    club_house_charges: float = 200000
+    additional_parking_charges: float = 0
+    labour_cess: float = 0
+    gst_amount: float = 0
     
     # Initial Payment Info
     booking_amount: float = 0
@@ -1900,28 +1915,41 @@ async def submit_booking_form(data: BookingFormData):
     Public endpoint for booking form submission.
     Creates a customer with 'pending_approval' stage.
     """
-    # Check if unit exists and get pricing
+    # Use data from frontend if provided, otherwise try to get from unit database
     unit = await db.units.find_one({
         "project": data.project,
         "tower": data.tower,
         "unit_number": data.unit_number
     }, {"_id": 0})
     
-    # Calculate pricing if unit found
-    rate_per_sqft = unit.get('rate_per_sqft', 0) if unit else 0
-    saleable_area = unit.get('saleable_area', 0) if unit else 0
-    carpet_area = unit.get('carpet_area', 0) if unit else 0
-    floor = unit.get('floor', 0) if unit else 0
-    bhk_type = unit.get('bhk_type', '') if unit else ''
-    uds = unit.get('uds', 0) if unit else 0
+    # Use frontend data first, fallback to unit data if available
+    rate_per_sqft = data.rate_per_sqft if data.rate_per_sqft > 0 else (unit.get('rate_per_sqft', 0) if unit else 0)
+    saleable_area = data.saleable_area if data.saleable_area > 0 else (unit.get('saleable_area', 0) if unit else 0)
+    carpet_area = data.carpet_area if data.carpet_area > 0 else (unit.get('carpet_area', 0) if unit else 0)
+    floor = data.floor if data.floor > 0 else (unit.get('floor', 0) if unit else 0)
+    bhk_type = data.bhk_type if data.bhk_type else (unit.get('bhk_type', '') if unit else '')
+    uds = round(saleable_area * 0.495046, 2) if saleable_area > 0 else 0
     
-    # Calculate total price
-    base_price = rate_per_sqft * saleable_area
-    club_house = 200000  # Default club house
-    subtotal = base_price + club_house
-    labour_cess = subtotal * 0.007  # 0.70%
-    gst = subtotal * 0.05  # 5%
-    total_price = subtotal + labour_cess + gst
+    # Calculate floor rise (₹50/sqft per floor)
+    floor_rise_per_sqft = floor * 50
+    effective_rate = rate_per_sqft + floor_rise_per_sqft
+    
+    # Use frontend calculated prices if available, otherwise calculate
+    if data.total_price > 0:
+        base_price = data.base_price
+        club_house = data.club_house_charges
+        parking_charges = data.additional_parking_charges
+        labour_cess = data.labour_cess
+        gst = data.gst_amount
+        total_price = data.total_price
+    else:
+        base_price = effective_rate * saleable_area
+        club_house = 200000  # Default club house
+        parking_charges = data.additional_parking * 300000  # ₹3L per additional parking
+        subtotal = base_price + club_house + parking_charges
+        labour_cess = subtotal * 0.007  # 0.70%
+        gst = subtotal * 0.05  # 5%
+        total_price = subtotal + labour_cess + gst
     
     customer = Customer(
         name=data.name,
@@ -1948,9 +1976,12 @@ async def submit_booking_form(data: BookingFormData):
         carpet_area=carpet_area,
         saleable_area=saleable_area,
         uds=uds,
+        parking=data.parking,
+        additional_parking=data.additional_parking,
         rate_per_sqft=rate_per_sqft,
         base_price=round(base_price, 2),
-        club_house_charges=club_house,
+        club_house_charges=round(club_house, 2),
+        additional_parking_charges=round(parking_charges, 2),
         labour_cess=round(labour_cess, 2),
         gst_percentage=5,
         gst_amount=round(gst, 2),
