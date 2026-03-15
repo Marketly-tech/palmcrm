@@ -896,7 +896,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                       )}
                     </div>
                     <div>
-                      <Label>Father's Name</Label>
+                      <Label>Father's/Spouse Name</Label>
                       {editing ? (
                         <Input
                           value={editData.father_name || ""}
@@ -907,13 +907,45 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                       )}
                     </div>
                     <div>
+                      <Label>Date of Birth</Label>
+                      {editing ? (
+                        <Input
+                          type="date"
+                          value={editData.date_of_birth || ""}
+                          onChange={(e) => setEditData({ ...editData, date_of_birth: e.target.value })}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">{customer.date_of_birth || "-"}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Nationality</Label>
+                      <p className="text-slate-700 mt-1">{customer.nationality || "Indian"}</p>
+                    </div>
+                    <div>
                       <Label>PAN Number</Label>
                       <p className="text-slate-700 mt-1">{customer.pan_number || "-"}</p>
                     </div>
                     <div>
-                      <Label>Aadhaar</Label>
+                      <Label>Aadhaar Number</Label>
                       <p className="text-slate-700 mt-1">{customer.aadhar_number || "-"}</p>
                     </div>
+                    <div>
+                      <Label>Profession</Label>
+                      <p className="text-slate-700 mt-1">{customer.custom_fields?.profession || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>Company</Label>
+                      <p className="text-slate-700 mt-1">{customer.company || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>Designation</Label>
+                      <p className="text-slate-700 mt-1">{customer.designation || "-"}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Address</Label>
+                    <p className="text-slate-700 mt-1">{customer.address || "-"}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1121,6 +1153,33 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                     <p className="text-slate-700 mt-1">{customer.booking_date || "-"}</p>
                   </div>
                 </div>
+                {(customer.transaction_details || customer.transaction_date || customer.transaction_bank) && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="font-medium text-slate-700 mb-3">Transaction Details</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Transaction Date</Label>
+                        <p className="text-slate-700 mt-1">{customer.transaction_date || "-"}</p>
+                      </div>
+                      <div>
+                        <Label>Transaction Bank</Label>
+                        <p className="text-slate-700 mt-1">{customer.transaction_bank || "-"}</p>
+                      </div>
+                    </div>
+                    {customer.transaction_details && (
+                      <div className="mt-2">
+                        <Label>Transaction Reference</Label>
+                        <p className="text-slate-700 mt-1">{customer.transaction_details}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {customer.remarks && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Label>Remarks</Label>
+                    <p className="text-slate-700 mt-1">{customer.remarks}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -1136,18 +1195,40 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                       <p className="text-slate-700 mt-1">{customer.co_applicant_name}</p>
                     </div>
                     <div>
+                      <Label>Father's/Spouse Name</Label>
+                      <p className="text-slate-700 mt-1">{customer.co_applicant_father_name || "-"}</p>
+                    </div>
+                    <div>
                       <Label>Phone</Label>
                       <p className="text-slate-700 mt-1">{customer.co_applicant_phone || "-"}</p>
                     </div>
                     <div>
-                      <Label>PAN</Label>
+                      <Label>Email</Label>
+                      <p className="text-slate-700 mt-1">{customer.co_applicant_email || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>PAN Number</Label>
                       <p className="text-slate-700 mt-1">{customer.co_applicant_pan || "-"}</p>
                     </div>
                     <div>
-                      <Label>Aadhaar</Label>
+                      <Label>Aadhaar Number</Label>
                       <p className="text-slate-700 mt-1">{customer.co_applicant_aadhar || "-"}</p>
                     </div>
+                    <div>
+                      <Label>Profession</Label>
+                      <p className="text-slate-700 mt-1">{customer.custom_fields?.co_applicant_profession || "-"}</p>
+                    </div>
+                    <div>
+                      <Label>Nationality</Label>
+                      <p className="text-slate-700 mt-1">{customer.custom_fields?.co_applicant_nationality || "Indian"}</p>
+                    </div>
                   </div>
+                  {customer.co_applicant_address && (
+                    <div className="mt-4">
+                      <Label>Address</Label>
+                      <p className="text-slate-700 mt-1">{customer.co_applicant_address}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
