@@ -1,0 +1,68 @@
+{
+  "summary": "Frontend-only testing of two P1 features completed successfully. Both features are fully functional: 1) Variable Disbursement Calculator with percentage input and quick buttons, 2) Edit Mode Live Price Recalculation with Floor Rise editable field and green Live Price Preview box.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dashboard",
+        "issues": ["Minor console warning about chart dimensions - non-blocking, appears on every page load"]
+      }
+    ]
+  },
+  "features_tested": {
+    "disbursement_calculator": {
+      "status": "PASS",
+      "location": "Calculator tab in Customer Detail Page",
+      "tested": [
+        "Percentage input field with data-testid='disbursement-percentage-input'",
+        "Quick buttons for 30%, 50%, 70%, 100% - all work correctly",
+        "Disbursement amount updates live based on percentage",
+        "Shows Total Property Value and calculated disbursement amount",
+        "Default value is 30%"
+      ]
+    },
+    "live_price_recalculation_edit_mode": {
+      "status": "PASS",
+      "location": "Details tab in Customer Detail Page (Edit mode)",
+      "tested": [
+        "Floor Rise (₹/sq.ft) editable input field with placeholder 'e.g., 50'",
+        "Label: 'Manual floor rise cost per sq.ft' visible below input",
+        "Live Price Preview in green box (bg-green-50) shows real-time calculations",
+        "Preview shows: Base Price, Floor Rise, Club House, Additional Parking, New Total",
+        "Floor Rise row shows formula: (saleable_area × floor_rise_cost)",
+        "Verified calculation: 1265 × ₹50 = ₹63,250 correctly displayed",
+        "Total Price shows '(live preview)' label when value differs from saved",
+        "Message: 'Price updates automatically as you edit. Click Save Changes to persist.'",
+        "Save button (data-testid='save-customer-btn') available to persist changes"
+      ]
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "Not tested (frontend-only testing requested)",
+    "frontend": "100% - Both P1 features verified working"
+  },
+  "test_credentials": {
+    "email": "admin@rrlbuilders.com",
+    "password": "admin123"
+  },
+  "seed_data_creation": "Used existing customer 'Ramya' (RRL-00001) with saleable_area=1265 for testing live calculation",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "P1 features verified: 1) Disbursement Calculator in Calculator tab works with percentage input and quick buttons. 2) Edit mode shows Floor Rise editable field and Live Price Preview. Calculator tab shows Floor Rise as manual input (not automatic floor-based calculation). Both features implemented in CustomerDetailPage.js.",
+  "mocked_integrations": [
+    "Twilio WhatsApp - MOCKED"
+  ],
+  "screenshots_taken": {
+    "calculator_tab.png": "Shows Disbursement Calculator with percentage input, quick buttons (30/50/70/100%), and disbursement amount",
+    "live_preview_values.png": "Shows Live Price Preview in green box with Floor Rise (1265 × ₹50) = ₹63,250 calculated correctly"
+  }
+}

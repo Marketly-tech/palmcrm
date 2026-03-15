@@ -72,6 +72,12 @@ const CustomerDetailPage = () => {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({});
   const [saving, setSaving] = useState(false);
+  
+  // Live calculated values during editing
+  const [liveCalc, setLiveCalc] = useState(null);
+  
+  // Disbursement Calculator
+  const [disbursementPercentage, setDisbursementPercentage] = useState(30);
 
   // Payment Dialog
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -120,7 +126,12 @@ const CustomerDetailPage = () => {
         axios.get(`${API}/customers/${id}/documents-list`).catch(() => ({ data: [] })),
       ]);
       setCustomer(customerRes.data);
-      setEditData(customerRes.data);
+      // Initialize editData with floor_rise_cost from custom_fields
+      const customerData = customerRes.data;
+      setEditData({
+        ...customerData,
+        floor_rise_cost: customerData.custom_fields?.floor_rise_cost || 0,
+      });
       setPaymentSchedule(scheduleRes.data);
       setChecklist(checklistRes.data);
       setDocuments(docsRes.data);
@@ -137,10 +148,35 @@ const CustomerDetailPage = () => {
   const handleSaveCustomer = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/customers/${id}`, editData);
-      setCustomer(editData);
+      // Include live calculated prices if available
+      let dataToSave = { ...editData };
+      
+      if (liveCalc) {
+        dataToSave = {
+          ...dataToSave,
+          base_price: liveCalc.basePrice,
+          club_house_charges: liveCalc.clubHouse,
+          additional_parking_charges: liveCalc.parkingCharges,
+          labour_cess: liveCalc.labourCess,
+          gst_amount: liveCalc.gst,
+          total_price: liveCalc.total,
+          uds: liveCalc.uds,
+          balance_amount: Math.round(liveCalc.total - (customer.total_received || 0)),
+          payment_received_percentage: liveCalc.total > 0 ? Math.round(((customer.total_received || 0) / liveCalc.total) * 10000) / 100 : 0,
+          payment_pending_percentage: liveCalc.total > 0 ? Math.round((1 - (customer.total_received || 0) / liveCalc.total) * 10000) / 100 : 100,
+          custom_fields: {
+            ...(customer.custom_fields || {}),
+            floor_rise_cost: editData.floor_rise_cost || 0,
+            floor_rise_total: liveCalc.floorRiseTotal || 0,
+          }
+        };
+      }
+      
+      await axios.put(`${API}/customers/${id}`, dataToSave);
+      fetchCustomerData(); // Refresh to get updated data
       setEditing(false);
-      toast.success("Customer updated successfully");
+      setLiveCalc(null);
+      toast.success("Customer updated with recalculated prices");
     } catch (error) {
       toast.error("Failed to update customer");
     } finally {
@@ -399,6 +435,56 @@ const CustomerDetailPage = () => {
     }).format(amount || 0);
   };
 
+  // Live price calculation function
+  const calculateLivePrice = (data) => {
+    const saleableArea = parseFloat(data.saleable_area) || 0;
+    const ratePerSqft = parseFloat(data.rate_per_sqft) || 0;
+    const floorRiseCost = parseFloat(data.floor_rise_cost) || 0;
+    const additionalParking = parseInt(data.additional_parking) || 0;
+    
+    // Base price = Total Saleable Area × Rate/sqft
+    const basePrice = saleableArea * ratePerSqft;
+    
+    // Floor Rise is manual cost per sqft × saleable area
+    const floorRiseTotal = saleableArea * floorRiseCost;
+    
+    const clubHouse = 200000; // ₹2L
+    const parkingCharges = additionalParking * 300000; // ₹3L per additional
+    const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges;
+    const labourCess = subtotal * 0.007; // 0.70%
+    const gst = subtotal * 0.05; // 5%
+    const total = subtotal + labourCess + gst;
+    const uds = saleableArea * 0.495046;
+    
+    return {
+      basePrice: Math.round(basePrice),
+      floorRiseCost,
+      floorRiseTotal: Math.round(floorRiseTotal),
+      effectiveRate: ratePerSqft + floorRiseCost,
+      clubHouse,
+      parkingCharges: Math.round(parkingCharges),
+      subtotal: Math.round(subtotal),
+      labourCess: Math.round(labourCess),
+      gst: Math.round(gst),
+      total: Math.round(total),
+      uds: Math.round(uds * 100) / 100
+    };
+  };
+
+  // Update live calculation when editData changes
+  useEffect(() => {
+    if (editing && editData) {
+      const calc = calculateLivePrice(editData);
+      setLiveCalc(calc);
+    }
+  }, [editing, editData]);
+
+  // Handle edit data change with live calculation
+  const handleEditChange = (field, value) => {
+    const newEditData = { ...editData, [field]: value };
+    setEditData(newEditData);
+  };
+
   const getStatusBadge = (status) => {
     const styles = {
       pending: "bg-yellow-100 text-yellow-700",
@@ -649,23 +735,11 @@ const CustomerDetailPage = () => {
                         <Input
                           type="number"
                           value={editData.floor || ""}
-                          onChange={(e) => setEditData({ ...editData, floor: parseInt(e.target.value) || 0 })}
+                          onChange={(e) => handleEditChange('floor', parseInt(e.target.value) || 0)}
                           placeholder="Floor number"
                         />
                       ) : (
                         <p className="text-slate-700 mt-1">{customer.floor || "0"}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label>Carpet Area (sq.ft)</Label>
-                      {editing ? (
-                        <Input
-                          type="number"
-                          value={editData.carpet_area || ""}
-                          onChange={(e) => setEditData({ ...editData, carpet_area: parseFloat(e.target.value) || 0 })}
-                        />
-                      ) : (
-                        <p className="text-slate-700 mt-1">{customer.carpet_area || 0} sq.ft</p>
                       )}
                     </div>
                     <div>
@@ -674,7 +748,7 @@ const CustomerDetailPage = () => {
                         <Input
                           type="number"
                           value={editData.saleable_area || ""}
-                          onChange={(e) => setEditData({ ...editData, saleable_area: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) => handleEditChange('saleable_area', parseFloat(e.target.value) || 0)}
                         />
                       ) : (
                         <p className="text-slate-700 mt-1">{customer.saleable_area || 0} sq.ft</p>
@@ -683,16 +757,29 @@ const CustomerDetailPage = () => {
                     <div>
                       <Label>Rate/Sq.ft (₹)</Label>
                       {editing ? (
+                        <Input
+                          type="number"
+                          value={editData.rate_per_sqft || ""}
+                          onChange={(e) => handleEditChange('rate_per_sqft', parseFloat(e.target.value) || 0)}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">₹{customer.rate_per_sqft?.toLocaleString() || 0}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Floor Rise (₹/sq.ft)</Label>
+                      {editing ? (
                         <>
                           <Input
                             type="number"
-                            value={editData.rate_per_sqft || ""}
-                            onChange={(e) => setEditData({ ...editData, rate_per_sqft: parseFloat(e.target.value) || 0 })}
+                            value={editData.floor_rise_cost || ""}
+                            onChange={(e) => handleEditChange('floor_rise_cost', parseFloat(e.target.value) || 0)}
+                            placeholder="e.g., 50"
                           />
-                          <p className="text-xs text-slate-500 mt-1">Floor rise: ₹50/sqft per floor</p>
+                          <p className="text-xs text-slate-500 mt-1">Manual floor rise cost per sq.ft</p>
                         </>
                       ) : (
-                        <p className="text-slate-700 mt-1">₹{customer.rate_per_sqft?.toLocaleString() || 0}</p>
+                        <p className="text-slate-700 mt-1">₹{customer.custom_fields?.floor_rise_cost || 0}/sq.ft</p>
                       )}
                     </div>
                     <div>
@@ -702,7 +789,7 @@ const CustomerDetailPage = () => {
                           type="number"
                           min="0"
                           value={editData.additional_parking || "0"}
-                          onChange={(e) => setEditData({ ...editData, additional_parking: parseInt(e.target.value) || 0 })}
+                          onChange={(e) => handleEditChange('additional_parking', parseInt(e.target.value) || 0)}
                         />
                       ) : (
                         <p className="text-slate-700 mt-1">{customer.additional_parking || 0}</p>
@@ -710,33 +797,73 @@ const CustomerDetailPage = () => {
                     </div>
                     <div>
                       <Label>Base Price</Label>
-                      <p className="text-slate-700 mt-1">{formatCurrency(customer.base_price)}</p>
+                      <p className="text-slate-700 mt-1">
+                        {editing && liveCalc ? formatCurrency(liveCalc.basePrice) : formatCurrency(customer.base_price)}
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Floor Rise Total</Label>
+                      <p className="text-slate-700 mt-1">
+                        {editing && liveCalc ? formatCurrency(liveCalc.floorRiseTotal) : formatCurrency(customer.custom_fields?.floor_rise_total || 0)}
+                      </p>
                     </div>
                     <div>
                       <Label>Club House</Label>
-                      <p className="text-slate-700 mt-1">{formatCurrency(customer.club_house_charges)}</p>
+                      <p className="text-slate-700 mt-1">
+                        {editing && liveCalc ? formatCurrency(liveCalc.clubHouse) : formatCurrency(customer.club_house_charges)}
+                      </p>
                     </div>
                     <div>
                       <Label>Labour Cess (0.70%)</Label>
-                      <p className="text-slate-700 mt-1">{formatCurrency(customer.labour_cess)}</p>
+                      <p className="text-slate-700 mt-1">
+                        {editing && liveCalc ? formatCurrency(liveCalc.labourCess) : formatCurrency(customer.labour_cess)}
+                      </p>
                     </div>
                     <div>
                       <Label>GST (5%)</Label>
-                      <p className="text-slate-700 mt-1">{formatCurrency(customer.gst_amount)}</p>
+                      <p className="text-slate-700 mt-1">
+                        {editing && liveCalc ? formatCurrency(liveCalc.gst) : formatCurrency(customer.gst_amount)}
+                      </p>
                     </div>
                     <div>
                       <Label>Total Price</Label>
-                      <p className="text-primary font-bold mt-1">{formatCurrency(customer.total_price)}</p>
+                      <p className={`font-bold mt-1 ${editing && liveCalc ? 'text-green-600' : 'text-primary'}`}>
+                        {editing && liveCalc ? formatCurrency(liveCalc.total) : formatCurrency(customer.total_price)}
+                        {editing && liveCalc && liveCalc.total !== customer.total_price && (
+                          <span className="text-xs font-normal text-slate-500 ml-2">(live preview)</span>
+                        )}
+                      </p>
                     </div>
                     <div>
                       <Label>UDS</Label>
-                      <p className="text-slate-700 mt-1">{customer.uds || "-"}</p>
+                      <p className="text-slate-700 mt-1">
+                        {editing && liveCalc ? liveCalc.uds : (customer.uds || "-")}
+                      </p>
                     </div>
                   </div>
-                  {editing && (
-                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-sm text-amber-700">
-                        <strong>Note:</strong> After saving, use the "Recalculate Price" button to update the total based on new values.
+                  {editing && liveCalc && (
+                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-700 font-medium mb-2">
+                        Live Price Preview
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <span>Base Price ({editData.saleable_area || 0} × ₹{editData.rate_per_sqft || 0}):</span>
+                        <span className="font-medium text-right">{formatCurrency(liveCalc.basePrice)}</span>
+                        {liveCalc.floorRiseTotal > 0 && (
+                          <>
+                            <span>Floor Rise ({editData.saleable_area || 0} × ₹{editData.floor_rise_cost || 0}):</span>
+                            <span className="font-medium text-right">{formatCurrency(liveCalc.floorRiseTotal)}</span>
+                          </>
+                        )}
+                        <span>Club House & Infrastructure:</span>
+                        <span className="font-medium text-right">{formatCurrency(liveCalc.clubHouse)}</span>
+                        <span>Additional Parking:</span>
+                        <span className="font-medium text-right">{formatCurrency(liveCalc.parkingCharges)}</span>
+                        <span className="font-semibold pt-2 border-t">New Total:</span>
+                        <span className="font-bold text-right text-green-700 pt-2 border-t">{formatCurrency(liveCalc.total)}</span>
+                      </div>
+                      <p className="text-xs text-green-600 mt-2">
+                        Price updates automatically as you edit. Click "Save Changes" to persist.
                       </p>
                     </div>
                   )}
@@ -819,7 +946,7 @@ const CustomerDetailPage = () => {
                   Price Breakup Calculator
                 </CardTitle>
                 <CardDescription>
-                  Recalculate price based on updated values
+                  View and recalculate price based on property values
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -850,7 +977,16 @@ const CustomerDetailPage = () => {
                       readOnly
                       className="bg-slate-50"
                     />
-                    <p className="text-xs text-slate-500">Floor rise: ₹{(customer.floor || 0) * 50}/sqft</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Floor Rise (₹/sq.ft)</Label>
+                    <Input
+                      type="number"
+                      value={customer.custom_fields?.floor_rise_cost || 0}
+                      readOnly
+                      className="bg-slate-50"
+                    />
+                    <p className="text-xs text-slate-500">Manual floor rise cost per sq.ft</p>
                   </div>
                   <div className="space-y-2">
                     <Label>Additional Parking</Label>
@@ -867,9 +1003,15 @@ const CustomerDetailPage = () => {
 
                 <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Base Price ({customer.saleable_area || 0} × ₹{((customer.rate_per_sqft || 0) + ((customer.floor || 0) * 50))})</span>
+                    <span className="text-slate-600">Base Price ({customer.saleable_area || 0} sq.ft × ₹{customer.rate_per_sqft || 0})</span>
                     <span className="font-semibold">{formatCurrency(customer.base_price)}</span>
                   </div>
+                  {(customer.custom_fields?.floor_rise_total || 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Floor Rise ({customer.saleable_area || 0} sq.ft × ₹{customer.custom_fields?.floor_rise_cost || 0})</span>
+                      <span className="font-semibold">{formatCurrency(customer.custom_fields?.floor_rise_total || 0)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-slate-600">Club House & Infrastructure</span>
                     <span className="font-semibold">{formatCurrency(customer.club_house_charges || 200000)}</span>
@@ -903,23 +1045,30 @@ const CustomerDetailPage = () => {
                   className="w-full" 
                   onClick={async () => {
                     try {
-                      // Recalculate and update
-                      const floor = customer.floor || 0;
-                      const floorRise = floor * 50;
-                      const effectiveRate = (customer.rate_per_sqft || 0) + floorRise;
-                      const basePrice = effectiveRate * (customer.saleable_area || 0);
+                      // Recalculate using the new formula with manual floor rise
+                      const saleableArea = customer.saleable_area || 0;
+                      const ratePerSqft = customer.rate_per_sqft || 0;
+                      const floorRiseCost = customer.custom_fields?.floor_rise_cost || 0;
+                      const additionalParking = customer.additional_parking || 0;
+                      
+                      // Base price = Total Saleable Area × Rate/sqft
+                      const basePrice = saleableArea * ratePerSqft;
+                      
+                      // Floor Rise is manual cost per sqft × saleable area
+                      const floorRiseTotal = saleableArea * floorRiseCost;
+                      
                       const clubHouse = 200000;
-                      const parkingCharges = (customer.additional_parking || 0) * 300000;
-                      const subtotal = basePrice + clubHouse + parkingCharges;
+                      const parkingCharges = additionalParking * 300000;
+                      const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges;
                       const labourCess = subtotal * 0.007;
                       const gst = subtotal * 0.05;
                       const total = subtotal + labourCess + gst;
-                      const uds = (customer.saleable_area || 0) * 0.495046;
+                      const uds = saleableArea * 0.495046;
                       
                       const updates = {
                         base_price: Math.round(basePrice),
                         club_house_charges: clubHouse,
-                        additional_parking_charges: parkingCharges,
+                        additional_parking_charges: Math.round(parkingCharges),
                         labour_cess: Math.round(labourCess),
                         gst_amount: Math.round(gst),
                         total_price: Math.round(total),
@@ -927,6 +1076,11 @@ const CustomerDetailPage = () => {
                         balance_amount: Math.round(total - (customer.total_received || 0)),
                         payment_received_percentage: total > 0 ? Math.round(((customer.total_received || 0) / total) * 10000) / 100 : 0,
                         payment_pending_percentage: total > 0 ? Math.round((1 - (customer.total_received || 0) / total) * 10000) / 100 : 100,
+                        custom_fields: {
+                          ...(customer.custom_fields || {}),
+                          floor_rise_cost: floorRiseCost,
+                          floor_rise_total: Math.round(floorRiseTotal),
+                        }
                       };
                       
                       await axios.put(`${API}/customers/${id}`, updates);
@@ -982,17 +1136,75 @@ const CustomerDetailPage = () => {
 
                 {/* Disbursement Calculator */}
                 <div className="space-y-3">
-                  <h4 className="font-semibold">Quick Disbursement Calculator</h4>
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <Button variant="outline" size="sm" onClick={() => toast.info(`30% Disbursement: ${formatCurrency(customer.total_price * 0.3)}`)}>
-                      30% = {formatCurrency(customer.total_price * 0.3)}
+                  <h4 className="font-semibold">Disbursement Calculator</h4>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <Label htmlFor="disbursement-pct" className="text-sm">Enter Percentage (%)</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input
+                          id="disbursement-pct"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={disbursementPercentage}
+                          onChange={(e) => setDisbursementPercentage(parseFloat(e.target.value) || 0)}
+                          className="w-24"
+                          data-testid="disbursement-percentage-input"
+                        />
+                        <span className="text-slate-500">%</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-slate-600">Disbursement Amount</p>
+                      <p className="text-xl font-bold text-primary" data-testid="disbursement-amount">
+                        {formatCurrency(customer.total_price * (disbursementPercentage / 100))}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={disbursementPercentage === 30 ? "border-primary bg-primary/10" : ""}
+                      onClick={() => setDisbursementPercentage(30)}
+                    >
+                      30%
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => toast.info(`50% Disbursement: ${formatCurrency(customer.total_price * 0.5)}`)}>
-                      50% = {formatCurrency(customer.total_price * 0.5)}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={disbursementPercentage === 50 ? "border-primary bg-primary/10" : ""}
+                      onClick={() => setDisbursementPercentage(50)}
+                    >
+                      50%
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => toast.info(`70% Disbursement: ${formatCurrency(customer.total_price * 0.7)}`)}>
-                      70% = {formatCurrency(customer.total_price * 0.7)}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={disbursementPercentage === 70 ? "border-primary bg-primary/10" : ""}
+                      onClick={() => setDisbursementPercentage(70)}
+                    >
+                      70%
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={disbursementPercentage === 100 ? "border-primary bg-primary/10" : ""}
+                      onClick={() => setDisbursementPercentage(100)}
+                    >
+                      100%
+                    </Button>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg text-sm">
+                    <div className="flex justify-between">
+                      <span>Total Property Value:</span>
+                      <span className="font-medium">{formatCurrency(customer.total_price)}</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span>{disbursementPercentage}% Disbursement:</span>
+                      <span className="font-bold text-blue-700">{formatCurrency(customer.total_price * (disbursementPercentage / 100))}</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
