@@ -34,10 +34,12 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - Club House toggle (₹2L)
 - Additional Parking (₹3L each)
 - UDS calculation (Saleable Area × 0.495046)
-- **Calculator tab in Customer Profile**
+- **Calculator tab in Customer Profile**: 
+  - Editable with Edit/Cancel/Save buttons
+  - **Real-time Live Price Preview** (green box) shows instant calculation as values change
+  - Auto-saves to customer profile when Save is clicked
 - **Variable Disbursement Calculator**: Custom percentage input (30%, 50%, 70%, 100% quick buttons)
 - **Live Price Recalculation**: Price updates automatically in edit mode as values change
-- "Recalculate & Save Price" button
 
 ### Module 4: Payment Plan ✅ COMPLETED
 - 13-milestone payment schedule template
@@ -61,6 +63,7 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - SendGrid integration configured and working
 - Welcome email with HTML template
 - General email notifications for payment reminders, document sharing
+- **Email attachments**: Select from available/generated documents or upload from local disk
 - Communication logs stored in database
 - **From Email**: crm@rrlbuildersanddevelopers.com
 - **From Name**: RRL Group
