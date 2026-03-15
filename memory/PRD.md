@@ -27,6 +27,10 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - Document uploads and checklist
 - **Edit functionality** for all key fields
 - **Delete functionality** with confirmation dialog
+- **Agreement Filter** in customer list:
+  - Upcoming Due (Next 5 Days)
+  - Pending Agreement
+  - Agreement Signing Due
 
 ### Module 3: Price Breakup Calculator ✅ COMPLETED (Updated)
 - **Formula**: (Rate/sqft × Saleable Area) + Floor Rise + Club House + Parking + Labour Cess (0.70%) + GST (5%)
@@ -53,6 +57,7 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - PDF generation for Price Breakup
 - Pink-themed welcome email template
 - Preview and download functionality
+- **Delete documents** with confirmation prompt
 - Documents stored in customer's Documents tab
 
 ### Module 6: Agreement Management ✅ COMPLETED
@@ -80,6 +85,10 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - KPIs: Total Customers, Pending Agreements, Due This Week, Overdue Payments
 - Monthly Revenue Trend chart
 - Payment Status Distribution chart
+- **Payment Due Date Countdown**: Shows customers with payment due dates in next 5 days
+  - Rule: Due date = Booking date + 10 days
+  - Countdown badges: "Due Today!", "Due Tomorrow", "X days left"
+  - Clickable cards navigate to customer profile
 
 ### Module 11: User Roles ✅ COMPLETED
 - Admin, Manager, Accounts, Sales, Support roles
