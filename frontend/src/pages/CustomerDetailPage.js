@@ -65,6 +65,7 @@ import {
   RefreshCw,
   Paperclip,
   X,
+  MessageCircle,
 } from "lucide-react";
 import { Separator } from "../components/ui/separator";
 
@@ -319,7 +320,7 @@ const CustomerDetailPage = () => {
     setSendingWelcome(true);
     try {
       const response = await axios.post(`${API}/communication/send-welcome-email/${id}`);
-      toast.success(`Welcome email sent to ${customer.email} (MOCKED)`);
+      toast.success(`Welcome email sent to ${customer.email}`);
       
       // Open welcome email preview in new window
       if (response.data.welcome_html) {
@@ -336,6 +337,40 @@ const CustomerDetailPage = () => {
     } finally {
       setSendingWelcome(false);
     }
+  };
+
+  const handleSendWhatsAppWelcome = () => {
+    // Format phone number - remove spaces, dashes, and ensure it starts with country code
+    let phone = customer.phone?.replace(/[\s\-\(\)]/g, '') || '';
+    
+    // If phone doesn't start with country code, assume India (+91)
+    if (!phone.startsWith('+') && !phone.startsWith('91')) {
+      phone = '91' + phone;
+    } else if (phone.startsWith('+')) {
+      phone = phone.substring(1); // Remove + for WhatsApp URL
+    }
+    
+    // Welcome message
+    const message = `Hi ${customer.name}, This is from RRL Builders. Congratulations on your new home purchase! We are happy to welcome you to the RRL family.
+
+Property Details:
+- Project: ${customer.project}
+- Unit: ${customer.unit_number}
+- Tower: ${customer.tower}
+
+Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
+    
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp Web
+    const whatsappUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+    
+    // Log the communication
+    axios.post(`${API}/communication/whatsapp?customer_id=${id}&message=${encodeURIComponent('Welcome message sent via WhatsApp')}`).catch(() => {});
+    
+    toast.success("Opening WhatsApp Web...");
   };
 
   const handleGeneratePriceBreakup = async () => {
@@ -713,6 +748,15 @@ const CustomerDetailPage = () => {
               <Mail className="w-4 h-4 mr-2" />
             )}
             Send Welcome Email
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSendWhatsAppWelcome}
+            className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+            data-testid="send-whatsapp-btn"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            WhatsApp Welcome
           </Button>
           <Button
             variant="outline"
