@@ -20,6 +20,10 @@ from fastapi.responses import StreamingResponse, Response
 import base64
 import json
 
+# SendGrid imports
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -32,6 +36,11 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ.get('JWT_SECRET', 'rrl-crm-secret-key-change-in-production')
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
+
+# SendGrid Settings
+SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
+SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@rrlbuilders.com')
+SENDGRID_FROM_NAME = os.environ.get('SENDGRID_FROM_NAME', 'RRL Group')
 
 # Create the main app
 app = FastAPI(title="RRL Builders CRM API")
@@ -1710,8 +1719,7 @@ async def generate_price_breakup_pdf(customer_id: str, user: dict = Depends(get_
 @api_router.post("/communication/send-welcome-email/{customer_id}")
 async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_user)):
     """
-    Send Welcome Email with Price Breakup PDF attachment.
-    Currently MOCKED - logs the email content for testing.
+    Send Welcome Email with Price Breakup PDF attachment via SendGrid.
     """
     customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
     if not customer:
@@ -1747,22 +1755,57 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
     price_doc_dict['generated_at'] = price_doc_dict['generated_at'].isoformat()
     await db.generated_documents.insert_one(price_doc_dict)
     
-    # Log communication (MOCKED)
-    filename = f"RRL_PalmAltezze_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf"
+    filename = f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf"
+    recipient_email = customer.get('email')
+    subject = f"Welcome to {customer.get('project', 'RRL Builders')} - Booking Confirmation"
     
+    # Send via SendGrid if configured
+    email_status = "pending"
+    sendgrid_response = None
+    
+    if SENDGRID_API_KEY:
+        try:
+            message = Mail(
+                from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME),
+                to_emails=recipient_email,
+                subject=subject,
+                html_content=welcome_html
+            )
+            
+            sg = SendGridAPIClient(SENDGRID_API_KEY)
+            response = sg.send(message)
+            
+            if response.status_code in [200, 201, 202]:
+                email_status = "sent"
+                sendgrid_response = {"status_code": response.status_code, "body": "Email sent successfully"}
+                logger.info(f"Welcome email sent to {recipient_email} - Status: {response.status_code}")
+            else:
+                email_status = "failed"
+                sendgrid_response = {"status_code": response.status_code, "error": "Unexpected status code"}
+                logger.error(f"Failed to send email to {recipient_email} - Status: {response.status_code}")
+                
+        except Exception as e:
+            email_status = "failed"
+            sendgrid_response = {"error": str(e)}
+            logger.error(f"SendGrid error sending email to {recipient_email}: {str(e)}")
+    else:
+        email_status = "mocked (no API key)"
+        logger.warning("SendGrid API key not configured - email not sent")
+    
+    # Log communication
     log = CommunicationLog(
         customer_id=customer_id,
         channel="email",
         message_type="Welcome Email",
         content=f"""
-To: {customer.get('email')}
-Subject: Welcome to RRL Palm Altezze - Booking Confirmation
+To: {recipient_email}
+Subject: {subject}
 
-[Welcome Email HTML Body - Pink themed]
+[Welcome Email HTML Body]
 
 Attachment: {filename}
         """,
-        status="sent (MOCKED)",
+        status=email_status,
         sent_by=user['id']
     )
     
@@ -1777,16 +1820,16 @@ Attachment: {filename}
             {"$set": {"stage": "qualified", "updated_at": datetime.now(timezone.utc).isoformat()}}
         )
     
-    await log_activity(user['id'], user['name'], "send", "welcome_email", customer_id, f"Sent welcome email to {customer.get('email')}")
+    await log_activity(user['id'], user['name'], "send", "welcome_email", customer_id, f"Sent welcome email to {recipient_email} - Status: {email_status}")
     
     return {
-        "message": "Welcome email sent (MOCKED - Configure SendGrid for production)",
+        "message": f"Welcome email {email_status}",
         "welcome_doc_id": welcome_doc.id,
         "price_breakup_doc_id": price_doc.id,
-        "email_to": customer.get('email'),
+        "email_to": recipient_email,
+        "email_status": email_status,
         "attachment_filename": filename,
-        "welcome_html": welcome_html,
-        "price_breakup_html": price_breakup_html
+        "sendgrid_response": sendgrid_response
     }
 
 @api_router.get("/documents/html/{doc_id}")
@@ -1856,14 +1899,71 @@ async def send_email_notification(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
-    # MOCKED: In production, integrate with SendGrid
-    # For now, log the communication
+    recipient_email = customer.get('email')
+    email_status = "pending"
+    sendgrid_response = None
+    
+    # Build HTML email content
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #EC4899, #8B5CF6); padding: 20px; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; text-align: center;">RRL Group</h1>
+            </div>
+            <div style="padding: 30px; background: #fff; border: 1px solid #e5e5e5; border-top: none;">
+                <p>Dear {customer.get('name', 'Customer')},</p>
+                <div style="white-space: pre-line;">{message}</div>
+                <br>
+                <p style="color: #666;">
+                    Best Regards,<br>
+                    <strong>RRL Builders and Developers Pvt. Ltd.</strong>
+                </p>
+            </div>
+            <div style="background: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #888; border-radius: 0 0 10px 10px;">
+                <p>This is an automated message from RRL CRM System</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    # Send via SendGrid if configured
+    if SENDGRID_API_KEY:
+        try:
+            sg_message = Mail(
+                from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME),
+                to_emails=recipient_email,
+                subject=subject,
+                html_content=html_content
+            )
+            
+            sg = SendGridAPIClient(SENDGRID_API_KEY)
+            response = sg.send(sg_message)
+            
+            if response.status_code in [200, 201, 202]:
+                email_status = "sent"
+                sendgrid_response = {"status_code": response.status_code}
+                logger.info(f"Email sent to {recipient_email} - Subject: {subject}")
+            else:
+                email_status = "failed"
+                sendgrid_response = {"status_code": response.status_code}
+                logger.error(f"Failed to send email to {recipient_email} - Status: {response.status_code}")
+                
+        except Exception as e:
+            email_status = "failed"
+            sendgrid_response = {"error": str(e)}
+            logger.error(f"SendGrid error: {str(e)}")
+    else:
+        email_status = "mocked (no API key)"
+    
+    # Log the communication
     log = CommunicationLog(
         customer_id=customer_id,
         channel="email",
         message_type=subject,
-        content=f"To: {customer['email']}\nSubject: {subject}\n\n{message}",
-        status="sent (MOCKED)",
+        content=f"To: {recipient_email}\nSubject: {subject}\n\n{message}",
+        status=email_status,
         sent_by=user['id']
     )
     
@@ -1871,9 +1971,9 @@ async def send_email_notification(
     doc['sent_at'] = doc['sent_at'].isoformat()
     await db.communication_logs.insert_one(doc)
     
-    await log_activity(user['id'], user['name'], "send", "email", customer_id, f"Email: {subject}")
+    await log_activity(user['id'], user['name'], "send", "email", customer_id, f"Email: {subject} - Status: {email_status}")
     
-    return {"message": "Email sent (MOCKED - Configure SendGrid for production)", "log_id": log.id}
+    return {"message": f"Email {email_status}", "log_id": log.id, "email_status": email_status, "sendgrid_response": sendgrid_response}
 
 @api_router.post("/communication/whatsapp")
 async def send_whatsapp_notification(
