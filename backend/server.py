@@ -723,8 +723,47 @@ async def update_payment_item(customer_id: str, item_id: str, updates: Dict[str,
             break
     
     await db.payment_schedules.update_one({"customer_id": customer_id}, {"$set": {"items": schedule['items']}})
-    await log_activity(user['id'], user['name'], "update", "payment_item", item_id, "Updated payment status")
-    return {"message": "Payment item updated"}
+    
+    # Auto-calculate total_received based on paid items
+    total_received = 0
+    for item in schedule['items']:
+        if item.get('payment_status') == 'paid':
+            total_received += item.get('amount', 0)
+        elif item.get('payment_status') == 'partial':
+            # For partial payments, count 50% of the amount (or you can add a partial_amount field later)
+            total_received += item.get('amount', 0) * 0.5
+    
+    # Get customer's total price to calculate percentages
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0, "total_price": 1})
+    total_price = customer.get('total_price', 0) if customer else 0
+    
+    # Calculate payment percentages
+    payment_received_percentage = round((total_received / total_price * 100), 2) if total_price > 0 else 0
+    payment_pending_percentage = round(100 - payment_received_percentage, 2)
+    balance_amount = round(total_price - total_received, 2)
+    
+    # Update customer's payment tracking fields
+    await db.customers.update_one(
+        {"id": customer_id},
+        {"$set": {
+            "total_received": round(total_received, 2),
+            "balance_amount": balance_amount,
+            "payment_received_percentage": payment_received_percentage,
+            "payment_pending_percentage": payment_pending_percentage,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    await log_activity(user['id'], user['name'], "update", "payment_item", item_id, f"Updated payment status - Total Received: {total_received}")
+    
+    # Return updated payment tracking info
+    return {
+        "message": "Payment item updated",
+        "total_received": round(total_received, 2),
+        "balance_amount": balance_amount,
+        "payment_received_percentage": payment_received_percentage,
+        "payment_pending_percentage": payment_pending_percentage
+    }
 
 @api_router.get("/payments/overview")
 async def get_payments_overview(user: dict = Depends(get_current_user)):

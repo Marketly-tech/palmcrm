@@ -251,12 +251,33 @@ const CustomerDetailPage = () => {
 
   const handleUpdatePaymentStatus = async (itemId, status) => {
     try {
-      await axios.put(`${API}/payments/item/${id}/${itemId}`, {
+      const response = await axios.put(`${API}/payments/item/${id}/${itemId}`, {
         payment_status: status,
         payment_date: status === "paid" ? new Date().toISOString().split("T")[0] : null,
       });
-      fetchCustomerData();
-      toast.success("Payment status updated");
+      
+      // Update local payment schedule immediately
+      setPaymentSchedule(prev => ({
+        ...prev,
+        items: prev.items.map(item => 
+          item.id === itemId 
+            ? { ...item, payment_status: status, payment_date: status === "paid" ? new Date().toISOString().split("T")[0] : null }
+            : item
+        )
+      }));
+      
+      // Update customer's payment tracking fields from API response
+      if (response.data) {
+        setCustomer(prev => ({
+          ...prev,
+          total_received: response.data.total_received,
+          balance_amount: response.data.balance_amount,
+          payment_received_percentage: response.data.payment_received_percentage,
+          payment_pending_percentage: response.data.payment_pending_percentage
+        }));
+      }
+      
+      toast.success(`Payment marked as ${status} - Received: ₹${response.data.total_received?.toLocaleString('en-IN')}`);
     } catch (error) {
       toast.error("Failed to update payment");
     }
@@ -1597,6 +1618,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
             </CardHeader>
             <CardContent>
               {paymentSchedule.items.length > 0 ? (
+                <>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1647,6 +1669,40 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                     ))}
                   </TableBody>
                 </Table>
+                
+                {/* Payment Summary */}
+                <div className="mt-6 p-4 bg-slate-50 rounded-lg border">
+                  <h4 className="font-semibold text-slate-700 mb-3">Payment Summary</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-3 rounded-md border">
+                      <p className="text-xs text-slate-500">Total Value</p>
+                      <p className="text-lg font-bold text-slate-800">{formatCurrency(customer.total_price || 0)}</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-md border border-green-200">
+                      <p className="text-xs text-green-600">Total Received</p>
+                      <p className="text-lg font-bold text-green-600">{formatCurrency(customer.total_received || 0)}</p>
+                      <p className="text-xs text-green-500">{(customer.payment_received_percentage || 0).toFixed(1)}%</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-md border border-red-200">
+                      <p className="text-xs text-red-600">Balance Pending</p>
+                      <p className="text-lg font-bold text-red-600">{formatCurrency(customer.balance_amount || (customer.total_price - (customer.total_received || 0)))}</p>
+                      <p className="text-xs text-red-500">{(customer.payment_pending_percentage || 100).toFixed(1)}%</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-md border">
+                      <p className="text-xs text-slate-500">Progress</p>
+                      <div className="mt-1">
+                        <div className="w-full bg-slate-200 rounded-full h-2.5">
+                          <div
+                            className="bg-green-500 h-2.5 rounded-full transition-all duration-500"
+                            style={{ width: `${customer.payment_received_percentage || 0}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">{paymentSchedule.items.filter(i => i.payment_status === 'paid').length} of {paymentSchedule.items.length} installments paid</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </>
               ) : (
                 <div className="text-center py-8 text-slate-500">
                   <CreditCard className="w-12 h-12 mx-auto mb-4 text-slate-300" />
