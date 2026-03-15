@@ -20,6 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "../components/ui/dialog";
 import {
   Select,
@@ -28,6 +30,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   Plus,
@@ -36,6 +48,7 @@ import {
   Filter,
   Users,
   Loader2,
+  Trash2,
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -52,6 +65,9 @@ const CustomersPage = () => {
   const [projects, setProjects] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -154,6 +170,29 @@ const CustomersPage = () => {
       completed: "bg-purple-100 text-purple-700",
     };
     return styles[status] || styles.draft;
+  };
+
+  const handleDeleteClick = (customer, e) => {
+    e.stopPropagation();
+    setCustomerToDelete(customer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!customerToDelete) return;
+    
+    setDeleting(true);
+    try {
+      await axios.delete(`${API}/customers/${customerToDelete.id}`);
+      toast.success(`Customer ${customerToDelete.name} deleted successfully`);
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+      fetchCustomers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to delete customer");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -450,17 +489,28 @@ const CustomersPage = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/customers/${customer.id}`);
-                        }}
-                        data-testid={`view-customer-${customer.id}`}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/customers/${customer.id}`);
+                          }}
+                          data-testid={`view-customer-${customer.id}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => handleDeleteClick(customer, e)}
+                          data-testid={`delete-customer-${customer.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -475,6 +525,53 @@ const CustomersPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {customerToDelete && (
+                <>
+                  You are about to delete <strong>{customerToDelete.name}</strong> ({customerToDelete.customer_id}).
+                  <br /><br />
+                  This action will permanently delete:
+                  <ul className="list-disc list-inside mt-2 text-sm">
+                    <li>All customer details and profile information</li>
+                    <li>Payment schedule and history</li>
+                    <li>All generated documents</li>
+                    <li>Communication logs</li>
+                  </ul>
+                  <br />
+                  <strong className="text-red-600">This action cannot be undone.</strong>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="confirm-delete-customer-btn"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Customer
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

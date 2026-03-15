@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -12,7 +12,7 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Manrope', sans-serif;
 }
 
 code {
@@ -21,38 +21,55 @@ code {
 
 @layer base {
     :root {
-        /* RRL Black & Gold Theme */
-        --background: 0 0% 5%;
-        --foreground: 45 29% 97%;
-        --card: 0 0% 8%;
-        --card-foreground: 45 29% 97%;
-        --popover: 0 0% 10%;
-        --popover-foreground: 45 29% 97%;
-        --primary: 43 74% 49%;
-        --primary-foreground: 0 0% 5%;
-        --secondary: 43 50% 35%;
-        --secondary-foreground: 45 29% 97%;
-        --muted: 0 0% 15%;
-        --muted-foreground: 45 10% 60%;
-        --accent: 43 74% 49%;
-        --accent-foreground: 0 0% 5%;
-        --destructive: 0 72% 51%;
-        --destructive-foreground: 45 29% 97%;
-        --border: 43 20% 25%;
-        --input: 0 0% 15%;
-        --ring: 43 74% 49%;
+        --background: 210 40% 98%;
+        --foreground: 222 47% 11%;
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 11%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+        --primary: 199 89% 48%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 168 80% 28%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 199 89% 96%;
+        --accent-foreground: 168 80% 28%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 199 89% 48%;
         --radius: 0.5rem;
-        --chart-1: 43 74% 49%;
-        --chart-2: 43 50% 35%;
-        --chart-3: 45 80% 60%;
-        --chart-4: 30 80% 55%;
-        --chart-5: 15 70% 50%;
-        --sidebar-bg: 0 0% 3%;
-        --sidebar-text: 45 10% 60%;
-        --sidebar-hover: 0 0% 10%;
-        --gold: 43 74% 49%;
-        --gold-light: 45 80% 70%;
-        --gold-dark: 43 60% 35%;
+        --chart-1: 199 89% 48%;
+        --chart-2: 168 80% 28%;
+        --chart-3: 43 74% 66%;
+        --chart-4: 27 87% 67%;
+        --chart-5: 12 76% 61%;
+        --sidebar-bg: 222 47% 11%;
+        --sidebar-text: 215 20% 65%;
+        --sidebar-hover: 222 47% 18%;
+    }
+    .dark {
+        --background: 222 47% 11%;
+        --foreground: 210 40% 98%;
+        --card: 222 47% 15%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222 47% 15%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 199 89% 48%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 168 80% 28%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 222 47% 18%;
+        --muted-foreground: 215 20% 65%;
+        --accent: 222 47% 18%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 222 47% 20%;
+        --input: 222 47% 20%;
+        --ring: 199 89% 48%;
     }
 }
 
@@ -71,78 +88,21 @@ code {
     }
 }
 
-/* Custom scrollbar - Gold theme */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: hsl(0 0% 10%);
+    background: hsl(var(--muted));
 }
 
 ::-webkit-scrollbar-thumb {
-    background: hsl(43 74% 49% / 0.4);
+    background: hsl(var(--muted-foreground) / 0.3);
     border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: hsl(43 74% 49% / 0.6);
-}
-
-/* Gold gradient text */
-.text-gold-gradient {
-    background: linear-gradient(135deg, hsl(43 74% 49%) 0%, hsl(45 80% 70%) 50%, hsl(43 74% 49%) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-/* Gold border glow */
-.border-gold-glow {
-    box-shadow: 0 0 10px hsl(43 74% 49% / 0.3);
-}
-
-/* Card hover effect */
-.card-hover {
-    transition: all 0.3s ease;
-}
-
-.card-hover:hover {
-    border-color: hsl(43 74% 49% / 0.5);
-    box-shadow: 0 4px 20px hsl(43 74% 49% / 0.15);
-}
-
-/* Gold button gradient */
-.btn-gold {
-    background: linear-gradient(135deg, hsl(43 74% 49%) 0%, hsl(43 60% 40%) 100%);
-    color: hsl(0 0% 5%);
-    font-weight: 600;
-}
-
-.btn-gold:hover {
-    background: linear-gradient(135deg, hsl(45 80% 55%) 0%, hsl(43 74% 49%) 100%);
-}
-
-/* Input focus gold */
-input:focus, select:focus, textarea:focus {
-    border-color: hsl(43 74% 49%) !important;
-    box-shadow: 0 0 0 2px hsl(43 74% 49% / 0.2) !important;
-}
-
-/* Table styling */
-table {
-    border-color: hsl(43 20% 20%);
-}
-
-th {
-    background: hsl(0 0% 10%);
-    color: hsl(43 74% 49%);
-}
-
-/* Badge gold variant */
-.badge-gold {
-    background: hsl(43 74% 49% / 0.15);
-    color: hsl(43 74% 60%);
-    border: 1px solid hsl(43 74% 49% / 0.3);
+    background: hsl(var(--muted-foreground) / 0.5);
 }

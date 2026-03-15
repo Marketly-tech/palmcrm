@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import axios from "axios";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -6,6 +6,7 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
 import { Textarea } from "../components/ui/textarea";
+import { Checkbox } from "../components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,9 @@ import {
   CheckCircle,
   Loader2,
   Eye,
+  Upload,
+  FileText,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -38,19 +42,31 @@ const BookingFormPage = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submissionResult, setSubmissionResult] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  
+  // File upload refs
+  const panFileRef = useRef(null);
+  const aadharFileRef = useRef(null);
+  const passportFileRef = useRef(null);
+  const coPanFileRef = useRef(null);
+  const coAadharFileRef = useRef(null);
+  const coPassportFileRef = useRef(null);
   
   // Projects list
   const projects = [
-    { name: "RRL Palm Altezze", towers: ["Tower-1", "Tower-2"] },
-    { name: "RRL NC 216", towers: ["Tower-A", "Tower-B"] },
-    { name: "RRL Palacio", towers: ["Tower-1"] },
-    { name: "RRL Nature Woods", towers: ["Tower-1"] },
-    { name: "RRL Towers", towers: ["Tower-1", "Tower-2"] },
-    { name: "RRL Complex", towers: ["Tower-A"] },
+    { name: "RRL Palm Altezze" },
+    { name: "RRL NC 216" },
+    { name: "RRL Palacio" },
+    { name: "RRL Nature Woods" },
+    { name: "RRL Towers" },
+    { name: "RRL Complex" },
   ];
 
   // BHK Types
   const bhkTypes = ["2BHK", "2.5BHK", "3BHK", "3.5BHK", "4BHK"];
+  
+  // Profession options
+  const professions = ["Salaried", "Self-Employed", "Business Owner", "Professional", "Government Employee", "Retired", "Other"];
   
   const [formData, setFormData] = useState({
     // Primary Applicant
@@ -64,24 +80,29 @@ const BookingFormPage = () => {
     address: "",
     company: "",
     designation: "",
+    profession: "",
     nationality: "Indian",
     
-    // Co-Applicant
+    // Co-Applicant (Optional)
     co_applicant_name: "",
+    co_applicant_father_name: "",
     co_applicant_phone: "",
     co_applicant_email: "",
     co_applicant_pan: "",
     co_applicant_aadhar: "",
+    co_applicant_address: "",
+    co_applicant_profession: "",
+    co_applicant_nationality: "Indian",
     
     // Property Details
     project: "",
-    tower: "",
+    tower: "",  // Changed to text input
     unit_number: "",
     bhk_type: "",
     floor: "",
-    carpet_area: "",
     saleable_area: "",
     rate_per_sqft: "6600",
+    floor_rise_cost: "0",  // Manual floor rise cost input
     parking: "1",
     additional_parking: "0",
     
@@ -98,35 +119,70 @@ const BookingFormPage = () => {
     // Remarks
     remarks: "",
   });
+  
+  // File upload states
+  const [uploadedFiles, setUploadedFiles] = useState({
+    pan_card: null,
+    aadhar_card: null,
+    passport: null,
+    co_pan_card: null,
+    co_aadhar_card: null,
+    co_passport: null,
+  });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+  
+  // Handle file uploads
+  const handleFileUpload = (fileType, file) => {
+    if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File size should be less than 5MB");
+        return;
+      }
+      // Validate file type (images and PDFs)
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Only JPEG, PNG, and PDF files are allowed");
+        return;
+      }
+      setUploadedFiles(prev => ({ ...prev, [fileType]: file }));
+      toast.success(`${file.name} uploaded successfully`);
+    }
+  };
+  
+  const removeFile = (fileType) => {
+    setUploadedFiles(prev => ({ ...prev, [fileType]: null }));
+  };
 
-  // Calculate price based on inputs
+  // Calculate price based on inputs - Updated with manual floor rise
   const calculatePrice = () => {
     const saleableArea = parseFloat(formData.saleable_area) || 0;
     const ratePerSqft = parseFloat(formData.rate_per_sqft) || 0;
-    const floor = parseInt(formData.floor) || 0;
+    const floorRiseCost = parseFloat(formData.floor_rise_cost) || 0;  // Manual input
     const additionalParking = parseInt(formData.additional_parking) || 0;
     
-    // Floor rise: ₹50 per sqft for every floor above ground
-    const floorRise = floor > 0 ? floor * 50 : 0;
-    const effectiveRate = ratePerSqft + floorRise;
+    // Base price = Total Saleable Area × Rate/sqft
+    const basePrice = saleableArea * ratePerSqft;
     
-    const basePrice = saleableArea * effectiveRate;
+    // Floor Rise is now a manual cost input (added to base price)
+    const floorRiseTotal = saleableArea * floorRiseCost;
+    
     const clubHouse = 200000; // ₹2L
     const parkingCharges = additionalParking * 300000; // ₹3L per additional
-    const subtotal = basePrice + clubHouse + parkingCharges;
+    const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges;
     const labourCess = subtotal * 0.007; // 0.70%
     const gst = subtotal * 0.05; // 5%
     const total = subtotal + labourCess + gst;
     
     return {
       basePrice,
-      floorRise: saleableArea * floorRise,
-      effectiveRate,
+      floorRiseCost,
+      floorRiseTotal,
+      effectiveRate: ratePerSqft + floorRiseCost,
       clubHouse,
       parkingCharges,
       subtotal,
@@ -138,6 +194,12 @@ const BookingFormPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!termsAccepted) {
+      toast.error("Please accept the Terms and Conditions to proceed");
+      return;
+    }
+    
     setSubmitting(true);
 
     try {
@@ -146,13 +208,14 @@ const BookingFormPage = () => {
       const payload = {
         ...formData,
         floor: parseInt(formData.floor) || 0,
-        carpet_area: parseFloat(formData.carpet_area) || 0,
         saleable_area: parseFloat(formData.saleable_area) || 0,
         rate_per_sqft: parseFloat(formData.rate_per_sqft) || 0,
+        floor_rise_cost: parseFloat(formData.floor_rise_cost) || 0,
         additional_parking: parseInt(formData.additional_parking) || 0,
         booking_amount: parseFloat(formData.booking_amount) || 0,
         total_price: priceCalc.total,
         base_price: priceCalc.basePrice,
+        floor_rise_total: priceCalc.floorRiseTotal,
         club_house_charges: priceCalc.clubHouse,
         additional_parking_charges: priceCalc.parkingCharges,
         labour_cess: priceCalc.labourCess,
@@ -160,6 +223,55 @@ const BookingFormPage = () => {
       };
 
       const response = await axios.post(`${API}/public/booking-form`, payload);
+      const customerId = response.data.reference_id;
+      
+      // Upload documents if any
+      const uploadPromises = [];
+      if (uploadedFiles.pan_card) {
+        const formDataPan = new FormData();
+        formDataPan.append('file', uploadedFiles.pan_card);
+        formDataPan.append('doc_type', 'pan_card');
+        uploadPromises.push(axios.post(`${API}/public/upload-document/${customerId}`, formDataPan));
+      }
+      if (uploadedFiles.aadhar_card) {
+        const formDataAadhar = new FormData();
+        formDataAadhar.append('file', uploadedFiles.aadhar_card);
+        formDataAadhar.append('doc_type', 'aadhar_card');
+        uploadPromises.push(axios.post(`${API}/public/upload-document/${customerId}`, formDataAadhar));
+      }
+      if (uploadedFiles.passport) {
+        const formDataPassport = new FormData();
+        formDataPassport.append('file', uploadedFiles.passport);
+        formDataPassport.append('doc_type', 'passport');
+        uploadPromises.push(axios.post(`${API}/public/upload-document/${customerId}`, formDataPassport));
+      }
+      if (uploadedFiles.co_pan_card) {
+        const formDataCoPan = new FormData();
+        formDataCoPan.append('file', uploadedFiles.co_pan_card);
+        formDataCoPan.append('doc_type', 'co_pan_card');
+        uploadPromises.push(axios.post(`${API}/public/upload-document/${customerId}`, formDataCoPan));
+      }
+      if (uploadedFiles.co_aadhar_card) {
+        const formDataCoAadhar = new FormData();
+        formDataCoAadhar.append('file', uploadedFiles.co_aadhar_card);
+        formDataCoAadhar.append('doc_type', 'co_aadhar_card');
+        uploadPromises.push(axios.post(`${API}/public/upload-document/${customerId}`, formDataCoAadhar));
+      }
+      if (uploadedFiles.co_passport) {
+        const formDataCoPassport = new FormData();
+        formDataCoPassport.append('file', uploadedFiles.co_passport);
+        formDataCoPassport.append('doc_type', 'co_passport');
+        uploadPromises.push(axios.post(`${API}/public/upload-document/${customerId}`, formDataCoPassport));
+      }
+      
+      // Execute uploads (don't fail the whole submission if uploads fail)
+      try {
+        await Promise.all(uploadPromises);
+      } catch (uploadError) {
+        console.error("Document upload error:", uploadError);
+        // Continue with success even if uploads fail
+      }
+      
       setSubmissionResult(response.data);
       setSubmitted(true);
       toast.success("Booking submitted successfully!");
@@ -179,6 +291,8 @@ const BookingFormPage = () => {
                formData.bhk_type && formData.saleable_area && formData.rate_per_sqft;
       case 3:
         return true; // Payment details are optional
+      case 4:
+        return termsAccepted; // Must accept terms
       default:
         return true;
     }
@@ -376,6 +490,24 @@ const BookingFormPage = () => {
                           placeholder="1234 5678 9012"
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="profession">Profession</Label>
+                        <Select
+                          value={formData.profession}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, profession: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select profession" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {professions.map((prof) => (
+                              <SelectItem key={prof} value={prof}>
+                                {prof}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="address">Address</Label>
@@ -407,6 +539,88 @@ const BookingFormPage = () => {
                         />
                       </div>
                     </div>
+                    
+                    {/* Document Uploads for Primary Applicant */}
+                    <div className="mt-4 p-4 bg-slate-50 rounded-lg">
+                      <h4 className="font-medium text-slate-700 mb-3 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Upload Documents
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label>PAN Card</Label>
+                          <input
+                            type="file"
+                            ref={panFileRef}
+                            className="hidden"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileUpload('pan_card', e.target.files[0])}
+                          />
+                          {uploadedFiles.pan_card ? (
+                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                              <FileText className="w-4 h-4 text-green-600" />
+                              <span className="text-sm truncate flex-1">{uploadedFiles.pan_card.name}</span>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('pan_card')}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button type="button" variant="outline" className="w-full" onClick={() => panFileRef.current?.click()}>
+                              <Upload className="w-4 h-4 mr-2" /> Upload
+                            </Button>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Aadhaar Card</Label>
+                          <input
+                            type="file"
+                            ref={aadharFileRef}
+                            className="hidden"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileUpload('aadhar_card', e.target.files[0])}
+                          />
+                          {uploadedFiles.aadhar_card ? (
+                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                              <FileText className="w-4 h-4 text-green-600" />
+                              <span className="text-sm truncate flex-1">{uploadedFiles.aadhar_card.name}</span>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('aadhar_card')}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button type="button" variant="outline" className="w-full" onClick={() => aadharFileRef.current?.click()}>
+                              <Upload className="w-4 h-4 mr-2" /> Upload
+                            </Button>
+                          )}
+                        </div>
+                        {(formData.nationality === "NRI" || formData.nationality === "OCI") && (
+                          <div className="space-y-2">
+                            <Label>Passport</Label>
+                            <input
+                              type="file"
+                              ref={passportFileRef}
+                              className="hidden"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleFileUpload('passport', e.target.files[0])}
+                            />
+                            {uploadedFiles.passport ? (
+                              <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                                <FileText className="w-4 h-4 text-green-600" />
+                                <span className="text-sm truncate flex-1">{uploadedFiles.passport.name}</span>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('passport')}>
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button type="button" variant="outline" className="w-full" onClick={() => passportFileRef.current?.click()}>
+                                <Upload className="w-4 h-4 mr-2" /> Upload
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">Accepted formats: JPEG, PNG, PDF. Max size: 5MB</p>
+                    </div>
                   </div>
 
                   <Separator />
@@ -420,6 +634,15 @@ const BookingFormPage = () => {
                           id="co_applicant_name"
                           name="co_applicant_name"
                           value={formData.co_applicant_name}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="co_applicant_father_name">Father/Spouse Name</Label>
+                        <Input
+                          id="co_applicant_father_name"
+                          name="co_applicant_father_name"
+                          value={formData.co_applicant_father_name}
                           onChange={handleInputChange}
                         />
                       </div>
@@ -451,7 +674,143 @@ const BookingFormPage = () => {
                           onChange={handleInputChange}
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="co_applicant_aadhar">Aadhaar Number</Label>
+                        <Input
+                          id="co_applicant_aadhar"
+                          name="co_applicant_aadhar"
+                          value={formData.co_applicant_aadhar}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="co_applicant_profession">Profession</Label>
+                        <Select
+                          value={formData.co_applicant_profession}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, co_applicant_profession: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select profession" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {professions.map((prof) => (
+                              <SelectItem key={prof} value={prof}>
+                                {prof}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="co_applicant_nationality">Nationality</Label>
+                        <Select
+                          value={formData.co_applicant_nationality}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, co_applicant_nationality: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Indian">Indian</SelectItem>
+                            <SelectItem value="NRI">NRI</SelectItem>
+                            <SelectItem value="OCI">OCI</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="co_applicant_address">Address</Label>
+                      <Textarea
+                        id="co_applicant_address"
+                        name="co_applicant_address"
+                        value={formData.co_applicant_address}
+                        onChange={handleInputChange}
+                        rows={2}
+                      />
+                    </div>
+                    
+                    {/* Document Uploads for Co-Applicant */}
+                    {formData.co_applicant_name && (
+                      <div className="mt-4 p-4 bg-slate-50 rounded-lg">
+                        <h4 className="font-medium text-slate-700 mb-3 flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Co-Applicant Documents
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label>PAN Card</Label>
+                            <input
+                              type="file"
+                              ref={coPanFileRef}
+                              className="hidden"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleFileUpload('co_pan_card', e.target.files[0])}
+                            />
+                            {uploadedFiles.co_pan_card ? (
+                              <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                                <FileText className="w-4 h-4 text-green-600" />
+                                <span className="text-sm truncate flex-1">{uploadedFiles.co_pan_card.name}</span>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('co_pan_card')}>
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button type="button" variant="outline" className="w-full" onClick={() => coPanFileRef.current?.click()}>
+                                <Upload className="w-4 h-4 mr-2" /> Upload
+                              </Button>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Aadhaar Card</Label>
+                            <input
+                              type="file"
+                              ref={coAadharFileRef}
+                              className="hidden"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleFileUpload('co_aadhar_card', e.target.files[0])}
+                            />
+                            {uploadedFiles.co_aadhar_card ? (
+                              <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                                <FileText className="w-4 h-4 text-green-600" />
+                                <span className="text-sm truncate flex-1">{uploadedFiles.co_aadhar_card.name}</span>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('co_aadhar_card')}>
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button type="button" variant="outline" className="w-full" onClick={() => coAadharFileRef.current?.click()}>
+                                <Upload className="w-4 h-4 mr-2" /> Upload
+                              </Button>
+                            )}
+                          </div>
+                          {(formData.co_applicant_nationality === "NRI" || formData.co_applicant_nationality === "OCI") && (
+                            <div className="space-y-2">
+                              <Label>Passport</Label>
+                              <input
+                                type="file"
+                                ref={coPassportFileRef}
+                                className="hidden"
+                                accept="image/*,.pdf"
+                                onChange={(e) => handleFileUpload('co_passport', e.target.files[0])}
+                              />
+                              {uploadedFiles.co_passport ? (
+                                <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                                  <FileText className="w-4 h-4 text-green-600" />
+                                  <span className="text-sm truncate flex-1">{uploadedFiles.co_passport.name}</span>
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('co_passport')}>
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button type="button" variant="outline" className="w-full" onClick={() => coPassportFileRef.current?.click()}>
+                                  <Upload className="w-4 h-4 mr-2" /> Upload
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -464,7 +823,7 @@ const BookingFormPage = () => {
                       <Label htmlFor="project">Project *</Label>
                       <Select
                         value={formData.project}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, project: value, tower: "" }))}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, project: value }))}
                       >
                         <SelectTrigger data-testid="project-select">
                           <SelectValue placeholder="Select project" />
@@ -480,22 +839,15 @@ const BookingFormPage = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="tower">Tower *</Label>
-                      <Select
+                      <Input
+                        id="tower"
+                        name="tower"
                         value={formData.tower}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, tower: value }))}
-                        disabled={!formData.project}
-                      >
-                        <SelectTrigger data-testid="tower-select">
-                          <SelectValue placeholder="Select tower" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {projects.find(p => p.name === formData.project)?.towers.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={handleInputChange}
+                        placeholder="e.g., Tower-1, Block-A"
+                        required
+                        data-testid="tower-input"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="unit_number">Unit Number *</Label>
@@ -528,7 +880,7 @@ const BookingFormPage = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="floor">Floor Number *</Label>
+                      <Label htmlFor="floor">Floor Number</Label>
                       <Input
                         id="floor"
                         name="floor"
@@ -538,21 +890,9 @@ const BookingFormPage = () => {
                         placeholder="e.g., 7"
                         data-testid="floor-input"
                       />
-                      <p className="text-xs text-slate-500">Floor rise: ₹50/sqft per floor</p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="carpet_area">Carpet Area (sq.ft)</Label>
-                      <Input
-                        id="carpet_area"
-                        name="carpet_area"
-                        type="number"
-                        value={formData.carpet_area}
-                        onChange={handleInputChange}
-                        placeholder="e.g., 1200"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="saleable_area">Saleable Area (sq.ft) *</Label>
+                      <Label htmlFor="saleable_area">Total Saleable Area (sq.ft) *</Label>
                       <Input
                         id="saleable_area"
                         name="saleable_area"
@@ -576,9 +916,19 @@ const BookingFormPage = () => {
                         required
                         data-testid="rate-input"
                       />
-                      <p className="text-xs text-slate-500">
-                        Effective rate: ₹{(parseFloat(formData.rate_per_sqft) || 0) + ((parseInt(formData.floor) || 0) * 50)}/sqft (incl. floor rise)
-                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="floor_rise_cost">Floor Rise (₹ per sq.ft)</Label>
+                      <Input
+                        id="floor_rise_cost"
+                        name="floor_rise_cost"
+                        type="number"
+                        value={formData.floor_rise_cost}
+                        onChange={handleInputChange}
+                        placeholder="e.g., 50"
+                        data-testid="floor-rise-input"
+                      />
+                      <p className="text-xs text-slate-500">Additional cost per sq.ft based on floor (enter 0 if not applicable)</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="parking">Covered Car Parking</Label>
@@ -608,13 +958,13 @@ const BookingFormPage = () => {
                     <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
                       <h3 className="font-semibold text-slate-700 mb-3">Price Calculation Preview</h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-slate-600">Base Price ({formData.saleable_area} × ₹{priceCalc.effectiveRate}):</span>
+                        <span className="text-slate-600">Base Price ({formData.saleable_area} sq.ft × ₹{formData.rate_per_sqft}):</span>
                         <span className="font-medium text-right">{formatCurrency(priceCalc.basePrice)}</span>
                         
-                        {priceCalc.floorRise > 0 && (
+                        {priceCalc.floorRiseTotal > 0 && (
                           <>
-                            <span className="text-slate-600">Floor Rise (Floor {formData.floor}):</span>
-                            <span className="font-medium text-right">+{formatCurrency(priceCalc.floorRise)}</span>
+                            <span className="text-slate-600">Floor Rise ({formData.saleable_area} sq.ft × ₹{formData.floor_rise_cost}):</span>
+                            <span className="font-medium text-right">+{formatCurrency(priceCalc.floorRiseTotal)}</span>
                           </>
                         )}
                         
@@ -756,8 +1106,36 @@ const BookingFormPage = () => {
                           <p className="font-medium">{formData.pan_number}</p>
                         </>
                       )}
+                      {formData.profession && (
+                        <>
+                          <p className="text-slate-500">Profession:</p>
+                          <p className="font-medium">{formData.profession}</p>
+                        </>
+                      )}
                     </div>
                   </div>
+                  
+                  {formData.co_applicant_name && (
+                    <div className="bg-slate-50 p-4 rounded-lg space-y-4">
+                      <h3 className="font-semibold text-slate-700">Co-Applicant Details</h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <p className="text-slate-500">Name:</p>
+                        <p className="font-medium">{formData.co_applicant_name}</p>
+                        {formData.co_applicant_phone && (
+                          <>
+                            <p className="text-slate-500">Phone:</p>
+                            <p className="font-medium">{formData.co_applicant_phone}</p>
+                          </>
+                        )}
+                        {formData.co_applicant_email && (
+                          <>
+                            <p className="text-slate-500">Email:</p>
+                            <p className="font-medium">{formData.co_applicant_email}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="bg-slate-50 p-4 rounded-lg space-y-4">
                     <h3 className="font-semibold text-slate-700">Property Details</h3>
@@ -772,18 +1150,30 @@ const BookingFormPage = () => {
                       <p className="font-medium">{formData.bhk_type}</p>
                       <p className="text-slate-500">Floor:</p>
                       <p className="font-medium">{formData.floor || "Ground"}</p>
-                      <p className="text-slate-500">Saleable Area:</p>
+                      <p className="text-slate-500">Total Saleable Area:</p>
                       <p className="font-medium">{formData.saleable_area} sq.ft</p>
                       <p className="text-slate-500">Rate/Sq.ft:</p>
                       <p className="font-medium">₹{formData.rate_per_sqft}</p>
+                      {parseFloat(formData.floor_rise_cost) > 0 && (
+                        <>
+                          <p className="text-slate-500">Floor Rise/Sq.ft:</p>
+                          <p className="font-medium">₹{formData.floor_rise_cost}</p>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   <div className="bg-primary/10 p-4 rounded-lg space-y-4">
                     <h3 className="font-semibold text-slate-700">Price Summary</h3>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <p className="text-slate-600">Base Price:</p>
+                      <p className="text-slate-600">Base Price ({formData.saleable_area} × ₹{formData.rate_per_sqft}):</p>
                       <p className="font-medium text-right">{formatCurrency(priceCalc.basePrice)}</p>
+                      {priceCalc.floorRiseTotal > 0 && (
+                        <>
+                          <p className="text-slate-600">Floor Rise:</p>
+                          <p className="font-medium text-right">{formatCurrency(priceCalc.floorRiseTotal)}</p>
+                        </>
+                      )}
                       <p className="text-slate-600">Club House & Infrastructure:</p>
                       <p className="font-medium text-right">{formatCurrency(priceCalc.clubHouse)}</p>
                       <p className="text-slate-600">Additional Parking:</p>
@@ -797,6 +1187,33 @@ const BookingFormPage = () => {
                       <p className="font-bold text-primary text-right text-lg">{formatCurrency(priceCalc.total)}</p>
                     </div>
                   </div>
+                  
+                  {/* Uploaded Documents Summary */}
+                  {Object.values(uploadedFiles).some(f => f !== null) && (
+                    <div className="bg-slate-50 p-4 rounded-lg space-y-4">
+                      <h3 className="font-semibold text-slate-700">Uploaded Documents</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {uploadedFiles.pan_card && (
+                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-sm">PAN Card</span>
+                        )}
+                        {uploadedFiles.aadhar_card && (
+                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-sm">Aadhaar</span>
+                        )}
+                        {uploadedFiles.passport && (
+                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-sm">Passport</span>
+                        )}
+                        {uploadedFiles.co_pan_card && (
+                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-sm">Co-Applicant PAN</span>
+                        )}
+                        {uploadedFiles.co_aadhar_card && (
+                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-sm">Co-Applicant Aadhaar</span>
+                        )}
+                        {uploadedFiles.co_passport && (
+                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-sm">Co-Applicant Passport</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {formData.booking_amount && (
                     <div className="bg-slate-50 p-4 rounded-lg space-y-4">
@@ -814,11 +1231,33 @@ const BookingFormPage = () => {
                     </div>
                   )}
 
-                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
-                    <p className="text-sm text-amber-800">
-                      By submitting this form, you confirm that all information provided is accurate.
-                      Our team will verify the details and contact you for further processing.
-                    </p>
+                  {/* Terms and Conditions */}
+                  <div className="border border-slate-300 rounded-lg p-4 max-h-48 overflow-y-auto bg-white">
+                    <h3 className="font-semibold text-slate-700 mb-3">Terms and Conditions</h3>
+                    <div className="text-sm text-slate-600 space-y-2">
+                      <p>1. This booking is subject to verification by RRL Builders and Developers Pvt. Ltd.</p>
+                      <p>2. All payments must be made via A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft or through Electronic Fund Transfer (EFT) to "RRL BUILDERS AND DEVELOPERS PVT LTD".</p>
+                      <p>3. The buyer is responsible for paying applicable stamp duty, registration charges, and other statutory levies.</p>
+                      <p>4. Any delay or default in payment will attract penal interest as per the Rules on the Outstanding amount.</p>
+                      <p>5. This booking is neither transferable nor assignable without prior written consent from the Developer.</p>
+                      <p>6. The buyer agrees to comply with provisions of section 194IA of the Income Tax Act, 1961 (TDS deduction).</p>
+                      <p>7. In case of cancellation, the developer reserves the right to forfeit the booking amount plus 5% of the Total Sale Consideration.</p>
+                      <p>8. The buyer acknowledges that they have reviewed and are satisfied with the title documents of the property.</p>
+                      <p>9. Maintenance charges as per prevailing rates will be applicable from the date of possession.</p>
+                      <p>10. All disputes shall be referred exclusively to the jurisdictional Real Estate Regulatory Authority (RERA).</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <Checkbox
+                      id="terms"
+                      checked={termsAccepted}
+                      onCheckedChange={(checked) => setTermsAccepted(checked)}
+                      data-testid="terms-checkbox"
+                    />
+                    <label htmlFor="terms" className="text-sm text-amber-800 cursor-pointer">
+                      I have read, understood, and agree to the above Terms and Conditions. I confirm that all information provided is accurate and complete. I understand that submitting this form does not guarantee the allotment of the property.
+                    </label>
                   </div>
                 </div>
               )}

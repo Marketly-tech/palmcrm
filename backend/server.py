@@ -4,6 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ReturnDocument
 import os
 import logging
 from pathlib import Path
@@ -449,8 +450,15 @@ async def log_activity(user_id: str, user_name: str, action: str, entity_type: s
     await db.activity_logs.insert_one(doc)
 
 async def generate_customer_id():
-    count = await db.customers.count_documents({})
-    return f"RRL-{str(count + 1).zfill(5)}"
+    """Generate unique customer ID using atomic counter"""
+    # Use findOneAndUpdate with upsert for atomic counter increment
+    result = await db.counters.find_one_and_update(
+        {"_id": "customer_id"},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER
+    )
+    return f"RRL-{str(result['seq']).zfill(5)}"
 
 # ==================== AUTH ROUTES ====================
 @api_router.post("/auth/register", response_model=UserResponse)
@@ -2125,14 +2133,19 @@ class BookingFormData(BaseModel):
     address: Optional[str] = None
     company: Optional[str] = None
     designation: Optional[str] = None
+    profession: Optional[str] = None
     nationality: str = "Indian"
     
     # Co-Applicant (optional)
     co_applicant_name: Optional[str] = None
+    co_applicant_father_name: Optional[str] = None
     co_applicant_phone: Optional[str] = None
     co_applicant_email: Optional[str] = None
     co_applicant_pan: Optional[str] = None
     co_applicant_aadhar: Optional[str] = None
+    co_applicant_address: Optional[str] = None
+    co_applicant_profession: Optional[str] = None
+    co_applicant_nationality: Optional[str] = "Indian"
     
     # Property Selection
     project: str
@@ -2140,15 +2153,16 @@ class BookingFormData(BaseModel):
     unit_number: str
     bhk_type: Optional[str] = ""
     floor: int = 0
-    carpet_area: float = 0
     saleable_area: float = 0
     rate_per_sqft: float = 0
+    floor_rise_cost: float = 0  # Manual floor rise cost per sqft
     parking: Optional[str] = "1"
     additional_parking: int = 0
     
     # Calculated prices (from frontend)
     total_price: float = 0
     base_price: float = 0
+    floor_rise_total: float = 0
     club_house_charges: float = 200000
     additional_parking_charges: float = 0
     labour_cess: float = 0
@@ -2183,28 +2197,28 @@ async def submit_booking_form(data: BookingFormData):
     # Use frontend data first, fallback to unit data if available
     rate_per_sqft = data.rate_per_sqft if data.rate_per_sqft > 0 else (unit.get('rate_per_sqft', 0) if unit else 0)
     saleable_area = data.saleable_area if data.saleable_area > 0 else (unit.get('saleable_area', 0) if unit else 0)
-    carpet_area = data.carpet_area if data.carpet_area > 0 else (unit.get('carpet_area', 0) if unit else 0)
     floor = data.floor if data.floor > 0 else (unit.get('floor', 0) if unit else 0)
     bhk_type = data.bhk_type if data.bhk_type else (unit.get('bhk_type', '') if unit else '')
     uds = round(saleable_area * 0.495046, 2) if saleable_area > 0 else 0
-    
-    # Calculate floor rise (₹50/sqft per floor)
-    floor_rise_per_sqft = floor * 50
-    effective_rate = rate_per_sqft + floor_rise_per_sqft
+    floor_rise_cost = data.floor_rise_cost if data.floor_rise_cost > 0 else 0
     
     # Use frontend calculated prices if available, otherwise calculate
     if data.total_price > 0:
         base_price = data.base_price
+        floor_rise_total = data.floor_rise_total
         club_house = data.club_house_charges
         parking_charges = data.additional_parking_charges
         labour_cess = data.labour_cess
         gst = data.gst_amount
         total_price = data.total_price
     else:
-        base_price = effective_rate * saleable_area
+        # Base price = Total Saleable Area × Rate/sqft
+        base_price = rate_per_sqft * saleable_area
+        # Floor rise is manual cost per sqft × saleable area
+        floor_rise_total = floor_rise_cost * saleable_area
         club_house = 200000  # Default club house
         parking_charges = data.additional_parking * 300000  # ₹3L per additional parking
-        subtotal = base_price + club_house + parking_charges
+        subtotal = base_price + floor_rise_total + club_house + parking_charges
         labour_cess = subtotal * 0.007  # 0.70%
         gst = subtotal * 0.05  # 5%
         total_price = subtotal + labour_cess + gst
@@ -2222,16 +2236,17 @@ async def submit_booking_form(data: BookingFormData):
         designation=data.designation,
         nationality=data.nationality,
         co_applicant_name=data.co_applicant_name,
+        co_applicant_father_name=data.co_applicant_father_name,
         co_applicant_phone=data.co_applicant_phone,
         co_applicant_email=data.co_applicant_email,
         co_applicant_pan=data.co_applicant_pan,
         co_applicant_aadhar=data.co_applicant_aadhar,
+        co_applicant_address=data.co_applicant_address,
         project=data.project,
         tower=data.tower,
         unit_number=data.unit_number,
         floor=floor,
         bhk_type=bhk_type,
-        carpet_area=carpet_area,
         saleable_area=saleable_area,
         uds=uds,
         parking=data.parking,
@@ -2258,6 +2273,13 @@ async def submit_booking_form(data: BookingFormData):
         transaction_date=data.transaction_date,
         transaction_bank=data.transaction_bank,
         remarks=data.remarks,
+        custom_fields={
+            "profession": data.profession or "",
+            "floor_rise_cost": floor_rise_cost,
+            "floor_rise_total": round(floor_rise_total, 2),
+            "co_applicant_profession": data.co_applicant_profession or "",
+            "co_applicant_nationality": data.co_applicant_nationality or "Indian",
+        }
     )
     customer.customer_id = await generate_customer_id()
     
@@ -2287,6 +2309,47 @@ async def submit_booking_form(data: BookingFormData):
         "customer_id": customer.customer_id,
         "reference_id": customer.id
     }
+
+# Public document upload endpoint (no auth required)
+@api_router.post("/public/upload-document/{customer_id}")
+async def public_upload_document(
+    customer_id: str,
+    doc_type: str = Form(...),
+    file: UploadFile = File(...)
+):
+    """Public endpoint to upload documents for a customer during booking"""
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Read file content and convert to base64 for storage
+    content = await file.read()
+    base64_content = base64.b64encode(content).decode('utf-8')
+    
+    # Store in database
+    doc_record = {
+        "id": str(uuid.uuid4()),
+        "customer_id": customer_id,
+        "doc_type": doc_type,
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "content_base64": base64_content,
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        "uploaded_by": "public_booking"
+    }
+    
+    await db.customer_documents.insert_one(doc_record)
+    
+    # Update customer's uploaded_documents dict
+    uploaded_docs = customer.get('uploaded_documents', {})
+    uploaded_docs[doc_type] = doc_record['id']
+    await db.customers.update_one(
+        {"id": customer_id},
+        {"$set": {"uploaded_documents": uploaded_docs}}
+    )
+    
+    await log_activity("system", "Booking Form", "upload", "document", customer_id, f"Uploaded {doc_type}")
+    return {"message": "Document uploaded", "doc_id": doc_record['id']}
 
 # ==================== LEADS MANAGEMENT (Pending Approvals) ====================
 @api_router.get("/leads/pending")
