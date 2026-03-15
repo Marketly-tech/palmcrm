@@ -28,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
 import {
   UserPlus,
@@ -40,6 +39,7 @@ import {
   Mail,
   Send,
   ExternalLink,
+  Edit,
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -51,8 +51,6 @@ const LeadsPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
   const [processing, setProcessing] = useState(false);
   const [sendingWelcome, setSendingWelcome] = useState({});
 
@@ -85,22 +83,10 @@ const LeadsPage = () => {
     }
   };
 
-  const handleReject = async () => {
-    if (!selectedLead) return;
-    
-    setProcessing(true);
-    try {
-      await axios.put(`${API}/leads/${selectedLead.id}/reject?reason=${encodeURIComponent(rejectReason)}`);
-      toast.success("Lead rejected");
-      fetchLeads();
-      setRejectDialogOpen(false);
-      setViewDialogOpen(false);
-      setRejectReason("");
-    } catch (error) {
-      toast.error("Failed to reject lead");
-    } finally {
-      setProcessing(false);
-    }
+  const handleEditLead = (lead) => {
+    // Navigate to customer detail page for editing
+    navigate(`/customers/${lead.id}`);
+    toast.info("You can edit the lead details here");
   };
 
   const handleSendWelcomeEmail = async (lead) => {
@@ -244,24 +230,21 @@ const LeadsPage = () => {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleEditLead(lead)}
+                          data-testid={`edit-lead-${lead.id}`}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-green-600 hover:text-green-700 hover:bg-green-50"
                           onClick={() => handleApprove(lead)}
                           disabled={processing}
                           data-testid={`approve-lead-${lead.id}`}
                         >
                           <CheckCircle className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => {
-                            setSelectedLead(lead);
-                            setRejectDialogOpen(true);
-                          }}
-                          data-testid={`reject-lead-${lead.id}`}
-                        >
-                          <XCircle className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -368,13 +351,11 @@ const LeadsPage = () => {
               <DialogFooter className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setRejectDialogOpen(true);
-                  }}
-                  className="text-red-600"
+                  onClick={() => handleEditLead(selectedLead)}
+                  className="text-blue-600"
                 >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Reject
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
                 </Button>
                 <Button
                   variant="outline"
@@ -403,47 +384,6 @@ const LeadsPage = () => {
               </DialogFooter>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Dialog */}
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Lead</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to reject this booking? The unit will be released.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-slate-500 mb-2">Reason for rejection (optional)</p>
-              <Textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Enter reason..."
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={processing}
-              data-testid="confirm-reject-btn"
-            >
-              {processing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <XCircle className="w-4 h-4 mr-2" />
-              )}
-              Reject Lead
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
