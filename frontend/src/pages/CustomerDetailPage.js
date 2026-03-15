@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "../components/ui/button";
@@ -53,6 +53,8 @@ import {
   Trash2,
   Calculator,
   RefreshCw,
+  Paperclip,
+  X,
 } from "lucide-react";
 import { Separator } from "../components/ui/separator";
 
@@ -93,6 +95,15 @@ const CustomerDetailPage = () => {
   const [commType, setCommType] = useState("email");
   const [commMessage, setCommMessage] = useState("");
   const [commSubject, setCommSubject] = useState("");
+  const [selectedAttachments, setSelectedAttachments] = useState([]);
+  const [localAttachment, setLocalAttachment] = useState(null);
+  const localFileRef = useRef(null);
+  
+  // Calculator Tab Editing
+  const [calcEditing, setCalcEditing] = useState(false);
+  const [calcData, setCalcData] = useState({});
+  const [calcLivePrice, setCalcLivePrice] = useState(null);
+  const [calcSaving, setCalcSaving] = useState(false);
 
   // Document Generation
   const [docDialogOpen, setDocDialogOpen] = useState(false);
@@ -339,17 +350,62 @@ const CustomerDetailPage = () => {
 
     try {
       if (commType === "email") {
-        await axios.post(`${API}/communication/email?customer_id=${id}&subject=${encodeURIComponent(commSubject)}&message=${encodeURIComponent(commMessage)}`);
+        // Build attachment info
+        const attachmentIds = selectedAttachments.join(",");
+        let url = `${API}/communication/email?customer_id=${id}&subject=${encodeURIComponent(commSubject)}&message=${encodeURIComponent(commMessage)}`;
+        
+        if (attachmentIds) {
+          url += `&attachment_ids=${attachmentIds}`;
+        }
+        
+        // If there's a local file, upload it first then send email with attachment
+        if (localAttachment) {
+          const formData = new FormData();
+          formData.append("file", localAttachment);
+          formData.append("doc_type", "email_attachment");
+          
+          const uploadRes = await axios.post(`${API}/customers/${id}/upload-document`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          
+          if (uploadRes.data.doc_id) {
+            url += attachmentIds ? `,${uploadRes.data.doc_id}` : `&attachment_ids=${uploadRes.data.doc_id}`;
+          }
+        }
+        
+        await axios.post(url);
+        toast.success("Email sent successfully!");
       } else {
         await axios.post(`${API}/communication/whatsapp?customer_id=${id}&message=${encodeURIComponent(commMessage)}`);
+        toast.success("WhatsApp message sent (MOCKED)");
       }
       fetchCustomerData();
       setCommDialogOpen(false);
       setCommMessage("");
       setCommSubject("");
-      toast.success(`${commType === "email" ? "Email" : "WhatsApp"} sent (MOCKED)`);
+      setSelectedAttachments([]);
+      setLocalAttachment(null);
     } catch (error) {
       toast.error("Failed to send message");
+    }
+  };
+
+  const toggleAttachment = (docId) => {
+    setSelectedAttachments(prev => 
+      prev.includes(docId) 
+        ? prev.filter(id => id !== docId)
+        : [...prev, docId]
+    );
+  };
+
+  const handleLocalFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size should be less than 10MB");
+        return;
+      }
+      setLocalAttachment(file);
     }
   };
 
@@ -483,6 +539,80 @@ const CustomerDetailPage = () => {
   const handleEditChange = (field, value) => {
     const newEditData = { ...editData, [field]: value };
     setEditData(newEditData);
+  };
+
+  // Calculator Tab Editing Functions
+  const initCalcEdit = () => {
+    setCalcData({
+      saleable_area: customer.saleable_area || 0,
+      rate_per_sqft: customer.rate_per_sqft || 0,
+      floor: customer.floor || 0,
+      floor_rise_cost: customer.custom_fields?.floor_rise_cost || 0,
+      additional_parking: customer.additional_parking || 0,
+    });
+    setCalcEditing(true);
+  };
+
+  const handleCalcChange = (field, value) => {
+    const newCalcData = { ...calcData, [field]: value };
+    setCalcData(newCalcData);
+    
+    // Live calculate
+    const calc = calculateLivePrice(newCalcData);
+    setCalcLivePrice(calc);
+  };
+
+  // Update calc live price when calcData changes
+  useEffect(() => {
+    if (calcEditing && calcData.saleable_area) {
+      const calc = calculateLivePrice(calcData);
+      setCalcLivePrice(calc);
+    }
+  }, [calcEditing, calcData]);
+
+  const saveCalcChanges = async () => {
+    if (!calcLivePrice) return;
+    
+    setCalcSaving(true);
+    try {
+      const updates = {
+        saleable_area: calcData.saleable_area,
+        rate_per_sqft: calcData.rate_per_sqft,
+        floor: calcData.floor,
+        additional_parking: calcData.additional_parking,
+        base_price: calcLivePrice.basePrice,
+        club_house_charges: calcLivePrice.clubHouse,
+        additional_parking_charges: calcLivePrice.parkingCharges,
+        labour_cess: calcLivePrice.labourCess,
+        gst_amount: calcLivePrice.gst,
+        total_price: calcLivePrice.total,
+        uds: calcLivePrice.uds,
+        balance_amount: Math.round(calcLivePrice.total - (customer.total_received || 0)),
+        payment_received_percentage: calcLivePrice.total > 0 ? Math.round(((customer.total_received || 0) / calcLivePrice.total) * 10000) / 100 : 0,
+        payment_pending_percentage: calcLivePrice.total > 0 ? Math.round((1 - (customer.total_received || 0) / calcLivePrice.total) * 10000) / 100 : 100,
+        custom_fields: {
+          ...(customer.custom_fields || {}),
+          floor_rise_cost: calcData.floor_rise_cost || 0,
+          floor_rise_total: calcLivePrice.floorRiseTotal || 0,
+        }
+      };
+      
+      await axios.put(`${API}/customers/${id}`, updates);
+      fetchCustomerData();
+      setCalcEditing(false);
+      setCalcLivePrice(null);
+      toast.success("Calculator values saved and profile updated!");
+    } catch (error) {
+      toast.error("Failed to save changes");
+    } finally {
+      setCalcSaving(false);
+    }
+  };
+
+  const cancelCalcEdit = () => {
+    setCalcEditing(false);
+    setCalcData({});
+    setCalcLivePrice(null);
   };
 
   const getStatusBadge = (status) => {
@@ -940,14 +1070,32 @@ const CustomerDetailPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Price Calculator */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calculator className="w-5 h-5 text-primary" />
-                  Price Breakup Calculator
-                </CardTitle>
-                <CardDescription>
-                  View and recalculate price based on property values
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="w-5 h-5 text-primary" />
+                    Price Breakup Calculator
+                  </CardTitle>
+                  <CardDescription>
+                    {calcEditing ? "Edit values to recalculate price in real-time" : "Click Edit to modify property values"}
+                  </CardDescription>
+                </div>
+                {!calcEditing ? (
+                  <Button variant="outline" onClick={initCalcEdit} data-testid="calc-edit-btn">
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={cancelCalcEdit} disabled={calcSaving}>
+                      Cancel
+                    </Button>
+                    <Button onClick={saveCalcChanges} disabled={calcSaving} data-testid="calc-save-btn">
+                      {calcSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                      Save
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -955,36 +1103,45 @@ const CustomerDetailPage = () => {
                     <Label>Saleable Area (sq.ft)</Label>
                     <Input
                       type="number"
-                      value={customer.saleable_area || 0}
-                      readOnly
-                      className="bg-slate-50"
+                      value={calcEditing ? calcData.saleable_area : (customer.saleable_area || 0)}
+                      onChange={(e) => handleCalcChange('saleable_area', parseFloat(e.target.value) || 0)}
+                      readOnly={!calcEditing}
+                      className={calcEditing ? "border-primary" : "bg-slate-50"}
+                      data-testid="calc-saleable-area"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Rate/Sq.ft (₹)</Label>
                     <Input
                       type="number"
-                      value={customer.rate_per_sqft || 0}
-                      readOnly
-                      className="bg-slate-50"
+                      value={calcEditing ? calcData.rate_per_sqft : (customer.rate_per_sqft || 0)}
+                      onChange={(e) => handleCalcChange('rate_per_sqft', parseFloat(e.target.value) || 0)}
+                      readOnly={!calcEditing}
+                      className={calcEditing ? "border-primary" : "bg-slate-50"}
+                      data-testid="calc-rate"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Floor Number</Label>
                     <Input
                       type="number"
-                      value={customer.floor || 0}
-                      readOnly
-                      className="bg-slate-50"
+                      value={calcEditing ? calcData.floor : (customer.floor || 0)}
+                      onChange={(e) => handleCalcChange('floor', parseInt(e.target.value) || 0)}
+                      readOnly={!calcEditing}
+                      className={calcEditing ? "border-primary" : "bg-slate-50"}
+                      data-testid="calc-floor"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Floor Rise (₹/sq.ft)</Label>
                     <Input
                       type="number"
-                      value={customer.custom_fields?.floor_rise_cost || 0}
-                      readOnly
-                      className="bg-slate-50"
+                      value={calcEditing ? calcData.floor_rise_cost : (customer.custom_fields?.floor_rise_cost || 0)}
+                      onChange={(e) => handleCalcChange('floor_rise_cost', parseFloat(e.target.value) || 0)}
+                      readOnly={!calcEditing}
+                      className={calcEditing ? "border-primary" : "bg-slate-50"}
+                      placeholder="e.g., 50"
+                      data-testid="calc-floor-rise"
                     />
                     <p className="text-xs text-slate-500">Manual floor rise cost per sq.ft</p>
                   </div>
@@ -992,109 +1149,91 @@ const CustomerDetailPage = () => {
                     <Label>Additional Parking</Label>
                     <Input
                       type="number"
-                      value={customer.additional_parking || 0}
-                      readOnly
-                      className="bg-slate-50"
+                      min="0"
+                      value={calcEditing ? calcData.additional_parking : (customer.additional_parking || 0)}
+                      onChange={(e) => handleCalcChange('additional_parking', parseInt(e.target.value) || 0)}
+                      readOnly={!calcEditing}
+                      className={calcEditing ? "border-primary" : "bg-slate-50"}
+                      data-testid="calc-parking"
                     />
                   </div>
                 </div>
 
                 <Separator />
 
-                <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
+                {/* Price Breakdown - Shows live calculation when editing */}
+                <div className={`space-y-3 p-4 rounded-lg ${calcEditing && calcLivePrice ? 'bg-green-50 border border-green-200' : 'bg-slate-50'}`}>
+                  {calcEditing && calcLivePrice && (
+                    <p className="text-sm font-medium text-green-700 mb-2">Live Price Preview</p>
+                  )}
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Base Price ({customer.saleable_area || 0} sq.ft × ₹{customer.rate_per_sqft || 0})</span>
-                    <span className="font-semibold">{formatCurrency(customer.base_price)}</span>
+                    <span className="text-slate-600">
+                      Base Price ({calcEditing ? calcData.saleable_area : customer.saleable_area} sq.ft × ₹{calcEditing ? calcData.rate_per_sqft : customer.rate_per_sqft})
+                    </span>
+                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
+                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.basePrice : customer.base_price)}
+                    </span>
                   </div>
-                  {(customer.custom_fields?.floor_rise_total || 0) > 0 && (
+                  {((calcEditing && calcLivePrice?.floorRiseTotal > 0) || (!calcEditing && (customer.custom_fields?.floor_rise_total || 0) > 0)) && (
                     <div className="flex justify-between">
-                      <span className="text-slate-600">Floor Rise ({customer.saleable_area || 0} sq.ft × ₹{customer.custom_fields?.floor_rise_cost || 0})</span>
-                      <span className="font-semibold">{formatCurrency(customer.custom_fields?.floor_rise_total || 0)}</span>
+                      <span className="text-slate-600">
+                        Floor Rise ({calcEditing ? calcData.saleable_area : customer.saleable_area} sq.ft × ₹{calcEditing ? calcData.floor_rise_cost : customer.custom_fields?.floor_rise_cost})
+                      </span>
+                      <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
+                        {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.floorRiseTotal : customer.custom_fields?.floor_rise_total)}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span className="text-slate-600">Club House & Infrastructure</span>
-                    <span className="font-semibold">{formatCurrency(customer.club_house_charges || 200000)}</span>
+                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
+                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.clubHouse : (customer.club_house_charges || 200000))}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Additional Parking ({customer.additional_parking || 0} × ₹3L)</span>
-                    <span className="font-semibold">{formatCurrency(customer.additional_parking_charges || 0)}</span>
+                    <span className="text-slate-600">
+                      Additional Parking ({calcEditing ? calcData.additional_parking : customer.additional_parking} × ₹3L)
+                    </span>
+                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
+                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.parkingCharges : customer.additional_parking_charges)}
+                    </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
                     <span className="text-slate-600">Labour Cess (0.70%)</span>
-                    <span className="font-semibold">{formatCurrency(customer.labour_cess)}</span>
+                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
+                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.labourCess : customer.labour_cess)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">GST (5%)</span>
-                    <span className="font-semibold">{formatCurrency(customer.gst_amount)}</span>
+                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
+                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.gst : customer.gst_amount)}
+                    </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between text-lg">
-                    <span className="font-semibold text-primary">Total Flat Value</span>
-                    <span className="font-bold text-primary">{formatCurrency(customer.total_price)}</span>
+                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : 'text-primary'}`}>
+                      Total Flat Value
+                    </span>
+                    <span className={`font-bold ${calcEditing && calcLivePrice ? 'text-green-700' : 'text-primary'}`}>
+                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.total : customer.total_price)}
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
                   <span className="text-slate-600">UDS (Undivided Share)</span>
-                  <span className="font-semibold">{customer.uds || (customer.saleable_area * 0.495046).toFixed(2)}</span>
+                  <span className="font-semibold">
+                    {calcEditing && calcLivePrice ? calcLivePrice.uds : (customer.uds || (customer.saleable_area * 0.495046).toFixed(2))}
+                  </span>
                 </div>
 
-                <Button 
-                  className="w-full" 
-                  onClick={async () => {
-                    try {
-                      // Recalculate using the new formula with manual floor rise
-                      const saleableArea = customer.saleable_area || 0;
-                      const ratePerSqft = customer.rate_per_sqft || 0;
-                      const floorRiseCost = customer.custom_fields?.floor_rise_cost || 0;
-                      const additionalParking = customer.additional_parking || 0;
-                      
-                      // Base price = Total Saleable Area × Rate/sqft
-                      const basePrice = saleableArea * ratePerSqft;
-                      
-                      // Floor Rise is manual cost per sqft × saleable area
-                      const floorRiseTotal = saleableArea * floorRiseCost;
-                      
-                      const clubHouse = 200000;
-                      const parkingCharges = additionalParking * 300000;
-                      const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges;
-                      const labourCess = subtotal * 0.007;
-                      const gst = subtotal * 0.05;
-                      const total = subtotal + labourCess + gst;
-                      const uds = saleableArea * 0.495046;
-                      
-                      const updates = {
-                        base_price: Math.round(basePrice),
-                        club_house_charges: clubHouse,
-                        additional_parking_charges: Math.round(parkingCharges),
-                        labour_cess: Math.round(labourCess),
-                        gst_amount: Math.round(gst),
-                        total_price: Math.round(total),
-                        uds: Math.round(uds * 100) / 100,
-                        balance_amount: Math.round(total - (customer.total_received || 0)),
-                        payment_received_percentage: total > 0 ? Math.round(((customer.total_received || 0) / total) * 10000) / 100 : 0,
-                        payment_pending_percentage: total > 0 ? Math.round((1 - (customer.total_received || 0) / total) * 10000) / 100 : 100,
-                        custom_fields: {
-                          ...(customer.custom_fields || {}),
-                          floor_rise_cost: floorRiseCost,
-                          floor_rise_total: Math.round(floorRiseTotal),
-                        }
-                      };
-                      
-                      await axios.put(`${API}/customers/${id}`, updates);
-                      fetchCustomerData();
-                      toast.success("Price recalculated and saved!");
-                    } catch (error) {
-                      toast.error("Failed to recalculate price");
-                    }
-                  }}
-                  data-testid="recalculate-price-btn"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Recalculate & Save Price
-                </Button>
+                {calcEditing && (
+                  <p className="text-xs text-green-600 text-center">
+                    Values update in real-time. Click "Save" to update the customer profile.
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -1593,8 +1732,102 @@ const CustomerDetailPage = () => {
                         rows={4}
                       />
                     </div>
-                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                      Note: Messages are MOCKED. Configure SendGrid for production.
+                    
+                    {/* Attachment Section */}
+                    {commType === "email" && (
+                      <div className="space-y-3">
+                        <Label className="flex items-center gap-2">
+                          <Paperclip className="w-4 h-4" />
+                          Attachments
+                        </Label>
+                        
+                        {/* Available Documents */}
+                        {(documents.length > 0 || uploadedDocs.length > 0) && (
+                          <div className="p-3 bg-slate-50 rounded-lg space-y-2">
+                            <p className="text-sm font-medium text-slate-600">Select from available documents:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {documents.map((doc) => (
+                                <Button
+                                  key={doc.id}
+                                  type="button"
+                                  variant={selectedAttachments.includes(doc.id) ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => toggleAttachment(doc.id)}
+                                  className="text-xs"
+                                >
+                                  <FileText className="w-3 h-3 mr-1" />
+                                  {doc.doc_type.replace(/_/g, " ")}
+                                  {selectedAttachments.includes(doc.id) && (
+                                    <CheckCircle className="w-3 h-3 ml-1" />
+                                  )}
+                                </Button>
+                              ))}
+                              {uploadedDocs.map((doc) => (
+                                <Button
+                                  key={doc.id}
+                                  type="button"
+                                  variant={selectedAttachments.includes(doc.id) ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => toggleAttachment(doc.id)}
+                                  className="text-xs"
+                                >
+                                  <FileText className="w-3 h-3 mr-1" />
+                                  {doc.filename || doc.doc_type}
+                                  {selectedAttachments.includes(doc.id) && (
+                                    <CheckCircle className="w-3 h-3 ml-1" />
+                                  )}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Upload from local disk */}
+                        <div className="space-y-2">
+                          <input
+                            type="file"
+                            ref={localFileRef}
+                            className="hidden"
+                            onChange={handleLocalFileSelect}
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          />
+                          {localAttachment ? (
+                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                              <FileText className="w-4 h-4 text-green-600" />
+                              <span className="text-sm truncate flex-1">{localAttachment.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setLocalAttachment(null)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => localFileRef.current?.click()}
+                              className="w-full"
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Upload from Computer
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {selectedAttachments.length > 0 && (
+                          <p className="text-xs text-green-600">
+                            {selectedAttachments.length} document(s) selected for attachment
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-green-600 bg-green-50 p-2 rounded">
+                      Emails are sent via SendGrid. WhatsApp is MOCKED.
                     </p>
                     <Button onClick={handleSendCommunication} className="w-full">
                       Send

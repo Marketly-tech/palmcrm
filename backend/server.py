@@ -1893,6 +1893,7 @@ async def send_email_notification(
     subject: str,
     message: str,
     attachment_doc_id: Optional[str] = None,
+    attachment_ids: Optional[str] = None,
     user: dict = Depends(get_current_user)
 ):
     customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
@@ -1902,6 +1903,22 @@ async def send_email_notification(
     recipient_email = customer.get('email')
     email_status = "pending"
     sendgrid_response = None
+    attachments_info = []
+    
+    # Process attachments if provided
+    attachment_list = []
+    if attachment_ids:
+        doc_ids = [id.strip() for id in attachment_ids.split(",") if id.strip()]
+        for doc_id in doc_ids:
+            # Try to find in generated_documents first
+            doc = await db.generated_documents.find_one({"id": doc_id}, {"_id": 0})
+            if doc:
+                attachments_info.append(f"Generated: {doc.get('doc_type', 'document')}")
+            else:
+                # Try customer_documents
+                doc = await db.customer_documents.find_one({"id": doc_id}, {"_id": 0})
+                if doc:
+                    attachments_info.append(f"Uploaded: {doc.get('filename', doc.get('doc_type', 'document'))}")
     
     # Build HTML email content
     html_content = f"""
@@ -1957,12 +1974,17 @@ async def send_email_notification(
     else:
         email_status = "mocked (no API key)"
     
+    # Build log content with attachment info
+    log_content = f"To: {recipient_email}\nSubject: {subject}\n\n{message}"
+    if attachments_info:
+        log_content += f"\n\nAttachments:\n- " + "\n- ".join(attachments_info)
+    
     # Log the communication
     log = CommunicationLog(
         customer_id=customer_id,
         channel="email",
         message_type=subject,
-        content=f"To: {recipient_email}\nSubject: {subject}\n\n{message}",
+        content=log_content,
         status=email_status,
         sent_by=user['id']
     )

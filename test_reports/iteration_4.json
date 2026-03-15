@@ -1,0 +1,87 @@
+{
+  "summary": "Frontend-only testing of two new features completed successfully. Both features are fully functional: 1) Calculator tab editing with Edit/Cancel/Save buttons and real-time Live Price Preview, 2) Communication dialog with attachments section showing available documents as selectable buttons and Upload from Computer option.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dashboard",
+        "issues": ["Minor console warning about chart dimensions - non-blocking"]
+      },
+      {
+        "screen": "Dialog",
+        "issues": ["Minor accessibility warning: Missing Description or aria-describedby for DialogContent - non-blocking"]
+      }
+    ]
+  },
+  "features_tested": {
+    "calculator_tab_editing": {
+      "status": "PASS",
+      "location": "Calculator tab in Customer Detail Page",
+      "tested": [
+        "Edit button visible with data-testid='calc-edit-btn' - PASS",
+        "Edit mode shows Cancel button - PASS",
+        "Edit mode shows Save button with data-testid='calc-save-btn' - PASS",
+        "Fields become editable when Edit is clicked (no readonly attribute) - PASS",
+        "Live Price Preview shows real-time calculation in green box (bg-green-50) - PASS",
+        "Live Price Preview shows breakdown: Base Price, Floor Rise, Club House, Additional Parking, Labour Cess, GST, Total - PASS",
+        "Real-time calculation updates as values change (tested with Rate=5500, Floor Rise=100) - PASS",
+        "Save button updates customer profile with new values - PASS",
+        "Toast message shown: 'Calculator values saved and profile updated!' - PASS",
+        "Total Value in header updates from ₹2,11,400 to ₹76,99,188 after save - PASS",
+        "Details tab reflects persisted values (Rate, Floor Rise, Base Price, Total) - PASS"
+      ]
+    },
+    "communication_attachments": {
+      "status": "PASS",
+      "location": "Communication tab > Send Message dialog",
+      "tested": [
+        "Send Message dialog shows Attachments section with paperclip icon - PASS",
+        "Attachments label visible - PASS",
+        "'Select from available documents:' text displayed - PASS",
+        "Available documents displayed as clickable buttons - PASS",
+        "Document buttons show doc_type labels (sales agreement, allotment letter, disbursement letter, price breakup, welcome letter) - PASS",
+        "Clicking document button selects it (changes to teal/primary color with checkmark) - PASS",
+        "Multiple documents can be selected - PASS",
+        "Selection count message appears: 'X document(s) selected for attachment' - PASS",
+        "Upload from Computer button present and visible - PASS",
+        "Hidden file input accepts .pdf,.doc,.docx,.jpg,.jpeg,.png - PASS"
+      ]
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "Not tested (frontend-only testing requested)",
+    "frontend": "100% - Both features verified working"
+  },
+  "test_credentials": {
+    "email": "admin@rrlbuilders.com",
+    "password": "admin123"
+  },
+  "seed_data_creation": "Modified existing customer 'Ramya' (RRL-00001) during testing - changed Rate from 0 to 5500 and Floor Rise to 100 to verify Save functionality. Total Value changed from ₹2,11,400 to ₹76,99,188",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two features verified working: 1) Calculator tab has Edit button that enables edit mode with Cancel/Save buttons. Fields become editable and Live Price Preview (green box) shows real-time calculations. Save persists values to customer profile. 2) Communication dialog (Email type) shows Attachments section with available documents as clickable buttons and Upload from Computer button. Documents can be selected/deselected and selection count is shown. Both features implemented in CustomerDetailPage.js.",
+  "mocked_integrations": [
+    "Twilio WhatsApp - MOCKED",
+    "SendGrid Email - WORKING"
+  ],
+  "screenshots_taken": {
+    "calculator_tab_view_mode.png": "Shows Calculator tab with Edit button visible, fields in read-only mode",
+    "calculator_edit_mode.png": "Shows Calculator tab in edit mode with Cancel/Save buttons, editable fields",
+    "calculator_live_preview.png": "Shows Live Price Preview in green box with real-time calculations",
+    "calc_before_save.png": "Shows edit mode with Rate=5500, Floor Rise=100, Live Preview showing Total=₹76,99,188",
+    "calc_after_save.png": "Shows view mode after save with toast message 'Calculator values saved and profile updated!'",
+    "details_after_calc_save.png": "Shows Details tab with persisted values (Rate=₹5,500, Floor Rise=₹100/sq.ft, Total=₹76,99,188)",
+    "communication_dialog.png": "Shows Send Communication dialog with Attachments section, document buttons, Upload from Computer button",
+    "document_selected.png": "Shows document buttons selected (teal color with checkmark)",
+    "multiple_docs_selected.png": "Shows '2 document(s) selected for attachment' message"
+  }
+}
