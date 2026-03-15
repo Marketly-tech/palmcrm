@@ -22,14 +22,15 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 ### Module 2: Customer Profile ✅ COMPLETED
 - Detailed customer profiles with personal details
 - Property details with editable pricing fields
-- Co-applicant information
+- Co-applicant information (expanded with profession, nationality)
 - Finance details (Self/Loan/Mixed)
 - Document uploads and checklist
 - **Edit functionality** for all key fields
+- **Delete functionality** with confirmation dialog
 
-### Module 3: Price Breakup Calculator ✅ COMPLETED
-- **Formula**: (Rate × Saleable Area) + Floor Rise + Club House + Parking + Labour Cess (0.70%) + GST (5%)
-- **Floor Rise**: ₹50/sqft per floor (editable)
+### Module 3: Price Breakup Calculator ✅ COMPLETED (Updated)
+- **Formula**: (Rate/sqft × Saleable Area) + Floor Rise + Club House + Parking + Labour Cess (0.70%) + GST (5%)
+- **Floor Rise**: Now a **manual input** field (₹/sqft) - user enters the cost per sqft
 - Club House toggle (₹2L)
 - Additional Parking (₹3L each)
 - UDS calculation (Saleable Area × 0.495046)
@@ -87,37 +88,51 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 ### Frontend (React)
 - **Framework**: React with React Router
 - **UI Components**: Shadcn/UI
-- **Styling**: TailwindCSS
+- **Styling**: TailwindCSS (Pink gradient theme)
 
 ### Key API Endpoints
 - `POST /api/auth/login` - User login
 - `POST /api/public/booking-form` - Public booking submission (no auth)
+- `POST /api/public/upload-document/{customer_id}` - Public document upload
 - `GET/PUT /api/leads/pending` - Lead management
-- `PUT /api/customers/{id}` - Update customer (supports edit)
+- `GET /api/customers` - List customers
+- `PUT /api/customers/{id}` - Update customer
+- `DELETE /api/customers/{id}` - Delete customer (requires admin/manager role)
 - `POST /api/calculator/price` - Price calculation with floor rise
-- `POST /api/communication/send-welcome-email/{id}` - Send welcome email (MOCKED)
 
 ## Test Credentials
 - **Email**: admin@rrlbuilders.com
 - **Password**: admin123
 
-## Recent Fixes (March 15, 2026)
-1. ✅ Customer data from booking form now includes all fields (BHK, Floor, Areas, Rate, etc.)
-2. ✅ Edit customer functionality fixed - all Property & Pricing fields editable
-3. ✅ Booking form accessible at `/booking-form` - shows live price calculation preview
-4. ✅ Calculator added as tab in customer profile (not just standalone page)
-5. ✅ Labour Cess (0.70%) prominently displayed in all calculators
-6. ✅ Floor-based pricing editable - Floor rise ₹50/sqft per floor
+## Recent Updates (March 15, 2026 - Session 2)
+
+### Booking Form Enhancements
+1. ✅ Added **Profession** dropdown field (Salaried, Self-Employed, Business Owner, etc.)
+2. ✅ Added **Document Upload** section (PAN Card, Aadhaar Card, Passport for NRI/OCI)
+3. ✅ Expanded **Co-Applicant** section (Father/Spouse Name, Address, Profession, Nationality)
+4. ✅ Changed **Tower** from dropdown to text input
+5. ✅ **Removed carpet_area** field as requested
+6. ✅ Added **Floor Rise** as manual input field (₹/sqft)
+7. ✅ Added **Terms and Conditions** section with checkbox validation
+
+### Delete Functionality
+1. ✅ Added delete button to Customers page
+2. ✅ Implemented AlertDialog confirmation with detailed warning
+3. ✅ DELETE /api/customers/{id} cleans up all related data (payment schedules, documents, etc.)
+
+### Bug Fixes
+1. ✅ Fixed customer ID generation race condition (now uses atomic counter)
 
 ## Prioritized Backlog
 
 ### P1 - Medium Priority
 - [ ] Configure SendGrid API for real email delivery
 - [ ] Configure Twilio API for WhatsApp messages
-- [ ] Unit pricing database with floor-wise rates
-- [ ] Bulk import units from Excel
+- [ ] Variable disbursement percentage input in calculator
+- [ ] Live price recalculation in customer edit mode
 
 ### P2 - Lower Priority
+- [ ] Sales Agreement PDF template
 - [ ] Google Forms webhook integration
 - [ ] Activity logs and audit trail
 - [ ] Template editor for PDF layouts
@@ -125,7 +140,7 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 
 ## Files of Reference
 - `/app/backend/server.py` - Main backend with all APIs
-- `/app/frontend/src/pages/BookingFormPage.js` - Public booking form with live calculator
-- `/app/frontend/src/pages/CustomerDetailPage.js` - Customer profile with Calculator tab and Edit mode
-- `/app/frontend/src/pages/CalculatorPage.js` - Standalone price calculators
+- `/app/frontend/src/pages/BookingFormPage.js` - Public booking form with document uploads
+- `/app/frontend/src/pages/CustomerDetailPage.js` - Customer profile with Calculator tab
+- `/app/frontend/src/pages/CustomersPage.js` - Customer list with delete functionality
 - `/app/frontend/src/pages/LeadsPage.js` - Lead management
