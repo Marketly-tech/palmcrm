@@ -699,19 +699,19 @@ async def get_payments_overview(user: dict = Depends(get_current_user)):
 # ==================== PRICE CALCULATOR ====================
 # Default payment schedule template (from Excel)
 DEFAULT_PAYMENT_SCHEDULE = [
-    {"installment_name": "Initial Booking Amount", "percentage": 10, "milestone": "booking"},
-    {"installment_name": "Post Agreement (within 10 days)", "percentage": 10, "milestone": "agreement"},
-    {"installment_name": "On Completion of Foundation", "percentage": 10, "milestone": "foundation"},
-    {"installment_name": "On Completion of Podium Slab", "percentage": 10, "milestone": "podium"},
-    {"installment_name": "Upon Completion of 2nd Floor Roof Slab", "percentage": 5, "milestone": "2nd_floor"},
-    {"installment_name": "Upon Completion of 6th Floor Roof Slab", "percentage": 5, "milestone": "6th_floor"},
-    {"installment_name": "Upon Completion of 10th Floor Roof Slab", "percentage": 5, "milestone": "10th_floor"},
-    {"installment_name": "Upon Completion of 14th Floor Roof Slab", "percentage": 5, "milestone": "14th_floor"},
-    {"installment_name": "Upon Completion of 18th Floor Roof Slab", "percentage": 5, "milestone": "18th_floor"},
-    {"installment_name": "Upon Completion of 22nd Floor Roof Slab", "percentage": 5, "milestone": "22nd_floor"},
-    {"installment_name": "Upon Completion of Top Roof Slab", "percentage": 10, "milestone": "top_roof"},
-    {"installment_name": "Upon Completion of Flooring", "percentage": 10, "milestone": "flooring"},
-    {"installment_name": "Handover/Registration (whichever earlier)", "percentage": 10, "milestone": "handover"},
+    {"installment_name": "Initial Booking Amount", "percentage": 10, "milestone": "booking", "description": "Balance booking amount (To be paid within 10 days of Booking)"},
+    {"installment_name": "Post Excavation of Agreement", "percentage": 10, "milestone": "agreement", "description": "To be paid within 10 days of Booking"},
+    {"installment_name": "On Completion of Foundation", "percentage": 10, "milestone": "foundation", "description": ""},
+    {"installment_name": "On Completion of Podium Slab", "percentage": 10, "milestone": "podium", "description": ""},
+    {"installment_name": "Upon Completion of 2nd Floor Roof Slab", "percentage": 5, "milestone": "2nd_floor", "description": ""},
+    {"installment_name": "Upon Completion of 6th Floor Roof Slab", "percentage": 5, "milestone": "6th_floor", "description": ""},
+    {"installment_name": "Upon Completion of 10th Floor Roof Slab", "percentage": 5, "milestone": "10th_floor", "description": ""},
+    {"installment_name": "Upon Completion of 14th Floor Roof Slab", "percentage": 5, "milestone": "14th_floor", "description": ""},
+    {"installment_name": "Upon Completion of 18th Floor Roof Slab", "percentage": 5, "milestone": "18th_floor", "description": ""},
+    {"installment_name": "Upon Completion of 22nd Floor Roof Slab", "percentage": 5, "milestone": "22nd_floor", "description": ""},
+    {"installment_name": "Upon Completion of Top Roof Slab", "percentage": 10, "milestone": "top_roof", "description": ""},
+    {"installment_name": "Upon Completion of Flooring of Particular Property", "percentage": 10, "milestone": "flooring", "description": ""},
+    {"installment_name": "Upon Handover or Possession of Particular Property or Registration of Absolute Sale for Particular Property, whichever is Earlier", "percentage": 10, "milestone": "handover", "description": ""},
 ]
 
 @api_router.post("/calculator/price", response_model=PriceResult)
@@ -821,14 +821,18 @@ async def generate_payment_schedule_for_customer(customer_id: str, user: dict = 
         raise HTTPException(status_code=400, detail="Customer has no total price set")
     
     items = []
+    cumulative = 0
     for item in DEFAULT_PAYMENT_SCHEDULE:
         amount = total_amount * (item["percentage"] / 100)
+        cumulative += amount
         items.append({
             "id": str(uuid.uuid4()),
             "installment_name": item["installment_name"],
             "milestone": item["milestone"],
+            "description": item.get("description", ""),
             "percentage": item["percentage"],
             "amount": round(amount, 2),
+            "cumulative": round(cumulative, 2),
             "due_date": "",
             "payment_status": "pending",
             "payment_date": None

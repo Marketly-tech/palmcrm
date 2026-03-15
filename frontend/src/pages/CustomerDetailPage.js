@@ -1079,21 +1079,30 @@ const CustomerDetailPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Installment</TableHead>
-                      <TableHead>Milestone</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Due Date</TableHead>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Particulars</TableHead>
+                      <TableHead className="text-center">%</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Cumulative</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paymentSchedule.items.map((item) => (
+                    {paymentSchedule.items.map((item, index) => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.installment_name}</TableCell>
-                        <TableCell className="capitalize">{item.milestone || "-"}</TableCell>
-                        <TableCell>{formatCurrency(item.amount)}</TableCell>
-                        <TableCell>{item.due_date}</TableCell>
+                        <TableCell className="font-mono text-slate-500">{index + 1}</TableCell>
+                        <TableCell className="font-medium max-w-xs">
+                          <div className="truncate" title={item.installment_name}>
+                            {item.installment_name}
+                          </div>
+                          {item.description && (
+                            <div className="text-xs text-slate-500">{item.description}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center font-semibold">{item.percentage}%</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
+                        <TableCell className="text-right font-mono text-primary font-semibold">{formatCurrency(item.cumulative)}</TableCell>
                         <TableCell>
                           <Badge className={getStatusBadge(item.payment_status)}>{item.payment_status}</Badge>
                         </TableCell>
