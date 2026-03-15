@@ -15,7 +15,6 @@ import {
   Users,
   CreditCard,
   FileText,
-  Calculator,
   BarChart3,
   Settings,
   LogOut,
@@ -32,7 +31,7 @@ const navigation = [
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Documents", href: "/documents", icon: FileText },
-  { name: "Calculator", href: "/calculator", icon: Calculator },
+  { name: "Payment Tracking", href: "/calculator", icon: CreditCard },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
