@@ -58,13 +58,13 @@ const DashboardLayout = ({ children }) => {
 
   const getRoleBadgeColor = (role) => {
     const colors = {
-      admin: "bg-red-100 text-red-700",
-      manager: "bg-purple-100 text-purple-700",
-      accounts: "bg-blue-100 text-blue-700",
-      sales: "bg-green-100 text-green-700",
-      support: "bg-yellow-100 text-yellow-700",
+      admin: "bg-yellow-900/30 text-yellow-400 border border-yellow-500/30",
+      manager: "bg-purple-900/30 text-purple-400 border border-purple-500/30",
+      accounts: "bg-blue-900/30 text-blue-400 border border-blue-500/30",
+      sales: "bg-green-900/30 text-green-400 border border-green-500/30",
+      support: "bg-orange-900/30 text-orange-400 border border-orange-500/30",
     };
-    return colors[role] || "bg-gray-100 text-gray-700";
+    return colors[role] || "bg-gray-900/30 text-gray-400";
   };
 
   return (
@@ -72,28 +72,28 @@ const DashboardLayout = ({ children }) => {
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/70 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Black with Gold accents */}
       <aside
-        className={`fixed left-0 top-0 h-full bg-slate-900 text-slate-300 w-64 flex flex-col z-50 transform transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed left-0 top-0 h-full bg-[#0a0a0a] text-slate-400 w-64 flex flex-col z-50 transform transition-transform duration-200 lg:translate-x-0 border-r border-[#d4af37]/20 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-[#d4af37]/20">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#d4af37] to-[#b8962e] flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-black" />
             </div>
-            <span className="font-heading font-bold text-white text-lg">RRL CRM</span>
+            <span className="font-heading font-bold text-[#d4af37] text-lg">RRL CRM</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-slate-400 hover:text-white"
+            className="lg:hidden text-slate-400 hover:text-[#d4af37]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -107,10 +107,10 @@ const DashboardLayout = ({ children }) => {
               to={item.href}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-colors ${
+                `flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all duration-200 ${
                   isActive
-                    ? "bg-primary text-white shadow-lg"
-                    : "hover:bg-slate-800 hover:text-white"
+                    ? "bg-gradient-to-r from-[#d4af37] to-[#b8962e] text-black shadow-lg shadow-[#d4af37]/20"
+                    : "hover:bg-[#d4af37]/10 hover:text-[#d4af37] hover:border-l-2 hover:border-[#d4af37]"
                 }`
               }
               data-testid={`nav-${item.name.toLowerCase()}`}
@@ -122,10 +122,10 @@ const DashboardLayout = ({ children }) => {
         </nav>
 
         {/* User section */}
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-[#d4af37]/20">
           <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 bg-primary">
-              <AvatarFallback className="bg-primary text-white font-medium">
+            <Avatar className="h-10 w-10 bg-gradient-to-br from-[#d4af37] to-[#b8962e]">
+              <AvatarFallback className="bg-transparent text-black font-bold">
                 {user ? getInitials(user.name) : "U"}
               </AvatarFallback>
             </Avatar>
