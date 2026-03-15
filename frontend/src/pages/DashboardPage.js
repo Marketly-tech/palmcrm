@@ -351,16 +351,16 @@ const DashboardPage = () => {
         </Card>
       </div>
 
-      {/* Due Dates Countdown - Next 5 Days */}
+      {/* Agreement Due Dates Countdown - Next 5 Days */}
       {upcomingDueDates.length > 0 && (
         <Card className="border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
           <CardHeader>
             <CardTitle className="font-heading flex items-center gap-2">
               <Bell className="h-5 w-5 text-orange-500 animate-bounce" />
-              Payment Due Date Countdown
+              Agreement Due Date Countdown
             </CardTitle>
             <CardDescription>
-              Customers with payment due dates in the next 5 days (starting 10 days from booking)
+              Customers with agreement due dates in the next 5 days (10 days from booking to complete agreement)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -387,7 +387,7 @@ const DashboardPage = () => {
                     <div className="flex justify-between items-center mt-3">
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Calendar className="w-4 h-4" />
-                        <span>Due: {new Date(item.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        <span>Agreement Due: {new Date(item.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     </div>
