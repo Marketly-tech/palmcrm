@@ -848,8 +848,8 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
             Details
           </TabsTrigger>
           <TabsTrigger value="calculator" data-testid="tab-calculator">
-            <Calculator className="w-4 h-4 mr-2" />
-            Calculator
+            <CreditCard className="w-4 h-4 mr-2" />
+            Payment Schedule
           </TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments">
             <CreditCard className="w-4 h-4 mr-2" />
@@ -1256,178 +1256,9 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
           </div>
         </TabsContent>
 
-        {/* Calculator Tab */}
+        {/* Payment Schedule Tab */}
         <TabsContent value="calculator">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Price Calculator */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calculator className="w-5 h-5 text-primary" />
-                    Price Breakup Calculator
-                  </CardTitle>
-                  <CardDescription>
-                    {calcEditing ? "Edit values to recalculate price in real-time" : "Click Edit to modify property values"}
-                  </CardDescription>
-                </div>
-                {!calcEditing ? (
-                  <Button variant="outline" onClick={initCalcEdit} data-testid="calc-edit-btn">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={cancelCalcEdit} disabled={calcSaving}>
-                      Cancel
-                    </Button>
-                    <Button onClick={saveCalcChanges} disabled={calcSaving} data-testid="calc-save-btn">
-                      {calcSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                      Save
-                    </Button>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Saleable Area (sq.ft)</Label>
-                    <Input
-                      type="number"
-                      value={calcEditing ? calcData.saleable_area : (customer.saleable_area || 0)}
-                      onChange={(e) => handleCalcChange('saleable_area', parseFloat(e.target.value) || 0)}
-                      readOnly={!calcEditing}
-                      className={calcEditing ? "border-primary" : "bg-slate-50"}
-                      data-testid="calc-saleable-area"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Rate/Sq.ft (₹)</Label>
-                    <Input
-                      type="number"
-                      value={calcEditing ? calcData.rate_per_sqft : (customer.rate_per_sqft || 0)}
-                      onChange={(e) => handleCalcChange('rate_per_sqft', parseFloat(e.target.value) || 0)}
-                      readOnly={!calcEditing}
-                      className={calcEditing ? "border-primary" : "bg-slate-50"}
-                      data-testid="calc-rate"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Floor Number</Label>
-                    <Input
-                      type="number"
-                      value={calcEditing ? calcData.floor : (customer.floor || 0)}
-                      onChange={(e) => handleCalcChange('floor', parseInt(e.target.value) || 0)}
-                      readOnly={!calcEditing}
-                      className={calcEditing ? "border-primary" : "bg-slate-50"}
-                      data-testid="calc-floor"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Floor Rise (₹/sq.ft)</Label>
-                    <Input
-                      type="number"
-                      value={calcEditing ? calcData.floor_rise_cost : (customer.custom_fields?.floor_rise_cost || 0)}
-                      onChange={(e) => handleCalcChange('floor_rise_cost', parseFloat(e.target.value) || 0)}
-                      readOnly={!calcEditing}
-                      className={calcEditing ? "border-primary" : "bg-slate-50"}
-                      placeholder="e.g., 50"
-                      data-testid="calc-floor-rise"
-                    />
-                    <p className="text-xs text-slate-500">Manual floor rise cost per sq.ft</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Additional Parking</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={calcEditing ? calcData.additional_parking : (customer.additional_parking || 0)}
-                      onChange={(e) => handleCalcChange('additional_parking', parseInt(e.target.value) || 0)}
-                      readOnly={!calcEditing}
-                      className={calcEditing ? "border-primary" : "bg-slate-50"}
-                      data-testid="calc-parking"
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Price Breakdown - Shows live calculation when editing */}
-                <div className={`space-y-3 p-4 rounded-lg ${calcEditing && calcLivePrice ? 'bg-green-50 border border-green-200' : 'bg-slate-50'}`}>
-                  {calcEditing && calcLivePrice && (
-                    <p className="text-sm font-medium text-green-700 mb-2">Live Price Preview</p>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">
-                      Base Price ({calcEditing ? calcData.saleable_area : customer.saleable_area} sq.ft × ₹{calcEditing ? calcData.rate_per_sqft : customer.rate_per_sqft})
-                    </span>
-                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
-                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.basePrice : customer.base_price)}
-                    </span>
-                  </div>
-                  {((calcEditing && calcLivePrice?.floorRiseTotal > 0) || (!calcEditing && (customer.custom_fields?.floor_rise_total || 0) > 0)) && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">
-                        Floor Rise ({calcEditing ? calcData.saleable_area : customer.saleable_area} sq.ft × ₹{calcEditing ? calcData.floor_rise_cost : customer.custom_fields?.floor_rise_cost})
-                      </span>
-                      <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
-                        {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.floorRiseTotal : customer.custom_fields?.floor_rise_total)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Club House & Infrastructure</span>
-                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
-                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.clubHouse : (customer.club_house_charges || 200000))}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">
-                      Additional Parking ({calcEditing ? calcData.additional_parking : customer.additional_parking} × ₹3L)
-                    </span>
-                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
-                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.parkingCharges : customer.additional_parking_charges)}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Labour Cess (0.70%)</span>
-                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
-                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.labourCess : customer.labour_cess)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">GST (5%)</span>
-                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : ''}`}>
-                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.gst : customer.gst_amount)}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between text-lg">
-                    <span className={`font-semibold ${calcEditing && calcLivePrice ? 'text-green-700' : 'text-primary'}`}>
-                      Total Flat Value
-                    </span>
-                    <span className={`font-bold ${calcEditing && calcLivePrice ? 'text-green-700' : 'text-primary'}`}>
-                      {formatCurrency(calcEditing && calcLivePrice ? calcLivePrice.total : customer.total_price)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                  <span className="text-slate-600">UDS (Undivided Share)</span>
-                  <span className="font-semibold">
-                    {calcEditing && calcLivePrice ? calcLivePrice.uds : (customer.uds || (customer.saleable_area * 0.495046).toFixed(2))}
-                  </span>
-                </div>
-
-                {calcEditing && (
-                  <p className="text-xs text-green-600 text-center">
-                    Values update in real-time. Click "Save" to update the customer profile.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Payment Tracking */}
             <Card>
               <CardHeader>
@@ -1461,80 +1292,83 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                <Separator />
-
-                {/* Disbursement Calculator */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold">Disbursement Calculator</h4>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <Label htmlFor="disbursement-pct" className="text-sm">Enter Percentage (%)</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Input
-                          id="disbursement-pct"
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.5"
-                          value={disbursementPercentage}
-                          onChange={(e) => setDisbursementPercentage(parseFloat(e.target.value) || 0)}
-                          className="w-24"
-                          data-testid="disbursement-percentage-input"
-                        />
-                        <span className="text-slate-500">%</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-slate-600">Disbursement Amount</p>
-                      <p className="text-xl font-bold text-primary" data-testid="disbursement-amount">
-                        {formatCurrency(customer.total_price * (disbursementPercentage / 100))}
-                      </p>
+            {/* Disbursement Calculator */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Disbursement Calculator</CardTitle>
+                <CardDescription>Calculate disbursement amounts</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <Label htmlFor="disbursement-pct" className="text-sm">Enter Percentage (%)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input
+                        id="disbursement-pct"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={disbursementPercentage}
+                        onChange={(e) => setDisbursementPercentage(parseFloat(e.target.value) || 0)}
+                        className="w-24"
+                        data-testid="disbursement-percentage-input"
+                      />
+                      <span className="text-slate-500">%</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 mt-3">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className={disbursementPercentage === 30 ? "border-primary bg-primary/10" : ""}
-                      onClick={() => setDisbursementPercentage(30)}
-                    >
-                      30%
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className={disbursementPercentage === 50 ? "border-primary bg-primary/10" : ""}
-                      onClick={() => setDisbursementPercentage(50)}
-                    >
-                      50%
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className={disbursementPercentage === 70 ? "border-primary bg-primary/10" : ""}
-                      onClick={() => setDisbursementPercentage(70)}
-                    >
-                      70%
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className={disbursementPercentage === 100 ? "border-primary bg-primary/10" : ""}
-                      onClick={() => setDisbursementPercentage(100)}
-                    >
-                      100%
-                    </Button>
+                  <div className="text-right">
+                    <p className="text-sm text-slate-600">Disbursement Amount</p>
+                    <p className="text-xl font-bold text-primary" data-testid="disbursement-amount">
+                      {formatCurrency(customer.total_price * (disbursementPercentage / 100))}
+                    </p>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg text-sm">
-                    <div className="flex justify-between">
-                      <span>Total Property Value:</span>
-                      <span className="font-medium">{formatCurrency(customer.total_price)}</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span>{disbursementPercentage}% Disbursement:</span>
-                      <span className="font-bold text-blue-700">{formatCurrency(customer.total_price * (disbursementPercentage / 100))}</span>
-                    </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2 mt-3">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className={disbursementPercentage === 30 ? "border-primary bg-primary/10" : ""}
+                    onClick={() => setDisbursementPercentage(30)}
+                  >
+                    30%
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className={disbursementPercentage === 50 ? "border-primary bg-primary/10" : ""}
+                    onClick={() => setDisbursementPercentage(50)}
+                  >
+                    50%
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className={disbursementPercentage === 70 ? "border-primary bg-primary/10" : ""}
+                    onClick={() => setDisbursementPercentage(70)}
+                  >
+                    70%
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className={disbursementPercentage === 100 ? "border-primary bg-primary/10" : ""}
+                    onClick={() => setDisbursementPercentage(100)}
+                  >
+                    100%
+                  </Button>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg text-sm">
+                  <div className="flex justify-between">
+                    <span>Total Property Value:</span>
+                    <span className="font-medium">{formatCurrency(customer.total_price)}</span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span>{disbursementPercentage}% Disbursement:</span>
+                    <span className="font-bold text-blue-700">{formatCurrency(customer.total_price * (disbursementPercentage / 100))}</span>
                   </div>
                 </div>
               </CardContent>

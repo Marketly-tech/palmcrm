@@ -96,6 +96,36 @@ const DashboardPage = () => {
 
   const COLORS = ["hsl(199, 89%, 48%)", "hsl(168, 80%, 28%)", "hsl(43, 74%, 66%)", "hsl(0, 84%, 60%)"];
 
+  const handleExport = async (type, format) => {
+    try {
+      const endpoint = type === 'customers' 
+        ? `/export/customers/${format}` 
+        : `/export/payments/${format}`;
+      
+      const response = await axios.get(`${API}${endpoint}`, {
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { 
+        type: format === 'excel' 
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+          : 'text/csv' 
+      });
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `RRL_${type.charAt(0).toUpperCase() + type.slice(1)}_Export.${format === 'excel' ? 'xlsx' : 'csv'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
+    }
+  };
+
   const pieData = stats
     ? [
         { name: "Paid", value: stats.payment_status_breakdown.paid || 0 },
@@ -182,53 +212,102 @@ const DashboardPage = () => {
         </Card>
       </div>
 
-      {/* Revenue (Admin only) */}
-      {hasRole("admin") && stats?.total_revenue > 0 && (
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Revenue Collected</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{formatCurrency(stats.total_revenue)}</p>
+      {/* Revenue & Pending (Admin only) */}
+      {hasRole("admin") && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="hover:shadow-md transition-shadow border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Revenue Collected</p>
+                  <p className="text-3xl font-bold text-green-600 mt-1">{formatCurrency(stats?.total_revenue || 0)}</p>
+                  <p className="text-sm text-green-600 mt-1">{(100 - (stats?.pending_percentage || 0)).toFixed(1)}% collected</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <IndianRupee className="h-6 w-6 text-green-600" />
+                </div>
               </div>
-              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                <IndianRupee className="h-6 w-6 text-green-600" />
+            </CardContent>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-shadow border-amber-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Pending Payments</p>
+                  <p className="text-3xl font-bold text-amber-600 mt-1">{formatCurrency(stats?.total_pending || 0)}</p>
+                  <p className="text-sm text-amber-600 mt-1">{(stats?.pending_percentage || 0).toFixed(1)}% pending</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-amber-600" />
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              {/* Progress bar */}
+              <div className="mt-4">
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-green-500 transition-all duration-500"
+                    style={{ width: `${100 - (stats?.pending_percentage || 0)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Payment Collection Progress</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Revenue Chart (Admin only) */}
-        {hasRole("admin") && stats?.monthly_revenue?.length > 0 && (
+        {/* Export Data Card (Admin/Manager only) */}
+        {hasRole("admin") && (
           <Card>
             <CardHeader>
               <CardTitle className="font-heading flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                Monthly Revenue Trend
+                <FileText className="h-5 w-5 text-primary" />
+                Export CRM Data
               </CardTitle>
+              <CardDescription>Download all data for reporting and analysis</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.monthly_revenue}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fill: "#64748b", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#fff",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value) => [formatCurrency(value), "Revenue"]}
-                    />
-                    <Bar dataKey="revenue" fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col items-center justify-center gap-2"
+                  onClick={() => handleExport('customers', 'csv')}
+                  data-testid="export-customers-csv"
+                >
+                  <FileText className="h-6 w-6 text-green-600" />
+                  <span className="text-sm">Customers CSV</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col items-center justify-center gap-2"
+                  onClick={() => handleExport('customers', 'excel')}
+                  data-testid="export-customers-excel"
+                >
+                  <FileText className="h-6 w-6 text-blue-600" />
+                  <span className="text-sm">Customers Excel</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col items-center justify-center gap-2"
+                  onClick={() => handleExport('payments', 'csv')}
+                  data-testid="export-payments-csv"
+                >
+                  <IndianRupee className="h-6 w-6 text-amber-600" />
+                  <span className="text-sm">Payments CSV</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col items-center justify-center gap-2 opacity-50"
+                  disabled
+                >
+                  <Activity className="h-6 w-6 text-purple-600" />
+                  <span className="text-sm">Activity Logs</span>
+                </Button>
               </div>
+              <p className="text-xs text-muted-foreground text-center">Click to download data in your preferred format</p>
             </CardContent>
           </Card>
         )}

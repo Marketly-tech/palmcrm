@@ -407,6 +407,8 @@ class DashboardStats(BaseModel):
     payments_due_this_week: int
     overdue_payments: int
     total_revenue: float
+    total_pending: float
+    pending_percentage: float
     monthly_revenue: List[Dict[str, Any]]
     payment_status_breakdown: Dict[str, int]
 
@@ -1099,41 +1101,89 @@ Authorized Signatory                                {customer_name}
 <head>
     <meta charset="UTF-8">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            font-family: 'Times New Roman', Times, serif;
-            font-size: 12pt;
-            line-height: 1.5;
-            color: #000;
+            font-family: 'Roboto', sans-serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #1A1A1A;
             background: #fff;
-            padding: 20px 40px;
+            padding: 25px 40px;
         }
         
         .header {
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #D4AF37;
+            padding-bottom: 15px;
             margin-bottom: 20px;
         }
         
-        .header h1 {
-            font-size: 14pt;
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo {
+            width: 50px;
+            height: 50px;
+            background: #1A1A1A;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #D4AF37;
             font-weight: bold;
-            text-decoration: underline;
+            font-size: 18px;
+        }
+        
+        .company-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1A1A1A;
+        }
+        
+        .company-tagline {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .document-title {
+            background: #1A1A1A;
+            color: #D4AF37;
+            padding: 8px 18px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
         }
         
         .recipient {
             margin-bottom: 15px;
+            padding: 15px;
+            background: #fafafa;
+            border-left: 4px solid #D4AF37;
         }
         
         .recipient p {
-            margin: 2px 0;
+            margin: 3px 0;
+            font-size: 11px;
+        }
+        
+        .highlight {
+            color: #D4AF37;
+            font-weight: 600;
         }
         
         .subject {
             margin: 15px 0;
-            font-weight: bold;
+            font-weight: 600;
+            color: #1A1A1A;
         }
         
         .greeting {
@@ -1142,26 +1192,32 @@ Authorized Signatory                                {customer_name}
         
         .content {
             text-align: justify;
-            margin: 15px 0;
+            margin: 12px 0;
+            font-size: 10.5pt;
         }
         
         .section-title {
-            font-weight: bold;
-            text-decoration: underline;
-            margin: 20px 0 10px 0;
+            font-weight: 600;
+            color: #D4AF37;
+            margin: 18px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #D4AF37;
+            font-size: 11pt;
         }
         
         .terms {
-            margin-left: 20px;
+            margin-left: 15px;
         }
         
         .terms p {
             margin: 10px 0;
             text-align: justify;
+            font-size: 10pt;
         }
         
         .terms-number {
-            font-weight: bold;
+            font-weight: 600;
+            color: #D4AF37;
         }
         
         table.details {
@@ -1171,24 +1227,25 @@ Authorized Signatory                                {customer_name}
         }
         
         table.details th, table.details td {
-            border: 1px solid #000;
+            border: 1px solid #D4AF37;
             padding: 8px 12px;
             text-align: left;
+            font-size: 10.5pt;
         }
         
         table.details th {
-            background: #f0f0f0;
-            font-weight: bold;
+            background: #1A1A1A;
+            color: #D4AF37;
+            font-weight: 500;
             width: 40%;
         }
         
-        .highlight {
-            background-color: #ffff00;
-            padding: 2px 4px;
+        table.details td {
+            background: #fafafa;
         }
         
         .signature-section {
-            margin-top: 40px;
+            margin-top: 35px;
             display: flex;
             justify-content: space-between;
         }
@@ -1198,32 +1255,56 @@ Authorized Signatory                                {customer_name}
         }
         
         .signature-line {
-            border-top: 1px solid #000;
-            margin-top: 60px;
+            border-top: 1px solid #1A1A1A;
+            margin-top: 50px;
             padding-top: 5px;
         }
         
         .declaration {
-            margin-top: 30px;
+            margin-top: 25px;
             padding: 15px;
-            border: 1px solid #000;
+            border: 2px solid #D4AF37;
+            background: #fafafa;
+            font-size: 10pt;
         }
         
         .bank-details {
-            margin: 15px 0;
-            padding: 10px;
-            background: #f9f9f9;
-            border: 1px solid #ddd;
+            margin: 12px 0;
+            padding: 12px;
+            background: #1A1A1A;
+            color: #fff;
+            border-radius: 4px;
         }
         
         .bank-details p {
             margin: 3px 0;
+            font-size: 10pt;
+        }
+        
+        .bank-details strong {
+            color: #D4AF37;
+        }
+        
+        .footer {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 2px solid #D4AF37;
+            text-align: center;
+            font-size: 9pt;
+            color: #666;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>ALLOTMENT LETTER</h1>
+        <div class="logo-section">
+            <div class="logo">RRL</div>
+            <div>
+                <div class="company-name">RRL Builders and Developers</div>
+                <div class="company-tagline">Building Dreams, Creating Homes</div>
+            </div>
+        </div>
+        <div class="document-title">Allotment Letter</div>
     </div>
     
     <div class="recipient">
@@ -1245,7 +1326,7 @@ Authorized Signatory                                {customer_name}
     <div class="content">
         <p>We are issuing this allotment letter pursuant to your submission of an expression of interest dated <span class="highlight">{booking_date}</span>, requesting unit No. <span class="highlight">{unit_number}</span> in our project being developed under the name of "<strong>{project}</strong>" RERA No. PRM/KA/RERA/1251/308/PR/141025/008167. Upon due consideration of your EOI, we are pleased to confirm your booking and allot Flat No. <span class="highlight">{unit_number}</span> in "{project}" subject to the Terms and conditions set out herein. We take this opportunity to welcome you to "RRL BUILDERS AND DEVELOPERS PVT LTD" family and are pleased that you have chosen to purchase your home from us.</p>
         
-        <p style="margin-top: 15px;">You hereby acknowledge and confirm that the copies of title documents have been handed over to you and that you have scrutinized and are satisfied with the title of the Developer to the project being good and marketable.</p>
+        <p style="margin-top: 12px;">You hereby acknowledge and confirm that the copies of title documents have been handed over to you and that you have scrutinized and are satisfied with the title of the Developer to the project being good and marketable.</p>
     </div>
     
     <div class="section-title">A. ALLOTMENT DETAILS</div>
@@ -1348,7 +1429,9 @@ Authorized Signatory                                {customer_name}
         </div>
     </div>
     
-    <div style="margin-top: 30px; font-size: 10pt; text-align: center; color: #666;">
+    <div class="footer">
+        <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
+        <p>www.rrlbuildersanddevelopers.com</p>
         <p>Date: {date} | Ref: {customer_id}</p>
     </div>
 </body>
@@ -1392,7 +1475,7 @@ Authorized Signatory
 
 # ==================== PDF GENERATION ====================
 def generate_price_breakup_html(customer: dict) -> str:
-    """Generate HTML for Price Breakup PDF matching the pink template"""
+    """Generate HTML for Price Breakup PDF with black and gold theme"""
     
     # Format currency in Indian format
     def format_inr(amount):
@@ -1418,82 +1501,111 @@ def generate_price_breakup_html(customer: dict) -> str:
     <head>
         <meta charset="UTF-8">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
             
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
             
             body {{
-                font-family: 'Open Sans', sans-serif;
-                background: #FFF5F7;
-                padding: 40px;
+                font-family: 'Roboto', sans-serif;
+                background: #f5f5f5;
+                padding: 30px;
+                color: #1A1A1A;
             }}
             
             .container {{
-                background: #FFD6E0;
-                border: 3px solid #FF69B4;
+                background: #fff;
+                border: 2px solid #D4AF37;
                 border-radius: 8px;
-                padding: 40px;
+                padding: 35px;
                 max-width: 800px;
                 margin: 0 auto;
             }}
             
             .header {{
-                text-align: center;
-                margin-bottom: 30px;
-                border-bottom: 2px solid #FF69B4;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 3px solid #D4AF37;
                 padding-bottom: 20px;
-            }}
-            
-            .header h1 {{
-                font-family: 'Playfair Display', serif;
-                color: #333;
-                font-size: 28px;
-                font-weight: 700;
-            }}
-            
-            .header h2 {{
-                font-family: 'Playfair Display', serif;
-                color: #666;
-                font-size: 18px;
-                margin-top: 5px;
-            }}
-            
-            .section {{
                 margin-bottom: 25px;
             }}
             
+            .logo-section {{
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }}
+            
+            .logo {{
+                width: 55px;
+                height: 55px;
+                background: #1A1A1A;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #D4AF37;
+                font-weight: bold;
+                font-size: 20px;
+            }}
+            
+            .company-name {{
+                font-size: 20px;
+                font-weight: 700;
+                color: #1A1A1A;
+            }}
+            
+            .company-tagline {{
+                font-size: 11px;
+                color: #666;
+            }}
+            
+            .document-title {{
+                background: #1A1A1A;
+                color: #D4AF37;
+                padding: 10px 20px;
+                border-radius: 4px;
+                font-weight: 500;
+                font-size: 13px;
+                text-transform: uppercase;
+            }}
+            
+            .section {{
+                margin-bottom: 20px;
+            }}
+            
             .section-title {{
-                font-family: 'Playfair Display', serif;
-                font-size: 16px;
-                color: #333;
+                font-size: 14px;
+                color: #1A1A1A;
                 font-weight: 600;
                 margin-bottom: 10px;
-                border-bottom: 1px solid #FF69B4;
                 padding-bottom: 5px;
+                border-bottom: 2px solid #D4AF37;
             }}
             
             .info-grid {{
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 10px;
+                gap: 8px;
             }}
             
             .info-item {{
                 display: flex;
                 justify-content: space-between;
-                padding: 8px 0;
-                border-bottom: 1px dashed #FFB6C1;
+                padding: 8px 10px;
+                background: #fafafa;
+                border-left: 3px solid #D4AF37;
             }}
             
             .info-label {{
                 color: #666;
-                font-size: 14px;
+                font-size: 12px;
             }}
             
             .info-value {{
-                color: #333;
-                font-weight: 600;
-                font-size: 14px;
+                color: #1A1A1A;
+                font-weight: 500;
+                font-size: 12px;
             }}
             
             .price-table {{
@@ -1505,50 +1617,65 @@ def generate_price_breakup_html(customer: dict) -> str:
             .price-table th, .price-table td {{
                 padding: 12px;
                 text-align: left;
-                border-bottom: 1px solid #FFB6C1;
+                font-size: 12px;
             }}
             
             .price-table th {{
-                background: #FFB6C1;
-                color: #333;
-                font-weight: 600;
+                background: #1A1A1A;
+                color: #D4AF37;
+                font-weight: 500;
             }}
             
-            .price-table tr:hover {{
-                background: #FFE4E9;
+            .price-table td {{
+                border-bottom: 1px solid #e0e0e0;
+            }}
+            
+            .price-table tr:nth-child(even) {{
+                background: #fafafa;
             }}
             
             .price-table .total-row {{
-                background: #FF69B4;
-                color: white;
+                background: #1A1A1A !important;
+                color: #D4AF37;
                 font-weight: 700;
-                font-size: 16px;
+                font-size: 14px;
             }}
             
             .price-table .amount {{
                 text-align: right;
-                font-family: monospace;
+                font-family: 'Roboto Mono', monospace;
             }}
             
             .footer {{
-                margin-top: 30px;
-                padding-top: 20px;
-                border-top: 2px solid #FF69B4;
-                font-size: 12px;
+                margin-top: 25px;
+                padding-top: 15px;
+                border-top: 2px solid #D4AF37;
+                font-size: 11px;
                 color: #666;
             }}
             
             .footer-note {{
-                font-style: italic;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
+            }}
+            
+            .footer-company {{
+                margin-top: 15px;
+                text-align: center;
+                color: #1A1A1A;
             }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>RRL PALM ALTEZZE</h1>
-                <h2>PRICE BREAK-UP AND UNIT DETAILS</h2>
+                <div class="logo-section">
+                    <div class="logo">RRL</div>
+                    <div>
+                        <div class="company-name">RRL Builders and Developers</div>
+                        <div class="company-tagline">Building Dreams, Creating Homes</div>
+                    </div>
+                </div>
+                <div class="document-title">Price Break-Up</div>
             </div>
             
             <div class="section">
@@ -1652,8 +1779,9 @@ def generate_price_breakup_html(customer: dict) -> str:
             <div class="footer">
                 <p class="footer-note">* Maintenance charges will attract GST as applicable</p>
                 <p class="footer-note">* Registration as per government norms</p>
-                <p style="margin-top: 20px; text-align: center;">
+                <p class="footer-company">
                     <strong>RRL Builders and Developers Pvt. Ltd.</strong><br>
+                    www.rrlbuildersanddevelopers.com<br>
                     Thank you for choosing RRL Palm Altezze
                 </p>
             </div>
@@ -1664,7 +1792,7 @@ def generate_price_breakup_html(customer: dict) -> str:
     return html
 
 def generate_welcome_email_html(customer: dict) -> str:
-    """Generate the pink welcome email HTML matching the screenshot"""
+    """Generate the welcome email HTML with black and gold theme"""
     
     booking_date = customer.get('booking_date', datetime.now().strftime("%d/%m/%Y"))
     if booking_date and '-' in booking_date:
@@ -1680,75 +1808,145 @@ def generate_welcome_email_html(customer: dict) -> str:
     <head>
         <meta charset="UTF-8">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;600&family=Open+Sans:wght@400;500&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
             
             body {{
-                font-family: 'Open Sans', sans-serif;
-                background: #FFF5F7;
-                padding: 40px;
+                font-family: 'Roboto', sans-serif;
+                background: #f5f5f5;
+                padding: 30px;
                 margin: 0;
+                color: #1A1A1A;
             }}
             
             .email-container {{
-                background: #FFD6E0;
-                border: 3px solid #FF69B4;
-                border-radius: 4px;
-                padding: 40px 50px;
+                background: #fff;
+                border: 2px solid #D4AF37;
+                border-radius: 8px;
+                padding: 35px 45px;
                 max-width: 700px;
                 margin: 0 auto;
                 line-height: 1.8;
             }}
             
-            .greeting {{
-                font-family: 'Dancing Script', cursive;
-                font-size: 24px;
-                color: #8B008B;
-                margin-bottom: 20px;
+            .header {{
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                padding-bottom: 20px;
+                border-bottom: 3px solid #D4AF37;
+                margin-bottom: 25px;
+            }}
+            
+            .logo {{
+                width: 50px;
+                height: 50px;
+                background: #1A1A1A;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #D4AF37;
+                font-weight: bold;
+                font-size: 18px;
+            }}
+            
+            .company-info {{
+                flex: 1;
             }}
             
             .company-name {{
+                font-size: 18px;
+                font-weight: 700;
+                color: #1A1A1A;
+            }}
+            
+            .company-tagline {{
+                font-size: 11px;
+                color: #666;
+            }}
+            
+            .greeting {{
+                font-size: 18px;
+                color: #1A1A1A;
+                margin-bottom: 20px;
+            }}
+            
+            .greeting span {{
+                color: #D4AF37;
                 font-weight: 600;
             }}
             
             .flat-highlight {{
-                font-family: 'Dancing Script', cursive;
-                font-style: italic;
+                color: #D4AF37;
                 font-weight: 600;
             }}
             
             .residence-details {{
                 margin: 25px 0;
-                padding: 15px 0;
+                padding: 20px;
+                background: #fafafa;
+                border-left: 4px solid #D4AF37;
+                border-radius: 0 8px 8px 0;
             }}
             
             .residence-details strong {{
                 display: block;
-                margin-bottom: 10px;
+                margin-bottom: 15px;
+                color: #1A1A1A;
+                font-size: 14px;
+                text-transform: uppercase;
             }}
             
             .detail-line {{
-                margin: 5px 0;
-                padding-left: 10px;
+                margin: 8px 0;
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+            }}
+            
+            .detail-label {{
+                color: #666;
             }}
             
             .detail-value {{
-                font-family: 'Dancing Script', cursive;
-                font-weight: 600;
-                color: #8B008B;
+                font-weight: 500;
+                color: #D4AF37;
             }}
             
             p {{
-                margin-bottom: 20px;
+                margin-bottom: 18px;
                 color: #333;
-                font-size: 15px;
+                font-size: 14px;
+            }}
+            
+            .footer {{
+                margin-top: 25px;
+                padding-top: 20px;
+                border-top: 2px solid #D4AF37;
+                text-align: center;
+                font-size: 12px;
+                color: #666;
+            }}
+            
+            .footer-link {{
+                color: #D4AF37;
+                text-decoration: none;
             }}
         </style>
     </head>
     <body>
         <div class="email-container">
-            <p class="greeting">Dear, <span class="detail-value">{customer.get('name', 'Valued Customer')}</span></p>
+            <div class="header">
+                <div class="logo">RRL</div>
+                <div class="company-info">
+                    <div class="company-name">RRL Builders and Developers</div>
+                    <div class="company-tagline">Building Dreams, Creating Homes</div>
+                </div>
+            </div>
             
-            <p><strong class="company-name">Greetings From RRL Builders and Developers Pvt Ltd.</strong></p>
+            <p class="greeting">Dear <span>{customer.get('name', 'Valued Customer')}</span>,</p>
+            
+            <p><strong>Greetings From RRL Builders and Developers Pvt Ltd.</strong></p>
             
             <p>It is our distinct pleasure to welcome you to {customer.get('project', 'RRL Palm Altezze')} and to congratulate you on the acquisition of your Residence <span class="flat-highlight">Flat No. {customer.get('unit_number', '')}</span>.</p>
             
@@ -1757,14 +1955,31 @@ def generate_welcome_email_html(customer: dict) -> str:
             <p>{customer.get('project', 'RRL Palm Altezze')} has been envisioned for a select few who value privacy, sophistication, and exclusivity. Every element of your residence—from architecture and materials to amenities and services—has been thoughtfully curated to offer a living experience of rare distinction.</p>
             
             <div class="residence-details">
-                <strong>Residence Details:</strong>
-                <div class="detail-line">Project: <span class="detail-value">{customer.get('project', 'RRL PALM ALTEZZE').upper()}</span></div>
-                <div class="detail-line">Residence: <span class="detail-value">Flat NO: {customer.get('unit_number', '')}</span></div>
-                <div class="detail-line">Configuration: <span class="detail-value">{customer.get('bhk_type', '').upper()}</span></div>
-                <div class="detail-line">Booking Date: <span class="detail-value">{booking_date}</span></div>
+                <strong>Residence Details</strong>
+                <div class="detail-line">
+                    <span class="detail-label">Project</span>
+                    <span class="detail-value">{customer.get('project', 'RRL PALM ALTEZZE').upper()}</span>
+                </div>
+                <div class="detail-line">
+                    <span class="detail-label">Residence</span>
+                    <span class="detail-value">Flat No. {customer.get('unit_number', '')}</span>
+                </div>
+                <div class="detail-line">
+                    <span class="detail-label">Configuration</span>
+                    <span class="detail-value">{customer.get('bhk_type', '').upper()}</span>
+                </div>
+                <div class="detail-line">
+                    <span class="detail-label">Booking Date</span>
+                    <span class="detail-value">{booking_date}</span>
+                </div>
             </div>
             
             <p>Your dedicated Relationship Director will connect with you personally to ensure that every interaction with us is seamless and tailored to your expectations. We remain committed to delivering not only an exceptional home, but also an ownership experience defined by transparency, attention to detail, and quiet excellence.</p>
+            
+            <div class="footer">
+                <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
+                <p><a href="https://www.rrlbuildersanddevelopers.com" class="footer-link">www.rrlbuildersanddevelopers.com</a></p>
+            </div>
         </div>
     </body>
     </html>
@@ -2180,17 +2395,23 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     payments_due_this_week = 0
     overdue_payments = 0
     total_revenue = 0
+    total_pending = 0
     
     payment_status_counts = {"pending": 0, "paid": 0, "overdue": 0, "partial": 0}
     
     for schedule in schedules:
         for item in schedule.get('items', []):
             status = item.get('payment_status', 'pending')
+            amount = item.get('amount', 0)
             payment_status_counts[status] = payment_status_counts.get(status, 0) + 1
             
             if status == 'paid':
-                total_revenue += item.get('amount', 0)
-            elif status != 'paid':
+                total_revenue += amount
+            elif status == 'partial':
+                total_revenue += amount * 0.5
+                total_pending += amount * 0.5
+            else:
+                total_pending += amount
                 try:
                     due_date = datetime.strptime(item['due_date'], "%Y-%m-%d").date()
                     if due_date < today:
@@ -2200,12 +2421,15 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
                 except (ValueError, TypeError):
                     pass
     
-    # Monthly revenue (last 6 months)
+    # Calculate pending percentage
+    total_amount = total_revenue + total_pending
+    pending_percentage = round((total_pending / total_amount * 100), 2) if total_amount > 0 else 0
+    
+    # Monthly revenue (last 6 months) - keeping for backwards compatibility
     monthly_revenue = []
     for i in range(5, -1, -1):
         month_date = datetime.now() - timedelta(days=30*i)
         month_name = month_date.strftime("%b")
-        # In production, calculate actual revenue per month
         monthly_revenue.append({"month": month_name, "revenue": total_revenue / 6 if total_revenue > 0 else 0})
     
     return DashboardStats(
@@ -2214,6 +2438,8 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
         payments_due_this_week=payments_due_this_week,
         overdue_payments=overdue_payments,
         total_revenue=total_revenue if user['role'] == 'admin' else 0,
+        total_pending=total_pending if user['role'] == 'admin' else 0,
+        pending_percentage=pending_percentage if user['role'] == 'admin' else 0,
         monthly_revenue=monthly_revenue if user['role'] == 'admin' else [],
         payment_status_breakdown=payment_status_counts
     )
@@ -2817,7 +3043,538 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
-# Include the router in the main app
+# ==================== EXPORT FUNCTIONALITY ====================
+@api_router.get("/export/customers/csv")
+async def export_customers_csv(user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER]))):
+    """Export all customers data as CSV"""
+    import io
+    import csv
+    
+    customers = await db.customers.find({}, {"_id": 0}).to_list(10000)
+    
+    if not customers:
+        raise HTTPException(status_code=404, detail="No customers found")
+    
+    output = io.StringIO()
+    
+    # Define CSV headers
+    headers = [
+        "Customer ID", "Name", "Email", "Phone", "Project", "Tower", "Unit Number",
+        "BHK Type", "Floor", "Saleable Area", "Rate/Sqft", "Base Price", "Floor Rise Cost",
+        "Club House", "Additional Parking", "Labour Cess", "GST Amount", "Total Price",
+        "Booking Amount", "Booking Date", "Total Received", "Balance Amount",
+        "Payment Received %", "Agreement Status", "Stage", "Father Name", "PAN Number",
+        "Address", "Created At"
+    ]
+    
+    writer = csv.DictWriter(output, fieldnames=headers)
+    writer.writeheader()
+    
+    for c in customers:
+        writer.writerow({
+            "Customer ID": c.get('customer_id', ''),
+            "Name": c.get('name', ''),
+            "Email": c.get('email', ''),
+            "Phone": c.get('phone', ''),
+            "Project": c.get('project', ''),
+            "Tower": c.get('tower', ''),
+            "Unit Number": c.get('unit_number', ''),
+            "BHK Type": c.get('unit_type', ''),
+            "Floor": c.get('floor', ''),
+            "Saleable Area": c.get('saleable_area', 0),
+            "Rate/Sqft": c.get('rate_per_sqft', 0),
+            "Base Price": c.get('base_price', 0),
+            "Floor Rise Cost": c.get('custom_fields', {}).get('floor_rise_cost', 0),
+            "Club House": c.get('club_house_charges', 0),
+            "Additional Parking": c.get('additional_parking_charges', 0),
+            "Labour Cess": c.get('labour_cess', 0),
+            "GST Amount": c.get('gst_amount', 0),
+            "Total Price": c.get('total_price', 0),
+            "Booking Amount": c.get('booking_amount', 0),
+            "Booking Date": c.get('booking_date', ''),
+            "Total Received": c.get('total_received', 0),
+            "Balance Amount": c.get('balance_amount', 0),
+            "Payment Received %": c.get('payment_received_percentage', 0),
+            "Agreement Status": c.get('agreement_status', ''),
+            "Stage": c.get('stage', ''),
+            "Father Name": c.get('father_name', ''),
+            "PAN Number": c.get('pan_number', ''),
+            "Address": c.get('address', ''),
+            "Created At": c.get('created_at', '')
+        })
+    
+    csv_content = output.getvalue()
+    output.close()
+    
+    await log_activity(user['id'], user['name'], "export", "customers", "all", "Exported customers to CSV")
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=RRL_Customers_Export.csv"}
+    )
+
+@api_router.get("/export/customers/excel")
+async def export_customers_excel(user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER]))):
+    """Export all customers data as Excel"""
+    import io
+    
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Excel export not available. Please install openpyxl.")
+    
+    customers = await db.customers.find({}, {"_id": 0}).to_list(10000)
+    
+    if not customers:
+        raise HTTPException(status_code=404, detail="No customers found")
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Customers"
+    
+    # Define headers
+    headers = [
+        "Customer ID", "Name", "Email", "Phone", "Project", "Tower", "Unit Number",
+        "BHK Type", "Floor", "Saleable Area", "Rate/Sqft", "Base Price", "Floor Rise Cost",
+        "Club House", "Additional Parking", "Labour Cess", "GST Amount", "Total Price",
+        "Booking Amount", "Booking Date", "Total Received", "Balance Amount",
+        "Payment Received %", "Agreement Status", "Stage", "Created At"
+    ]
+    
+    # Style headers with black and gold theme
+    header_fill = PatternFill(start_color="1A1A1A", end_color="1A1A1A", fill_type="solid")
+    header_font = Font(color="D4AF37", bold=True, name="Roboto")
+    thin_border = Border(
+        left=Side(style='thin', color='D4AF37'),
+        right=Side(style='thin', color='D4AF37'),
+        top=Side(style='thin', color='D4AF37'),
+        bottom=Side(style='thin', color='D4AF37')
+    )
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+    
+    # Add data
+    for row, c in enumerate(customers, 2):
+        data = [
+            c.get('customer_id', ''),
+            c.get('name', ''),
+            c.get('email', ''),
+            c.get('phone', ''),
+            c.get('project', ''),
+            c.get('tower', ''),
+            c.get('unit_number', ''),
+            c.get('unit_type', ''),
+            c.get('floor', ''),
+            c.get('saleable_area', 0),
+            c.get('rate_per_sqft', 0),
+            c.get('base_price', 0),
+            c.get('custom_fields', {}).get('floor_rise_cost', 0),
+            c.get('club_house_charges', 0),
+            c.get('additional_parking_charges', 0),
+            c.get('labour_cess', 0),
+            c.get('gst_amount', 0),
+            c.get('total_price', 0),
+            c.get('booking_amount', 0),
+            c.get('booking_date', ''),
+            c.get('total_received', 0),
+            c.get('balance_amount', 0),
+            c.get('payment_received_percentage', 0),
+            c.get('agreement_status', ''),
+            c.get('stage', ''),
+            c.get('created_at', '')
+        ]
+        for col, value in enumerate(data, 1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.border = thin_border
+            cell.font = Font(name="Roboto")
+    
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        ws.column_dimensions[column].width = min(max_length + 2, 50)
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    await log_activity(user['id'], user['name'], "export", "customers", "all", "Exported customers to Excel")
+    
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=RRL_Customers_Export.xlsx"}
+    )
+
+@api_router.get("/export/payments/csv")
+async def export_payments_csv(user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER, UserRole.ACCOUNTS]))):
+    """Export all payment schedules as CSV"""
+    import io
+    import csv
+    
+    schedules = await db.payment_schedules.find({}, {"_id": 0}).to_list(10000)
+    customers = {c['id']: c for c in await db.customers.find({}, {"_id": 0, "id": 1, "name": 1, "customer_id": 1, "project": 1, "unit_number": 1}).to_list(10000)}
+    
+    output = io.StringIO()
+    headers = ["Customer ID", "Customer Name", "Project", "Unit", "Installment", "Milestone", "Amount", "Due Date", "Status", "Payment Date"]
+    
+    writer = csv.DictWriter(output, fieldnames=headers)
+    writer.writeheader()
+    
+    for schedule in schedules:
+        customer = customers.get(schedule.get('customer_id'), {})
+        for item in schedule.get('items', []):
+            writer.writerow({
+                "Customer ID": customer.get('customer_id', ''),
+                "Customer Name": customer.get('name', ''),
+                "Project": customer.get('project', ''),
+                "Unit": customer.get('unit_number', ''),
+                "Installment": item.get('installment_name', ''),
+                "Milestone": item.get('milestone', ''),
+                "Amount": item.get('amount', 0),
+                "Due Date": item.get('due_date', ''),
+                "Status": item.get('payment_status', ''),
+                "Payment Date": item.get('payment_date', '')
+            })
+    
+    csv_content = output.getvalue()
+    output.close()
+    
+    await log_activity(user['id'], user['name'], "export", "payments", "all", "Exported payments to CSV")
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=RRL_Payments_Export.csv"}
+    )
+
+# ==================== PAYMENT SCHEDULE PDF ====================
+def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
+    """Generate HTML for Payment Schedule PDF with black and gold theme"""
+    
+    def format_inr(amount):
+        amount = float(amount) if amount else 0
+        return f"₹{amount:,.2f}"
+    
+    booking_date = customer.get('booking_date', datetime.now().strftime("%d/%m/%Y"))
+    if booking_date and '-' in booking_date:
+        try:
+            dt = datetime.strptime(booking_date, "%Y-%m-%d")
+            booking_date = dt.strftime("%d/%m/%Y")
+        except:
+            pass
+    
+    # Generate schedule rows
+    schedule_rows = ""
+    cumulative = 0
+    for i, item in enumerate(schedule_items, 1):
+        cumulative += item.get('amount', 0)
+        status_color = "#28a745" if item.get('payment_status') == 'paid' else "#dc3545" if item.get('payment_status') == 'overdue' else "#D4AF37"
+        schedule_rows += f'''
+        <tr>
+            <td style="text-align: center;">{i}</td>
+            <td>{item.get('installment_name', '')}</td>
+            <td style="text-align: center;">{item.get('percentage', 0)}%</td>
+            <td style="text-align: right;">{format_inr(item.get('amount', 0))}</td>
+            <td style="text-align: right; color: #D4AF37; font-weight: bold;">{format_inr(cumulative)}</td>
+            <td style="text-align: center;">{item.get('due_date', '-')}</td>
+            <td style="text-align: center; color: {status_color}; font-weight: bold;">{item.get('payment_status', 'pending').upper()}</td>
+        </tr>
+        '''
+    
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+            
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            
+            body {{
+                font-family: 'Roboto', sans-serif;
+                background: #f5f5f5;
+                padding: 30px;
+                color: #1A1A1A;
+            }}
+            
+            .container {{
+                background: #fff;
+                border: 2px solid #D4AF37;
+                border-radius: 8px;
+                padding: 30px;
+                max-width: 900px;
+                margin: 0 auto;
+            }}
+            
+            .header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 3px solid #D4AF37;
+                padding-bottom: 20px;
+                margin-bottom: 25px;
+            }}
+            
+            .logo-section {{
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }}
+            
+            .logo {{
+                width: 60px;
+                height: 60px;
+                background: #1A1A1A;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #D4AF37;
+                font-weight: bold;
+                font-size: 24px;
+            }}
+            
+            .company-name {{
+                font-size: 22px;
+                font-weight: 700;
+                color: #1A1A1A;
+            }}
+            
+            .company-tagline {{
+                font-size: 12px;
+                color: #666;
+            }}
+            
+            .document-title {{
+                background: #1A1A1A;
+                color: #D4AF37;
+                padding: 10px 20px;
+                border-radius: 4px;
+                font-weight: 500;
+                font-size: 14px;
+            }}
+            
+            .customer-info {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+                margin-bottom: 25px;
+                padding: 15px;
+                background: #fafafa;
+                border-radius: 8px;
+                border-left: 4px solid #D4AF37;
+            }}
+            
+            .info-item {{
+                display: flex;
+                justify-content: space-between;
+            }}
+            
+            .info-label {{
+                color: #666;
+                font-size: 12px;
+            }}
+            
+            .info-value {{
+                font-weight: 500;
+                color: #1A1A1A;
+            }}
+            
+            .schedule-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+            }}
+            
+            .schedule-table th {{
+                background: #1A1A1A;
+                color: #D4AF37;
+                padding: 12px 10px;
+                font-weight: 500;
+                font-size: 12px;
+                text-transform: uppercase;
+            }}
+            
+            .schedule-table td {{
+                padding: 10px;
+                border-bottom: 1px solid #e0e0e0;
+                font-size: 11px;
+            }}
+            
+            .schedule-table tr:nth-child(even) {{
+                background: #fafafa;
+            }}
+            
+            .totals-section {{
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 15px;
+                margin-top: 25px;
+            }}
+            
+            .total-box {{
+                padding: 15px;
+                border-radius: 8px;
+                text-align: center;
+            }}
+            
+            .total-box.received {{
+                background: #e8f5e9;
+                border: 1px solid #28a745;
+            }}
+            
+            .total-box.pending {{
+                background: #fff3e0;
+                border: 1px solid #D4AF37;
+            }}
+            
+            .total-box.total {{
+                background: #1A1A1A;
+                color: #D4AF37;
+            }}
+            
+            .total-label {{
+                font-size: 11px;
+                text-transform: uppercase;
+            }}
+            
+            .total-value {{
+                font-size: 18px;
+                font-weight: 700;
+                margin-top: 5px;
+            }}
+            
+            .footer {{
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e0e0e0;
+                text-align: center;
+                font-size: 10px;
+                color: #666;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="logo-section">
+                    <div class="logo">RRL</div>
+                    <div>
+                        <div class="company-name">RRL Builders and Developers</div>
+                        <div class="company-tagline">Building Dreams, Creating Homes</div>
+                    </div>
+                </div>
+                <div class="document-title">PAYMENT SCHEDULE</div>
+            </div>
+            
+            <div class="customer-info">
+                <div class="info-item">
+                    <span class="info-label">Customer Name</span>
+                    <span class="info-value">{customer.get('name', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Customer ID</span>
+                    <span class="info-value">{customer.get('customer_id', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Project</span>
+                    <span class="info-value">{customer.get('project', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Unit Number</span>
+                    <span class="info-value">{customer.get('unit_number', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total Value</span>
+                    <span class="info-value">{format_inr(customer.get('total_price', 0))}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Booking Date</span>
+                    <span class="info-value">{booking_date}</span>
+                </div>
+            </div>
+            
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 35%;">Particulars</th>
+                        <th style="width: 8%;">%</th>
+                        <th style="width: 15%;">Amount</th>
+                        <th style="width: 15%;">Cumulative</th>
+                        <th style="width: 12%;">Due Date</th>
+                        <th style="width: 10%;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {schedule_rows}
+                </tbody>
+            </table>
+            
+            <div class="totals-section">
+                <div class="total-box received">
+                    <div class="total-label">Total Received</div>
+                    <div class="total-value" style="color: #28a745;">{format_inr(customer.get('total_received', 0))}</div>
+                </div>
+                <div class="total-box pending">
+                    <div class="total-label">Balance Pending</div>
+                    <div class="total-value" style="color: #D4AF37;">{format_inr(customer.get('balance_amount', 0))}</div>
+                </div>
+                <div class="total-box total">
+                    <div class="total-label">Total Property Value</div>
+                    <div class="total-value">{format_inr(customer.get('total_price', 0))}</div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>RRL Builders and Developers Pvt Ltd | www.rrlbuildersanddevelopers.com</p>
+                <p>This is a computer-generated document. Generated on {datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return html
+
+@api_router.post("/documents/generate-payment-schedule-pdf/{customer_id}")
+async def generate_payment_schedule_pdf(customer_id: str, user: dict = Depends(get_current_user)):
+    """Generate Payment Schedule PDF for a customer"""
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    schedule = await db.payment_schedules.find_one({"customer_id": customer_id}, {"_id": 0})
+    schedule_items = schedule.get('items', []) if schedule else []
+    
+    if not schedule_items:
+        raise HTTPException(status_code=404, detail="No payment schedule found. Please generate one first.")
+    
+    html_content = generate_payment_schedule_html(customer, schedule_items)
+    
+    await log_activity(user['id'], user['name'], "generate", "payment_schedule_pdf", customer_id, "Generated Payment Schedule PDF")
+    
+    return {
+        "html": html_content,
+        "filename": f"RRL_PaymentSchedule_{customer.get('name', 'Customer').replace(' ', '_')}.pdf"
+    }
+
+
+# Include the router in the main app - MUST be after all route definitions
 app.include_router(api_router)
 
 app.add_middleware(
