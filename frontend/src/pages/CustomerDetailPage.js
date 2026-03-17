@@ -2115,7 +2115,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
 
       {/* Unified Email Composer Dialog */}
       <Dialog open={emailComposerOpen} onOpenChange={setEmailComposerOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5 text-primary" />
@@ -2126,7 +2126,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
           </DialogHeader>
           
           {emailComposerData && (
-            <div className="flex-1 overflow-hidden flex flex-col gap-4">
+            <div className="space-y-4">
               {/* Editable Email Fields */}
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
@@ -2162,7 +2162,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                   <textarea 
                     value={editedEmailBody}
                     onChange={(e) => setEditedEmailBody(e.target.value)}
-                    rows={6}
+                    rows={5}
                     className="w-full border border-primary/50 rounded-md p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
@@ -2187,8 +2187,8 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
               </div>
               
               {/* Preview Tabs */}
-              <div className="flex-1 min-h-0">
-                <Tabs defaultValue="preview" className="h-full flex flex-col">
+              <div>
+                <Tabs defaultValue="preview">
                   <TabsList className="grid grid-cols-3 w-full max-w-lg">
                     <TabsTrigger value="preview">Email Preview</TabsTrigger>
                     <TabsTrigger value="attachment1">
@@ -2201,16 +2201,16 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                     )}
                   </TabsList>
                   
-                  <TabsContent value="preview" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
+                  <TabsContent value="preview" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
                     <div dangerouslySetInnerHTML={{ __html: emailComposerData.email_html || "" }} />
                   </TabsContent>
                   
-                  <TabsContent value="attachment1" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
+                  <TabsContent value="attachment1" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
                     <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html || "" }} />
                   </TabsContent>
                   
                   {emailComposerData.attachment_html_2 && (
-                    <TabsContent value="attachment2" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
+                    <TabsContent value="attachment2" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
                       <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html_2 || "" }} />
                     </TabsContent>
                   )}
