@@ -136,6 +136,44 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - **Email**: admin@rrlbuilders.com
 - **Password**: admin123
 
+## Recent Updates (March 17, 2026 - Session 4 continued part 2)
+
+### Sales Agreement & Unified Email Composer
+1. ✅ **Sales Agreement Template** - Created comprehensive HTML template with:
+   - All customer details mapped (name, address, Aadhaar, PAN, phone)
+   - Property details (project, tower, unit, area, UDS, parking)
+   - Sale consideration breakdown (base price, club house, parking, labour cess, GST, total)
+   - Payment schedule table with milestones and amounts
+   - Bank details for payment
+   - Terms & conditions (17 clauses)
+   - Signature section
+   - Black and gold theme with Roboto font
+   
+2. ✅ **Unified Email Composer** - New dialog with:
+   - Editable Subject line
+   - Editable Email Body text area
+   - Auto-generated attachments shown as badges
+   - 3 preview tabs: Email Preview, Document Attachment, Price Breakup
+   - SendGrid status indicator
+   - Cancel and Send Email buttons
+   
+3. ✅ **Three Email Buttons** on customer profile:
+   - **Welcome Email** - Sends welcome message with Price Breakup PDF
+   - **Sales Agreement** - Sends sale agreement draft with both Sales Agreement and Price Breakup PDFs
+   - **Allotment Letter** - Sends allotment letter with Allotment Letter PDF
+   
+4. ✅ **Email Subject for Sales Agreement**: "SALE AGREEMENT DRAFT AND PRICE BREAK UP - {flat_number}"
+
+5. ✅ **All emails include signature**:
+   ```
+   Pavitra S G
+   CRM MANAGER
+   P: 9606579135
+   E: crm@rrlbuildersanddevelopers.com
+   A: 4TH Floor, RRL Tower, Sompura gate, Sarjapura Bengaluru - 562125
+   www.rrlbuildersanddevelopers.com
+   ```
+
 ## Recent Updates (March 17, 2026 - Session 4 continued)
 
 ### Welcome Email Enhancements

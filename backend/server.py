@@ -48,6 +48,53 @@ app = FastAPI(title="RRL Builders CRM API")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Utility function to convert number to Indian words
+def number_to_indian_words(num):
+    """Convert number to words in Indian format (Lakhs, Crores)"""
+    if num == 0:
+        return "Zero"
+    
+    ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+            "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+            "Seventeen", "Eighteen", "Nineteen"]
+    tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+    
+    def convert_less_than_thousand(n):
+        if n == 0:
+            return ""
+        elif n < 20:
+            return ones[n]
+        elif n < 100:
+            return tens[n // 10] + (" " + ones[n % 10] if n % 10 != 0 else "")
+        else:
+            return ones[n // 100] + " Hundred" + (" " + convert_less_than_thousand(n % 100) if n % 100 != 0 else "")
+    
+    num = int(num)
+    if num < 0:
+        return "Minus " + number_to_indian_words(-num)
+    
+    crore = num // 10000000
+    lakh = (num % 10000000) // 100000
+    thousand = (num % 100000) // 1000
+    remainder = num % 1000
+    
+    result = ""
+    if crore > 0:
+        result += convert_less_than_thousand(crore) + " Crore "
+    if lakh > 0:
+        result += convert_less_than_thousand(lakh) + " Lakh "
+    if thousand > 0:
+        result += convert_less_than_thousand(thousand) + " Thousand "
+    if remainder > 0:
+        result += convert_less_than_thousand(remainder)
+    
+    return result.strip() + " Rupees"
+
+def format_indian_currency(amount):
+    """Format amount in Indian currency style"""
+    amount = float(amount) if amount else 0
+    return f"{amount:,.2f}"
+
 # Security
 security = HTTPBearer()
 
@@ -1063,39 +1110,414 @@ async def generate_document(data: DocumentGenerate, user: dict = Depends(get_cur
     
     return {"message": "Document generated", "document": {**doc, "_id": None}}
 
+def generate_sales_agreement_template():
+    """Generate Sales Agreement HTML template with black and gold theme"""
+    return """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            font-size: 10pt;
+            line-height: 1.5;
+            color: #1A1A1A;
+            background: #fff;
+            padding: 20px 35px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #D4AF37;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo {
+            width: 45px;
+            height: 45px;
+            background: #1A1A1A;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #D4AF37;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .company-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1A1A1A;
+        }
+        
+        .company-tagline {
+            font-size: 9px;
+            color: #666;
+        }
+        
+        .document-title {
+            background: #1A1A1A;
+            color: #D4AF37;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        
+        h1.main-title {
+            text-align: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1A1A1A;
+            margin: 20px 0;
+            text-decoration: underline;
+            text-transform: uppercase;
+        }
+        
+        .section-title {
+            font-weight: 600;
+            color: #D4AF37;
+            font-size: 11pt;
+            margin: 18px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #D4AF37;
+        }
+        
+        .highlight {
+            color: #D4AF37;
+            font-weight: 600;
+        }
+        
+        .content p {
+            margin: 10px 0;
+            text-align: justify;
+        }
+        
+        table.details {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        table.details th, table.details td {
+            border: 1px solid #D4AF37;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 10pt;
+        }
+        
+        table.details th {
+            background: #1A1A1A;
+            color: #D4AF37;
+            font-weight: 500;
+            width: 40%;
+        }
+        
+        table.details td {
+            background: #fafafa;
+        }
+        
+        table.schedule {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 9pt;
+        }
+        
+        table.schedule th, table.schedule td {
+            border: 1px solid #D4AF37;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        
+        table.schedule th {
+            background: #1A1A1A;
+            color: #D4AF37;
+            font-weight: 500;
+        }
+        
+        table.schedule tr:nth-child(even) {
+            background: #fafafa;
+        }
+        
+        table.schedule .amount {
+            text-align: right;
+            font-family: 'Roboto Mono', monospace;
+        }
+        
+        .party-box {
+            padding: 12px;
+            background: #fafafa;
+            border-left: 4px solid #D4AF37;
+            margin: 10px 0;
+        }
+        
+        .signature-section {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .signature-box {
+            width: 45%;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #1A1A1A;
+            margin-top: 60px;
+            padding-top: 5px;
+        }
+        
+        .footer {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 2px solid #D4AF37;
+            text-align: center;
+            font-size: 9pt;
+            color: #666;
+        }
+        
+        .terms ol {
+            margin-left: 20px;
+        }
+        
+        .terms li {
+            margin: 8px 0;
+            text-align: justify;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo-section">
+            <div class="logo">RRL</div>
+            <div>
+                <div class="company-name">RRL Builders and Developers</div>
+                <div class="company-tagline">Building Dreams, Creating Homes</div>
+            </div>
+        </div>
+        <div class="document-title">Sale Agreement Draft</div>
+    </div>
+    
+    <h1 class="main-title">Agreement for Sale</h1>
+    
+    <div class="content">
+        <p>This <strong>Agreement for Sale</strong> is made on the <span class="highlight">{agreement_date_text}</span> at Bengaluru.</p>
+        
+        <p><strong>BETWEEN</strong></p>
+        
+        <div class="party-box">
+            <p><strong>M/s. RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED</strong>, a company incorporated under Companies Act 1956, having its registered office at #28-30, Ground Floor, RRL Tower, Sompura Gate, Sarjapura Main Road, Sarjapura, Anekal Taluk, Bengaluru - 562125, represented by MR. RAM R as authorized signatory (hereinafter referred to as <strong>"VENDOR"</strong>)</p>
+        </div>
+        
+        <p style="text-align: center; margin: 15px 0;"><strong>AND</strong></p>
+        
+        <div class="party-box">
+            <p><strong>1. <span class="highlight">{customer_name}</span></strong>, Aged about <span class="highlight">{age}</span> years, S/o/D/o <span class="highlight">{father_name}</span></p>
+            <p>Residing at: <span class="highlight">{address}</span></p>
+            <p>AADHAAR No.: <span class="highlight">{aadhaar_number}</span> | PAN No.: <span class="highlight">{pan_number}</span> | Mobile: <span class="highlight">{phone}</span></p>
+        </div>
+        
+        <p>(hereinafter referred to as <strong>"PURCHASER/S"</strong> or <strong>"ALLOTTEE/S"</strong>)</p>
+        
+        <div class="section-title">A. PROPERTY DETAILS</div>
+        
+        <table class="details">
+            <tr>
+                <th>Project Name</th>
+                <td><span class="highlight">{project}</span></td>
+            </tr>
+            <tr>
+                <th>RERA No.</th>
+                <td>PRM/KA/RERA/1251/308/PR/141025/008167</td>
+            </tr>
+            <tr>
+                <th>Tower / Block</th>
+                <td><span class="highlight">{tower}</span></td>
+            </tr>
+            <tr>
+                <th>Flat Number</th>
+                <td><span class="highlight">{unit_number}</span></td>
+            </tr>
+            <tr>
+                <th>Floor</th>
+                <td><span class="highlight">{floor}</span></td>
+            </tr>
+            <tr>
+                <th>Configuration</th>
+                <td><span class="highlight">{bhk_type}</span></td>
+            </tr>
+            <tr>
+                <th>Super Built-up Area</th>
+                <td><span class="highlight">{saleable_area}</span> Sq. Ft.</td>
+            </tr>
+            <tr>
+                <th>Carpet Area</th>
+                <td><span class="highlight">{carpet_area}</span> Sq. Ft.</td>
+            </tr>
+            <tr>
+                <th>UDS (Undivided Share)</th>
+                <td><span class="highlight">{uds}</span> Sq. Ft.</td>
+            </tr>
+            <tr>
+                <th>Car Parking</th>
+                <td>One covered car parking space + <span class="highlight">{additional_parking}</span> additional</td>
+            </tr>
+        </table>
+        
+        <div class="section-title">B. SALE CONSIDERATION</div>
+        
+        <table class="details">
+            <tr>
+                <th>Base Price</th>
+                <td>Rs. <span class="highlight">{base_price_formatted}</span>/-</td>
+            </tr>
+            <tr>
+                <th>Club House & Infrastructure</th>
+                <td>Rs. <span class="highlight">{club_house_formatted}</span>/-</td>
+            </tr>
+            <tr>
+                <th>Additional Parking</th>
+                <td>Rs. <span class="highlight">{parking_charges_formatted}</span>/-</td>
+            </tr>
+            <tr>
+                <th>Labour Cess (0.70%)</th>
+                <td>Rs. <span class="highlight">{labour_cess_formatted}</span>/-</td>
+            </tr>
+            <tr>
+                <th>GST (5%)</th>
+                <td>Rs. <span class="highlight">{gst_formatted}</span>/-</td>
+            </tr>
+            <tr style="background: #1A1A1A;">
+                <th style="background: #1A1A1A; color: #D4AF37;">TOTAL SALE CONSIDERATION</th>
+                <td style="background: #1A1A1A; color: #D4AF37; font-weight: bold; font-size: 12pt;">Rs. <span>{total_price_formatted}</span>/-</td>
+            </tr>
+        </table>
+        
+        <p><strong>Total Sale Consideration in Words:</strong> <span class="highlight">{total_price_words}</span> Only</p>
+        
+        <div class="section-title">C. PAYMENT SCHEDULE</div>
+        
+        <table class="schedule">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 55%;">Milestone / Particulars</th>
+                    <th style="width: 12%;">%</th>
+                    <th style="width: 28%;">Amount (Rs.)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {payment_schedule_rows}
+            </tbody>
+            <tfoot>
+                <tr style="background: #1A1A1A;">
+                    <td colspan="2" style="color: #D4AF37; font-weight: bold;">TOTAL</td>
+                    <td style="color: #D4AF37; font-weight: bold;">100%</td>
+                    <td class="amount" style="color: #D4AF37; font-weight: bold;">{total_price_formatted}</td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <div class="section-title">D. PAYMENT RECEIVED</div>
+        
+        <table class="details">
+            <tr>
+                <th>Booking Amount Received</th>
+                <td>Rs. <span class="highlight">{booking_amount_formatted}</span>/-</td>
+            </tr>
+            <tr>
+                <th>Payment Mode</th>
+                <td>Cheque / Bank Transfer</td>
+            </tr>
+            <tr>
+                <th>Booking Date</th>
+                <td><span class="highlight">{booking_date}</span></td>
+            </tr>
+        </table>
+        
+        <div class="section-title">E. BANK DETAILS FOR PAYMENT</div>
+        
+        <table class="details">
+            <tr>
+                <th>Account Name</th>
+                <td>RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED</td>
+            </tr>
+            <tr>
+                <th>Bank</th>
+                <td>HDFC BANK - SOMPURA BRANCH</td>
+            </tr>
+            <tr>
+                <th>Account Number</th>
+                <td>57500001802063</td>
+            </tr>
+            <tr>
+                <th>IFSC Code</th>
+                <td>HDFC0009590</td>
+            </tr>
+        </table>
+        
+        <div class="section-title">F. TERMS & CONDITIONS</div>
+        
+        <div class="terms">
+            <ol>
+                <li>The Purchaser agrees to pay the total sale consideration as per the payment schedule mentioned above, time being of the essence.</li>
+                <li>All payments shall be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) to the Developer's account.</li>
+                <li>The Purchaser shall be liable to pay applicable TDS under Section 194IA of Income Tax Act, 1961 and submit TDS certificate within 7 days of payment.</li>
+                <li>Any delay in payment shall attract penal interest at the prevailing rate on the outstanding amount.</li>
+                <li>In case of cancellation, 5% of Total Sale Consideration plus booking amount shall be forfeited.</li>
+                <li>Stamp duty and registration charges as per prevailing rates shall be payable by the Purchaser.</li>
+                <li>Expected possession date: <span class="highlight">{possession_date}</span> (subject to Force Majeure).</li>
+                <li>Maintenance charges: Rs. 3/- per sq.ft per month (12 months advance to be paid before registration).</li>
+                <li>Corpus fund: Rs. 2.5/- per sq.ft per month (12 months advance).</li>
+                <li>This agreement is subject to the terms of the detailed Agreement for Sale to be executed subsequently.</li>
+            </ol>
+        </div>
+        
+        <p style="margin-top: 20px;"><strong>I/We, <span class="highlight">{customer_name}</span></strong>, have read and understood the above terms and conditions and agree to abide by them.</p>
+    </div>
+    
+    <div class="signature-section">
+        <div class="signature-box">
+            <p><strong>FOR RRL BUILDERS AND DEVELOPERS PVT LTD</strong></p>
+            <div class="signature-line">
+                <p>Authorized Signatory</p>
+            </div>
+        </div>
+        <div class="signature-box">
+            <p><strong>PURCHASER / ALLOTTEE</strong></p>
+            <div class="signature-line">
+                <p>{customer_name}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
+        <p>www.rrlbuildersanddevelopers.com | Date: {date} | Ref: {customer_id}</p>
+    </div>
+</body>
+</html>
+"""
+
 def get_default_template(doc_type: DocumentType) -> str:
     templates = {
-        DocumentType.SALES_AGREEMENT: """
-SALES AGREEMENT
-
-Date: {date}
-
-This Sales Agreement is entered into between RRL Builders and Developers (hereinafter "Seller") and {customer_name} S/o {father_name} (hereinafter "Buyer").
-
-PROPERTY DETAILS:
-- Project: {project}
-- Tower: {tower}
-- Unit Number: {unit_number}
-- Carpet Area: {carpet_area} sq.ft
-- Saleable Area: {saleable_area} sq.ft
-
-CONSIDERATION:
-Total Agreement Value: Rs. {total_price}/-
-Booking Amount Paid: Rs. {booking_amount}/-
-
-BUYER DETAILS:
-Name: {customer_name}
-PAN: {pan_number}
-Phone: {phone}
-Email: {email}
-
-The Buyer agrees to the terms and conditions of this agreement and shall make payments as per the agreed schedule.
-
-For RRL Builders and Developers                    Buyer
-
-_______________________                             _______________________
-Authorized Signatory                                {customer_name}
-""",
+        DocumentType.SALES_AGREEMENT: generate_sales_agreement_template(),
         DocumentType.ALLOTMENT_LETTER: """<!DOCTYPE html>
 <html>
 <head>
@@ -2098,15 +2520,436 @@ async def preview_welcome_email(customer_id: str, user: dict = Depends(get_curre
     recipient_email = customer.get('email')
     subject = f"Welcome to {customer.get('project', 'RRL Builders')} - Booking Confirmation"
     
+    # Default email body (editable)
+    default_body = f"""Hello {customer.get('name', '')},
+
+Greetings from RRL Builders and Developers Pvt Ltd.
+
+It is our distinct pleasure to welcome you to {customer.get('project', 'RRL Palm Altezze')} and to congratulate you on the acquisition of your Residence Flat No. {customer.get('unit_number', '')}.
+
+Please find attached the Price Breakup document for your reference.
+
+Your dedicated Relationship Director will connect with you personally to ensure that every interaction with us is seamless and tailored to your expectations."""
+    
     return {
+        "email_type": "welcome",
         "customer_name": customer.get('name'),
         "recipient_email": recipient_email,
         "subject": subject,
-        "welcome_email_html": welcome_html,
-        "price_breakup_html": price_breakup_html,
+        "body": default_body,
+        "email_html": welcome_html,
+        "attachment_html": price_breakup_html,
         "attachment_filename": filename,
         "has_sendgrid": bool(SENDGRID_API_KEY)
     }
+
+@api_router.get("/communication/preview-sales-agreement/{customer_id}")
+async def preview_sales_agreement_email(customer_id: str, user: dict = Depends(get_current_user)):
+    """
+    Preview Sales Agreement Email with Sales Agreement and Price Breakup PDFs before sending.
+    """
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Get payment schedule for Sales Agreement
+    schedule = await db.payment_schedules.find_one({"customer_id": customer_id}, {"_id": 0})
+    schedule_items = schedule.get('items', []) if schedule else []
+    
+    # Generate Sales Agreement HTML
+    sales_agreement_html = generate_sales_agreement_html(customer, schedule_items)
+    
+    # Generate price breakup HTML
+    price_breakup_html = generate_price_breakup_html(customer)
+    
+    recipient_email = customer.get('email')
+    subject = f"SALE AGREEMENT DRAFT AND PRICE BREAK UP - {customer.get('unit_number', '')}"
+    
+    # Default email body
+    default_body = f"""Hello {customer.get('name', '')},
+
+Greetings from RRL Builders and Developers Pvt Ltd.
+
+We are delighted to take this process ahead, please find attached draft copy of the sale agreement.
+
+We would like to know the date when you are signing up for sale agreement.
+
+Please review the attached documents:
+1. Sale Agreement Draft
+2. Price Break Up
+
+Looking forward to your confirmation."""
+    
+    # Generate email HTML (same format as welcome mail)
+    email_html = generate_document_email_html(customer, subject, default_body)
+    
+    return {
+        "email_type": "sales_agreement",
+        "customer_name": customer.get('name'),
+        "recipient_email": recipient_email,
+        "subject": subject,
+        "body": default_body,
+        "email_html": email_html,
+        "attachment_html": sales_agreement_html,
+        "attachment_html_2": price_breakup_html,
+        "attachment_filename": f"RRL_SaleAgreement_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
+        "attachment_filename_2": f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
+        "has_sendgrid": bool(SENDGRID_API_KEY)
+    }
+
+@api_router.get("/communication/preview-allotment-letter/{customer_id}")
+async def preview_allotment_letter_email(customer_id: str, user: dict = Depends(get_current_user)):
+    """
+    Preview Allotment Letter Email with Allotment Letter PDF before sending.
+    """
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Generate Allotment Letter HTML
+    allotment_letter_html = generate_allotment_letter_html(customer)
+    
+    recipient_email = customer.get('email')
+    subject = f"ALLOTMENT LETTER - {customer.get('project', 'RRL Palm Altezze')} - Flat No. {customer.get('unit_number', '')}"
+    
+    # Default email body
+    default_body = f"""Hello {customer.get('name', '')},
+
+Greetings from RRL Builders and Developers Pvt Ltd.
+
+We are pleased to confirm your allotment for Flat No. {customer.get('unit_number', '')} in {customer.get('project', 'RRL Palm Altezze')}.
+
+Please find attached your Allotment Letter for your records.
+
+Kindly review the terms and conditions mentioned in the letter and let us know if you have any queries."""
+    
+    # Generate email HTML
+    email_html = generate_document_email_html(customer, subject, default_body)
+    
+    return {
+        "email_type": "allotment_letter",
+        "customer_name": customer.get('name'),
+        "recipient_email": recipient_email,
+        "subject": subject,
+        "body": default_body,
+        "email_html": email_html,
+        "attachment_html": allotment_letter_html,
+        "attachment_filename": f"RRL_AllotmentLetter_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
+        "has_sendgrid": bool(SENDGRID_API_KEY)
+    }
+
+class EmailSendRequest(BaseModel):
+    email_type: str  # welcome, sales_agreement, allotment_letter
+    subject: str
+    body: str
+    recipient_email: Optional[str] = None  # Override customer email if provided
+
+@api_router.post("/communication/send-document-email/{customer_id}")
+async def send_document_email(customer_id: str, data: EmailSendRequest, user: dict = Depends(get_current_user)):
+    """
+    Unified endpoint to send document emails with attachments.
+    Supports: welcome, sales_agreement, allotment_letter
+    """
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    recipient_email = data.recipient_email or customer.get('email')
+    
+    # Generate email HTML based on the edited body
+    email_html = generate_document_email_html(customer, data.subject, data.body)
+    
+    # Generate attachments based on email type
+    attachments_data = []
+    
+    if data.email_type == "welcome":
+        price_breakup_html = generate_price_breakup_html(customer)
+        attachments_data.append({
+            "filename": f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
+            "html": price_breakup_html,
+            "doc_type": DocumentType.PRICE_BREAKUP
+        })
+    elif data.email_type == "sales_agreement":
+        schedule = await db.payment_schedules.find_one({"customer_id": customer_id}, {"_id": 0})
+        schedule_items = schedule.get('items', []) if schedule else []
+        
+        sales_agreement_html = generate_sales_agreement_html(customer, schedule_items)
+        price_breakup_html = generate_price_breakup_html(customer)
+        
+        attachments_data.append({
+            "filename": f"RRL_SaleAgreement_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
+            "html": sales_agreement_html,
+            "doc_type": DocumentType.SALES_AGREEMENT
+        })
+        attachments_data.append({
+            "filename": f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
+            "html": price_breakup_html,
+            "doc_type": DocumentType.PRICE_BREAKUP
+        })
+    elif data.email_type == "allotment_letter":
+        allotment_letter_html = generate_allotment_letter_html(customer)
+        attachments_data.append({
+            "filename": f"RRL_AllotmentLetter_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
+            "html": allotment_letter_html,
+            "doc_type": DocumentType.ALLOTMENT_LETTER
+        })
+    
+    # Store generated documents
+    for att in attachments_data:
+        doc = GeneratedDocument(
+            customer_id=customer_id,
+            doc_type=att['doc_type'],
+            content=att['html'],
+            generated_by=user['id']
+        )
+        doc_dict = doc.model_dump()
+        doc_dict['generated_at'] = doc_dict['generated_at'].isoformat()
+        await db.generated_documents.insert_one(doc_dict)
+    
+    # Send via SendGrid if configured
+    email_status = "pending"
+    
+    if SENDGRID_API_KEY:
+        try:
+            message = Mail(
+                from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME),
+                to_emails=recipient_email,
+                subject=data.subject,
+                html_content=email_html
+            )
+            
+            sg = SendGridAPIClient(SENDGRID_API_KEY)
+            response = sg.send(message)
+            
+            if response.status_code in [200, 201, 202]:
+                email_status = "sent"
+                logger.info(f"{data.email_type} email sent to {recipient_email}")
+            else:
+                email_status = "failed"
+                logger.error(f"Failed to send {data.email_type} email to {recipient_email}")
+                
+        except Exception as e:
+            email_status = "error"
+            logger.error(f"SendGrid error: {str(e)}")
+    else:
+        email_status = "simulated"
+        logger.info(f"SendGrid not configured - {data.email_type} email simulated for {recipient_email}")
+    
+    # Log communication
+    comm_log = {
+        "id": str(uuid.uuid4()),
+        "customer_id": customer_id,
+        "type": "email",
+        "subject": data.subject,
+        "message": data.body,
+        "status": email_status,
+        "email_type": data.email_type,
+        "attachments": [att['filename'] for att in attachments_data],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": user['id']
+    }
+    await db.communications.insert_one(comm_log)
+    
+    await log_activity(user['id'], user['name'], "send", "email", customer_id, f"Sent {data.email_type} email to {recipient_email}")
+    
+    return {
+        "message": f"{data.email_type.replace('_', ' ').title()} email sent successfully",
+        "status": email_status,
+        "recipient": recipient_email,
+        "attachments": [att['filename'] for att in attachments_data]
+    }
+
+def generate_document_email_html(customer: dict, subject: str, body: str) -> str:
+    """Generate email HTML with black and gold theme - same format as welcome mail"""
+    
+    # Convert body with line breaks to HTML
+    body_html = body.replace('\n', '<br>')
+    
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        </style>
+    </head>
+    <body style="font-family: 'Roboto', Arial, sans-serif; background: #f5f5f5; padding: 30px; margin: 0; color: #1A1A1A;">
+        <div style="background: #fff; border: 2px solid #D4AF37; border-radius: 8px; max-width: 700px; margin: 0 auto; overflow: hidden;">
+            <!-- Header -->
+            <div style="background: #1A1A1A; padding: 20px; display: flex; align-items: center;">
+                <div style="background: #D4AF37; color: #1A1A1A; padding: 10px 15px; border-radius: 6px; font-weight: bold; font-size: 18px; margin-right: 15px;">RRL</div>
+                <div>
+                    <div style="color: #D4AF37; font-size: 18px; font-weight: 700;">RRL Builders and Developers</div>
+                    <div style="color: #999; font-size: 11px;">Building Dreams, Creating Homes</div>
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 30px 35px; line-height: 1.8;">
+                <div style="font-size: 14px; color: #333;">{body_html}</div>
+                
+                <!-- Signature -->
+                <div style="margin-top: 30px; padding: 20px; background: #fafafa; border-radius: 8px;">
+                    <div style="font-size: 15px; font-weight: 600; color: #1A1A1A; margin-bottom: 3px;">Pavitra S G</div>
+                    <div style="font-size: 12px; color: #D4AF37; font-weight: 500; margin-bottom: 12px;">CRM MANAGER</div>
+                    <div style="font-size: 12px; color: #666; line-height: 1.6;">
+                        <strong>P:</strong> 9606579135<br>
+                        <strong>E:</strong> <a href="mailto:crm@rrlbuildersanddevelopers.com" style="color: #D4AF37;">crm@rrlbuildersanddevelopers.com</a><br>
+                        <strong>A:</strong> 4TH Floor, RRL Tower, Sompura gate, Sarjapura Bengaluru - 562125<br><br>
+                        <a href="https://www.rrlbuildersanddevelopers.com" style="color: #D4AF37;">www.rrlbuildersanddevelopers.com</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: #fafafa; padding: 15px; text-align: center; font-size: 11px; color: #888; border-top: 1px solid #e0e0e0;">
+                <p style="margin: 0;">RRL Builders and Developers Pvt. Ltd. | <a href="https://www.rrlbuildersanddevelopers.com" style="color: #D4AF37;">www.rrlbuildersanddevelopers.com</a></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return html
+
+def generate_sales_agreement_html(customer: dict, schedule_items: list) -> str:
+    """Generate Sales Agreement HTML with customer data filled in"""
+    
+    # Format dates
+    agreement_date = datetime.now()
+    agreement_date_text = agreement_date.strftime("%d") + get_ordinal_suffix(agreement_date.day) + agreement_date.strftime(" Day of %B, %Y")
+    possession_date = "30-09-2030"  # Default expected possession date
+    
+    # Format currency amounts
+    def fmt(amount):
+        return format_indian_currency(amount)
+    
+    # Generate payment schedule rows
+    payment_schedule_rows = ""
+    for i, item in enumerate(schedule_items, 1):
+        payment_schedule_rows += f'''
+        <tr>
+            <td style="text-align: center;">{i}</td>
+            <td>{item.get('installment_name', '')}</td>
+            <td style="text-align: center;">{item.get('percentage', 0)}%</td>
+            <td class="amount">{fmt(item.get('amount', 0))}</td>
+        </tr>
+        '''
+    
+    # If no schedule items, create a default schedule
+    if not payment_schedule_rows:
+        total = customer.get('total_price', 0)
+        default_milestones = [
+            ("Initial Booking Amount (within 10 days)", 10),
+            ("Post Execution of Agreement", 10),
+            ("On Completion of Foundation", 10),
+            ("On Completion of Podium Slab", 10),
+            ("Upon Completion of 2nd Floor Roof Slab", 5),
+            ("Upon Completion of 6th Floor Roof Slab", 5),
+            ("Upon Completion of 10th Floor Roof Slab", 5),
+            ("Upon Completion of 14th Floor Roof Slab", 5),
+            ("Upon Completion of 18th Floor Roof Slab", 5),
+            ("Upon Completion of 22nd Floor Roof Slab", 5),
+            ("Upon Completion of Top Roof Slab", 10),
+            ("Upon Completion of Flooring", 10),
+            ("Upon Handover / Registration", 10),
+        ]
+        for i, (name, pct) in enumerate(default_milestones, 1):
+            amount = total * pct / 100
+            payment_schedule_rows += f'''
+            <tr>
+                <td style="text-align: center;">{i}</td>
+                <td>{name}</td>
+                <td style="text-align: center;">{pct}%</td>
+                <td class="amount">{fmt(amount)}</td>
+            </tr>
+            '''
+    
+    # Get template and fill in values using string replacement to avoid CSS conflicts
+    template = generate_sales_agreement_template()
+    
+    replacements = {
+        '{agreement_date_text}': agreement_date_text,
+        '{customer_name}': customer.get('name', ''),
+        '{age}': str(customer.get('custom_fields', {}).get('age', '35')),
+        '{father_name}': customer.get('father_name', ''),
+        '{address}': customer.get('address', ''),
+        '{aadhaar_number}': customer.get('custom_fields', {}).get('aadhaar_number', ''),
+        '{pan_number}': customer.get('pan_number', ''),
+        '{phone}': customer.get('phone', ''),
+        '{project}': customer.get('project', 'RRL PALM ALTEZZE'),
+        '{tower}': customer.get('tower', ''),
+        '{unit_number}': customer.get('unit_number', ''),
+        '{floor}': str(customer.get('floor', '')),
+        '{bhk_type}': customer.get('bhk_type', ''),
+        '{saleable_area}': str(customer.get('saleable_area', 0)),
+        '{carpet_area}': str(customer.get('carpet_area', 0)),
+        '{uds}': str(customer.get('uds', 0)),
+        '{additional_parking}': str(customer.get('additional_parking', 0)),
+        '{base_price_formatted}': fmt(customer.get('base_price', 0)),
+        '{club_house_formatted}': fmt(customer.get('club_house_charges', 200000)),
+        '{parking_charges_formatted}': fmt(customer.get('additional_parking_charges', 0)),
+        '{labour_cess_formatted}': fmt(customer.get('labour_cess', 0)),
+        '{gst_formatted}': fmt(customer.get('gst_amount', 0)),
+        '{total_price_formatted}': fmt(customer.get('total_price', 0)),
+        '{total_price_words}': number_to_indian_words(customer.get('total_price', 0)),
+        '{booking_amount_formatted}': fmt(customer.get('booking_amount', 0)),
+        '{booking_date}': customer.get('booking_date', ''),
+        '{possession_date}': possession_date,
+        '{payment_schedule_rows}': payment_schedule_rows,
+        '{date}': datetime.now().strftime("%d/%m/%Y"),
+        '{customer_id}': customer.get('customer_id', '')
+    }
+    
+    filled_html = template
+    for placeholder, value in replacements.items():
+        filled_html = filled_html.replace(placeholder, str(value))
+    
+    return filled_html
+
+def generate_allotment_letter_html(customer: dict) -> str:
+    """Generate Allotment Letter HTML with customer data filled in"""
+    
+    # Format booking date
+    booking_date = customer.get('booking_date', datetime.now().strftime("%d/%m/%Y"))
+    if booking_date and '-' in booking_date:
+        try:
+            dt = datetime.strptime(booking_date, "%Y-%m-%d")
+            booking_date = dt.strftime("%d/%m/%Y")
+        except:
+            pass
+    
+    # Get the allotment letter template
+    template = get_default_template(DocumentType.ALLOTMENT_LETTER)
+    
+    # Use string replacement to avoid CSS brace conflicts
+    replacements = {
+        '{customer_name}': customer.get('name', ''),
+        '{phone}': customer.get('phone', ''),
+        '{email}': customer.get('email', ''),
+        '{pan_number}': customer.get('pan_number', ''),
+        '{booking_date}': booking_date,
+        '{unit_number}': customer.get('unit_number', ''),
+        '{project}': customer.get('project', 'RRL PALM ALTEZZE'),
+        '{tower}': customer.get('tower', ''),
+        '{uds}': str(customer.get('uds', 0)),
+        '{saleable_area}': str(customer.get('saleable_area', 0)),
+        '{total_price_formatted}': format_indian_currency(customer.get('total_price', 0)),
+        '{date}': datetime.now().strftime("%d/%m/%Y"),
+        '{customer_id}': customer.get('customer_id', '')
+    }
+    
+    filled_html = template
+    for placeholder, value in replacements.items():
+        filled_html = filled_html.replace(placeholder, str(value))
+    
+    return filled_html
+
+def get_ordinal_suffix(day):
+    """Get ordinal suffix for a day number"""
+    if 11 <= day <= 13:
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
 
 @api_router.post("/communication/send-welcome-email/{customer_id}")
 async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_user)):

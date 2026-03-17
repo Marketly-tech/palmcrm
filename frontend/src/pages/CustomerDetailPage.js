@@ -135,6 +135,13 @@ const CustomerDetailPage = () => {
   const [welcomePreviewOpen, setWelcomePreviewOpen] = useState(false);
   const [welcomePreviewData, setWelcomePreviewData] = useState(null);
   
+  // Unified Email Composer
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [emailComposerData, setEmailComposerData] = useState(null);
+  const [editedEmailSubject, setEditedEmailSubject] = useState("");
+  const [editedEmailBody, setEditedEmailBody] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  
   // File Upload
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadDocType, setUploadDocType] = useState("");
@@ -343,12 +350,65 @@ const CustomerDetailPage = () => {
     setSendingWelcome(true);
     try {
       const response = await axios.get(`${API}/communication/preview-welcome-email/${id}`);
-      setWelcomePreviewData(response.data);
-      setWelcomePreviewOpen(true);
+      setEmailComposerData(response.data);
+      setEditedEmailSubject(response.data.subject);
+      setEditedEmailBody(response.data.body);
+      setEmailComposerOpen(true);
     } catch (error) {
       toast.error("Failed to generate welcome email preview");
     } finally {
       setSendingWelcome(false);
+    }
+  };
+
+  const handlePreviewSalesAgreement = async () => {
+    setSendingEmail(true);
+    try {
+      const response = await axios.get(`${API}/communication/preview-sales-agreement/${id}`);
+      setEmailComposerData(response.data);
+      setEditedEmailSubject(response.data.subject);
+      setEditedEmailBody(response.data.body);
+      setEmailComposerOpen(true);
+    } catch (error) {
+      toast.error("Failed to generate sales agreement preview");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handlePreviewAllotmentLetter = async () => {
+    setSendingEmail(true);
+    try {
+      const response = await axios.get(`${API}/communication/preview-allotment-letter/${id}`);
+      setEmailComposerData(response.data);
+      setEditedEmailSubject(response.data.subject);
+      setEditedEmailBody(response.data.body);
+      setEmailComposerOpen(true);
+    } catch (error) {
+      toast.error("Failed to generate allotment letter preview");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleSendDocumentEmail = async () => {
+    if (!emailComposerData) return;
+    
+    setSendingEmail(true);
+    try {
+      const response = await axios.post(`${API}/communication/send-document-email/${id}`, {
+        email_type: emailComposerData.email_type,
+        subject: editedEmailSubject,
+        body: editedEmailBody
+      });
+      toast.success(response.data.message);
+      setEmailComposerOpen(false);
+      setEmailComposerData(null);
+      fetchCustomerData();
+    } catch (error) {
+      toast.error("Failed to send email");
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -775,7 +835,35 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
             ) : (
               <Mail className="w-4 h-4 mr-2" />
             )}
-            Send Welcome Email
+            Welcome Email
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handlePreviewSalesAgreement}
+            disabled={sendingEmail}
+            data-testid="send-sales-agreement-btn"
+            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+          >
+            {sendingEmail ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4 mr-2" />
+            )}
+            Sales Agreement
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handlePreviewAllotmentLetter}
+            disabled={sendingEmail}
+            data-testid="send-allotment-btn"
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+          >
+            {sendingEmail ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4 mr-2" />
+            )}
+            Allotment Letter
           </Button>
           <Button
             variant="outline"
@@ -784,15 +872,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
             data-testid="send-whatsapp-btn"
           >
             <MessageCircle className="w-4 h-4 mr-2" />
-            WhatsApp Welcome
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleGeneratePriceBreakup}
-            data-testid="generate-price-breakup-btn"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Price Breakup PDF
+            WhatsApp
           </Button>
           {editing ? (
             <>
@@ -2033,78 +2113,130 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Welcome Email Preview Dialog */}
-      <Dialog open={welcomePreviewOpen} onOpenChange={setWelcomePreviewOpen}>
+      {/* Unified Email Composer Dialog */}
+      <Dialog open={emailComposerOpen} onOpenChange={setEmailComposerOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5 text-primary" />
-              Preview Welcome Email
+              {emailComposerData?.email_type === 'welcome' && 'Send Welcome Email'}
+              {emailComposerData?.email_type === 'sales_agreement' && 'Send Sales Agreement'}
+              {emailComposerData?.email_type === 'allotment_letter' && 'Send Allotment Letter'}
             </DialogTitle>
           </DialogHeader>
           
-          {welcomePreviewData && (
-            <div className="flex-1 overflow-hidden flex flex-col">
-              {/* Email Header Info */}
-              <div className="p-4 bg-slate-50 rounded-lg mb-4 space-y-2">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+          {emailComposerData && (
+            <div className="flex-1 overflow-hidden flex flex-col gap-4">
+              {/* Editable Email Fields */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-slate-500">To:</span>{" "}
-                    <span className="font-medium">{welcomePreviewData.recipient_email}</span>
+                    <Label className="text-xs text-slate-500">To</Label>
+                    <Input 
+                      value={emailComposerData.recipient_email} 
+                      readOnly 
+                      className="bg-slate-50"
+                    />
                   </div>
                   <div>
-                    <span className="text-slate-500">Customer:</span>{" "}
-                    <span className="font-medium">{welcomePreviewData.customer_name}</span>
+                    <Label className="text-xs text-slate-500">Customer</Label>
+                    <Input 
+                      value={emailComposerData.customer_name} 
+                      readOnly 
+                      className="bg-slate-50"
+                    />
                   </div>
                 </div>
-                <div className="text-sm">
-                  <span className="text-slate-500">Subject:</span>{" "}
-                  <span className="font-medium">{welcomePreviewData.subject}</span>
+                
+                <div>
+                  <Label className="text-xs text-slate-500">Subject (Editable)</Label>
+                  <Input 
+                    value={editedEmailSubject} 
+                    onChange={(e) => setEditedEmailSubject(e.target.value)}
+                    className="border-primary/50"
+                  />
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <FileText className="w-4 h-4 text-red-500" />
-                  <span className="text-slate-500">Attachment:</span>{" "}
-                  <span className="font-medium text-red-600">{welcomePreviewData.attachment_filename}</span>
-                  <Badge variant="outline" className="text-xs">PDF</Badge>
+                
+                <div>
+                  <Label className="text-xs text-slate-500">Email Body (Editable)</Label>
+                  <textarea 
+                    value={editedEmailBody}
+                    onChange={(e) => setEditedEmailBody(e.target.value)}
+                    rows={6}
+                    className="w-full border border-primary/50 rounded-md p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                
+                {/* Attachments Info */}
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <FileText className="w-5 h-5 text-red-500" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Attachments (Auto-generated)</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs">
+                        {emailComposerData.attachment_filename}
+                      </Badge>
+                      {emailComposerData.attachment_filename_2 && (
+                        <Badge variant="outline" className="text-xs">
+                          {emailComposerData.attachment_filename_2}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              {/* Tab View for Email and Attachment Preview */}
-              <Tabs defaultValue="email" className="flex-1 overflow-hidden flex flex-col">
-                <TabsList className="grid grid-cols-2 w-full max-w-md">
-                  <TabsTrigger value="email">Email Content</TabsTrigger>
-                  <TabsTrigger value="attachment">Price Breakup (Attachment)</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="email" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
-                  <div dangerouslySetInnerHTML={{ __html: welcomePreviewData.welcome_email_html || "" }} />
-                </TabsContent>
-                
-                <TabsContent value="attachment" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
-                  <div dangerouslySetInnerHTML={{ __html: welcomePreviewData.price_breakup_html || "" }} />
-                </TabsContent>
-              </Tabs>
+              {/* Preview Tabs */}
+              <div className="flex-1 min-h-0">
+                <Tabs defaultValue="preview" className="h-full flex flex-col">
+                  <TabsList className="grid grid-cols-3 w-full max-w-lg">
+                    <TabsTrigger value="preview">Email Preview</TabsTrigger>
+                    <TabsTrigger value="attachment1">
+                      {emailComposerData.email_type === 'welcome' ? 'Price Breakup' : 
+                       emailComposerData.email_type === 'sales_agreement' ? 'Sales Agreement' : 
+                       'Allotment Letter'}
+                    </TabsTrigger>
+                    {emailComposerData.attachment_html_2 && (
+                      <TabsTrigger value="attachment2">Price Breakup</TabsTrigger>
+                    )}
+                  </TabsList>
+                  
+                  <TabsContent value="preview" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
+                    <div dangerouslySetInnerHTML={{ __html: emailComposerData.email_html || "" }} />
+                  </TabsContent>
+                  
+                  <TabsContent value="attachment1" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
+                    <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html || "" }} />
+                  </TabsContent>
+                  
+                  {emailComposerData.attachment_html_2 && (
+                    <TabsContent value="attachment2" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
+                      <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html_2 || "" }} />
+                    </TabsContent>
+                  )}
+                </Tabs>
+              </div>
               
               {/* Action Buttons */}
-              <div className="flex justify-between items-center pt-4 border-t mt-4">
+              <div className="flex justify-between items-center pt-4 border-t">
                 <div className="text-sm text-slate-500">
-                  {welcomePreviewData.has_sendgrid ? (
-                    <span className="text-green-600">✓ SendGrid configured - Email will be sent</span>
+                  {emailComposerData.has_sendgrid ? (
+                    <span className="text-green-600">✓ SendGrid configured</span>
                   ) : (
-                    <span className="text-amber-600">⚠ SendGrid not configured - Email will be simulated</span>
+                    <span className="text-amber-600">⚠ Email will be simulated</span>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setWelcomePreviewOpen(false)}>
+                  <Button variant="outline" onClick={() => setEmailComposerOpen(false)}>
                     Cancel
                   </Button>
                   <Button 
-                    onClick={handleSendWelcomeEmail} 
-                    disabled={sendingWelcome}
+                    onClick={handleSendDocumentEmail} 
+                    disabled={sendingEmail}
                     className="bg-green-600 hover:bg-green-700"
-                    data-testid="confirm-send-welcome-btn"
+                    data-testid="confirm-send-email-btn"
                   >
-                    {sendingWelcome ? (
+                    {sendingEmail ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Sending...
