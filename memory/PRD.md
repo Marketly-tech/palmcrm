@@ -136,6 +136,27 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - **Email**: admin@rrlbuilders.com
 - **Password**: admin123
 
+## Recent Updates (March 17, 2026 - Session 4 continued)
+
+### Welcome Email Enhancements
+1. ✅ **Fixed Residence Details formatting** - Added proper spacing with table-style layout for label/value pairs
+2. ✅ **Email Preview with Price Breakup Attachment** - New workflow:
+   - Click "Send Welcome Email" → Opens preview dialog
+   - Shows email content in "Email Content" tab
+   - Shows Price Breakup PDF preview in "Price Breakup (Attachment)" tab
+   - "Cancel" or "Send Email" buttons
+   - SendGrid status indicator
+3. ✅ **Email Signature Added** to all emails:
+   ```
+   Pavitra S G
+   CRM MANAGER
+   P: 9606579135
+   E: crm@rrlbuildersanddevelopers.com
+   A: 4TH Floor, RRL Tower, Sompura gate, Sarjapura Bengaluru - 562125
+   www.rrlbuildersanddevelopers.com
+   ```
+4. ✅ **General email template** updated to black & gold theme with signature
+
 ## Recent Updates (March 17, 2026 - Session 4)
 
 ### Dashboard & Export Enhancements

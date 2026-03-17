@@ -1883,40 +1883,83 @@ def generate_welcome_email_html(customer: dict) -> str:
             
             .residence-details {{
                 margin: 25px 0;
-                padding: 20px;
+                padding: 20px 25px;
                 background: #fafafa;
                 border-left: 4px solid #D4AF37;
                 border-radius: 0 8px 8px 0;
             }}
             
-            .residence-details strong {{
+            .residence-details-title {{
                 display: block;
-                margin-bottom: 15px;
+                margin-bottom: 18px;
                 color: #1A1A1A;
-                font-size: 14px;
+                font-size: 15px;
+                font-weight: 600;
                 text-transform: uppercase;
+                letter-spacing: 1px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #e0e0e0;
             }}
             
-            .detail-line {{
-                margin: 8px 0;
-                display: flex;
-                justify-content: space-between;
+            .detail-row {{
+                display: table;
+                width: 100%;
+                margin: 12px 0;
                 font-size: 14px;
             }}
             
             .detail-label {{
+                display: table-cell;
+                width: 40%;
                 color: #666;
+                padding: 8px 0;
             }}
             
             .detail-value {{
+                display: table-cell;
+                width: 60%;
                 font-weight: 500;
                 color: #D4AF37;
+                padding: 8px 0;
+                text-align: right;
             }}
             
             p {{
                 margin-bottom: 18px;
                 color: #333;
                 font-size: 14px;
+            }}
+            
+            .signature-section {{
+                margin-top: 30px;
+                padding: 20px;
+                background: #fafafa;
+                border-radius: 8px;
+            }}
+            
+            .signature-name {{
+                font-size: 15px;
+                font-weight: 600;
+                color: #1A1A1A;
+                margin-bottom: 3px;
+            }}
+            
+            .signature-title {{
+                font-size: 12px;
+                color: #D4AF37;
+                font-weight: 500;
+                margin-bottom: 12px;
+            }}
+            
+            .signature-contact {{
+                font-size: 12px;
+                color: #666;
+                line-height: 1.6;
+            }}
+            
+            .signature-contact a {{
+                color: #D4AF37;
+                text-decoration: none;
             }}
             
             .footer {{
@@ -1955,26 +1998,43 @@ def generate_welcome_email_html(customer: dict) -> str:
             <p>{customer.get('project', 'RRL Palm Altezze')} has been envisioned for a select few who value privacy, sophistication, and exclusivity. Every element of your residence—from architecture and materials to amenities and services—has been thoughtfully curated to offer a living experience of rare distinction.</p>
             
             <div class="residence-details">
-                <strong>Residence Details</strong>
-                <div class="detail-line">
+                <span class="residence-details-title">Residence Details</span>
+                
+                <div class="detail-row">
                     <span class="detail-label">Project</span>
                     <span class="detail-value">{customer.get('project', 'RRL PALM ALTEZZE').upper()}</span>
                 </div>
-                <div class="detail-line">
+                
+                <div class="detail-row">
                     <span class="detail-label">Residence</span>
                     <span class="detail-value">Flat No. {customer.get('unit_number', '')}</span>
                 </div>
-                <div class="detail-line">
+                
+                <div class="detail-row">
                     <span class="detail-label">Configuration</span>
                     <span class="detail-value">{customer.get('bhk_type', '').upper()}</span>
                 </div>
-                <div class="detail-line">
+                
+                <div class="detail-row">
                     <span class="detail-label">Booking Date</span>
                     <span class="detail-value">{booking_date}</span>
                 </div>
             </div>
             
             <p>Your dedicated Relationship Director will connect with you personally to ensure that every interaction with us is seamless and tailored to your expectations. We remain committed to delivering not only an exceptional home, but also an ownership experience defined by transparency, attention to detail, and quiet excellence.</p>
+            
+            <p>Please find attached the Price Breakup document for your reference.</p>
+            
+            <div class="signature-section">
+                <div class="signature-name">Pavitra S G</div>
+                <div class="signature-title">CRM MANAGER</div>
+                <div class="signature-contact">
+                    <strong>P:</strong> 9606579135<br>
+                    <strong>E:</strong> <a href="mailto:crm@rrlbuildersanddevelopers.com">crm@rrlbuildersanddevelopers.com</a><br>
+                    <strong>A:</strong> 4TH Floor, RRL Tower, Sompura gate, Sarjapura Bengaluru - 562125<br><br>
+                    <a href="https://www.rrlbuildersanddevelopers.com">www.rrlbuildersanddevelopers.com</a>
+                </div>
+            </div>
             
             <div class="footer">
                 <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
@@ -2016,6 +2076,36 @@ async def generate_price_breakup_pdf(customer_id: str, user: dict = Depends(get_
         "document_id": gen_doc.id,
         "html_content": html_content,
         "filename": f"RRL_PalmAltezze_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf"
+    }
+
+@api_router.get("/communication/preview-welcome-email/{customer_id}")
+async def preview_welcome_email(customer_id: str, user: dict = Depends(get_current_user)):
+    """
+    Preview Welcome Email with Price Breakup PDF attachment before sending.
+    Returns HTML content for preview without actually sending.
+    """
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Generate welcome email HTML
+    welcome_html = generate_welcome_email_html(customer)
+    
+    # Generate price breakup HTML (for PDF attachment preview)
+    price_breakup_html = generate_price_breakup_html(customer)
+    
+    filename = f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf"
+    recipient_email = customer.get('email')
+    subject = f"Welcome to {customer.get('project', 'RRL Builders')} - Booking Confirmation"
+    
+    return {
+        "customer_name": customer.get('name'),
+        "recipient_email": recipient_email,
+        "subject": subject,
+        "welcome_email_html": welcome_html,
+        "price_breakup_html": price_breakup_html,
+        "attachment_filename": filename,
+        "has_sendgrid": bool(SENDGRID_API_KEY)
     }
 
 @api_router.post("/communication/send-welcome-email/{customer_id}")
@@ -2222,25 +2312,48 @@ async def send_email_notification(
                 if doc:
                     attachments_info.append(f"Uploaded: {doc.get('filename', doc.get('doc_type', 'document'))}")
     
-    # Build HTML email content
+    # Build HTML email content with black and gold theme
     html_content = f"""
+    <!DOCTYPE html>
     <html>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #EC4899, #8B5CF6); padding: 20px; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0; text-align: center;">RRL Group</h1>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        </style>
+    </head>
+    <body style="font-family: 'Roboto', Arial, sans-serif; line-height: 1.6; color: #1A1A1A; background: #f5f5f5; margin: 0; padding: 30px;">
+        <div style="max-width: 650px; margin: 0 auto; background: #fff; border: 2px solid #D4AF37; border-radius: 8px; overflow: hidden;">
+            <!-- Header -->
+            <div style="background: #1A1A1A; padding: 20px; display: flex; align-items: center;">
+                <div style="background: #D4AF37; color: #1A1A1A; padding: 10px 15px; border-radius: 6px; font-weight: bold; font-size: 18px; margin-right: 15px;">RRL</div>
+                <div>
+                    <div style="color: #D4AF37; font-size: 18px; font-weight: 700;">RRL Builders and Developers</div>
+                    <div style="color: #999; font-size: 11px;">Building Dreams, Creating Homes</div>
+                </div>
             </div>
-            <div style="padding: 30px; background: #fff; border: 1px solid #e5e5e5; border-top: none;">
-                <p>Dear {customer.get('name', 'Customer')},</p>
-                <div style="white-space: pre-line;">{message}</div>
-                <br>
-                <p style="color: #666;">
-                    Best Regards,<br>
-                    <strong>RRL Builders and Developers Pvt. Ltd.</strong>
-                </p>
+            
+            <!-- Content -->
+            <div style="padding: 30px;">
+                <p style="margin: 0 0 20px 0;">Dear {customer.get('name', 'Customer')},</p>
+                <div style="white-space: pre-line; margin-bottom: 25px;">{message}</div>
+                
+                <!-- Signature -->
+                <div style="margin-top: 30px; padding: 20px; background: #fafafa; border-radius: 8px;">
+                    <div style="font-size: 15px; font-weight: 600; color: #1A1A1A; margin-bottom: 3px;">Pavitra S G</div>
+                    <div style="font-size: 12px; color: #D4AF37; font-weight: 500; margin-bottom: 12px;">CRM MANAGER</div>
+                    <div style="font-size: 12px; color: #666; line-height: 1.6;">
+                        <strong>P:</strong> 9606579135<br>
+                        <strong>E:</strong> <a href="mailto:crm@rrlbuildersanddevelopers.com" style="color: #D4AF37;">crm@rrlbuildersanddevelopers.com</a><br>
+                        <strong>A:</strong> 4TH Floor, RRL Tower, Sompura gate, Sarjapura Bengaluru - 562125<br><br>
+                        <a href="https://www.rrlbuildersanddevelopers.com" style="color: #D4AF37;">www.rrlbuildersanddevelopers.com</a>
+                    </div>
+                </div>
             </div>
-            <div style="background: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #888; border-radius: 0 0 10px 10px;">
-                <p>This is an automated message from RRL CRM System</p>
+            
+            <!-- Footer -->
+            <div style="background: #fafafa; padding: 15px; text-align: center; font-size: 11px; color: #888; border-top: 1px solid #e0e0e0;">
+                <p style="margin: 0;">RRL Builders and Developers Pvt. Ltd. | <a href="https://www.rrlbuildersanddevelopers.com" style="color: #D4AF37;">www.rrlbuildersanddevelopers.com</a></p>
             </div>
         </div>
     </body>

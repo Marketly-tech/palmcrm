@@ -132,6 +132,8 @@ const CustomerDetailPage = () => {
   
   // Welcome Email
   const [sendingWelcome, setSendingWelcome] = useState(false);
+  const [welcomePreviewOpen, setWelcomePreviewOpen] = useState(false);
+  const [welcomePreviewData, setWelcomePreviewData] = useState(null);
   
   // File Upload
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -337,21 +339,26 @@ const CustomerDetailPage = () => {
     }
   };
 
+  const handlePreviewWelcomeEmail = async () => {
+    setSendingWelcome(true);
+    try {
+      const response = await axios.get(`${API}/communication/preview-welcome-email/${id}`);
+      setWelcomePreviewData(response.data);
+      setWelcomePreviewOpen(true);
+    } catch (error) {
+      toast.error("Failed to generate welcome email preview");
+    } finally {
+      setSendingWelcome(false);
+    }
+  };
+
   const handleSendWelcomeEmail = async () => {
     setSendingWelcome(true);
     try {
       const response = await axios.post(`${API}/communication/send-welcome-email/${id}`);
       toast.success(`Welcome email sent to ${customer.email}`);
-      
-      // Open welcome email preview in new window
-      if (response.data.welcome_html) {
-        const previewWindow = window.open("", "_blank");
-        if (previewWindow) {
-          previewWindow.document.write(response.data.welcome_html);
-          previewWindow.document.close();
-        }
-      }
-      
+      setWelcomePreviewOpen(false);
+      setWelcomePreviewData(null);
       fetchCustomerData();
     } catch (error) {
       toast.error("Failed to send welcome email");
@@ -759,7 +766,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
         <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
-            onClick={handleSendWelcomeEmail}
+            onClick={handlePreviewWelcomeEmail}
             disabled={sendingWelcome}
             data-testid="send-welcome-btn"
           >
@@ -2025,6 +2032,96 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Welcome Email Preview Dialog */}
+      <Dialog open={welcomePreviewOpen} onOpenChange={setWelcomePreviewOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-primary" />
+              Preview Welcome Email
+            </DialogTitle>
+          </DialogHeader>
+          
+          {welcomePreviewData && (
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {/* Email Header Info */}
+              <div className="p-4 bg-slate-50 rounded-lg mb-4 space-y-2">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-500">To:</span>{" "}
+                    <span className="font-medium">{welcomePreviewData.recipient_email}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Customer:</span>{" "}
+                    <span className="font-medium">{welcomePreviewData.customer_name}</span>
+                  </div>
+                </div>
+                <div className="text-sm">
+                  <span className="text-slate-500">Subject:</span>{" "}
+                  <span className="font-medium">{welcomePreviewData.subject}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText className="w-4 h-4 text-red-500" />
+                  <span className="text-slate-500">Attachment:</span>{" "}
+                  <span className="font-medium text-red-600">{welcomePreviewData.attachment_filename}</span>
+                  <Badge variant="outline" className="text-xs">PDF</Badge>
+                </div>
+              </div>
+              
+              {/* Tab View for Email and Attachment Preview */}
+              <Tabs defaultValue="email" className="flex-1 overflow-hidden flex flex-col">
+                <TabsList className="grid grid-cols-2 w-full max-w-md">
+                  <TabsTrigger value="email">Email Content</TabsTrigger>
+                  <TabsTrigger value="attachment">Price Breakup (Attachment)</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="email" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
+                  <div dangerouslySetInnerHTML={{ __html: welcomePreviewData.welcome_email_html || "" }} />
+                </TabsContent>
+                
+                <TabsContent value="attachment" className="flex-1 overflow-auto border rounded-lg mt-2 bg-white">
+                  <div dangerouslySetInnerHTML={{ __html: welcomePreviewData.price_breakup_html || "" }} />
+                </TabsContent>
+              </Tabs>
+              
+              {/* Action Buttons */}
+              <div className="flex justify-between items-center pt-4 border-t mt-4">
+                <div className="text-sm text-slate-500">
+                  {welcomePreviewData.has_sendgrid ? (
+                    <span className="text-green-600">✓ SendGrid configured - Email will be sent</span>
+                  ) : (
+                    <span className="text-amber-600">⚠ SendGrid not configured - Email will be simulated</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setWelcomePreviewOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSendWelcomeEmail} 
+                    disabled={sendingWelcome}
+                    className="bg-green-600 hover:bg-green-700"
+                    data-testid="confirm-send-welcome-btn"
+                  >
+                    {sendingWelcome ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Send Email
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
