@@ -57,6 +57,9 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
   - Payment percentages update in real-time
   - "Paid" items count as 100%, "Partial" items count as 50%
 - **Payment Summary Section**: Shows Total Value, Total Received, Balance Pending, Progress indicator (X of Y installments paid)
+- **Payment Schedule PDF Generation** (NEW - March 17, 2026):
+  - Generate printable payment schedule PDF with black and gold theme
+  - Shows all milestones with amounts, due dates, status, and cumulative totals
 
 ### Module 5: Document Generation ✅ COMPLETED
 - HTML templates for Sales Agreement, Allotment Letter, Disbursement Letter
@@ -87,10 +90,16 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 - Checklist for each customer (KYC, PAN, Aadhaar, Agreement, Bank docs, Photo, Address proof)
 - Toggle checkboxes to track received documents
 
-### Module 10: Dashboard ✅ COMPLETED
+### Module 10: Dashboard ✅ COMPLETED (Enhanced March 17, 2026)
 - KPIs: Total Customers, Pending Agreements, Due This Week, Overdue Payments
-- Monthly Revenue Trend chart
+- **Revenue & Pending Payments Cards** (NEW):
+  - Total Revenue Collected with percentage
+  - Total Pending Payments with percentage and progress bar
 - Payment Status Distribution chart
+- **Export CRM Data Section** (NEW):
+  - Customers CSV export
+  - Customers Excel export (with black/gold themed headers)
+  - Payments CSV export
 - **Payment Due Date Countdown**: Shows customers with payment due dates in next 5 days
   - Rule: Due date = Booking date + 10 days
   - Countdown badges: "Due Today!", "Due Tomorrow", "X days left"
@@ -126,6 +135,28 @@ Build a web-based POST-SALES Internal CRM for "RRL Builders" real estate develop
 ## Test Credentials
 - **Email**: admin@rrlbuilders.com
 - **Password**: admin123
+
+## Recent Updates (March 17, 2026 - Session 4)
+
+### Dashboard & Export Enhancements
+1. ✅ **Replaced Monthly Revenue Trend** with Revenue + Pending Payments side-by-side cards
+   - Total Revenue Collected with percentage
+   - Total Pending Payments with percentage and progress bar
+2. ✅ **Export CRM Data** section on dashboard:
+   - Customers CSV export
+   - Customers Excel export (with black/gold themed headers using openpyxl)
+   - Payments CSV export
+3. ✅ **Payment Schedule PDF** - New endpoint to generate payment schedule PDF with black/gold theme
+
+### PDF & Email Theme Update (Black & Gold)
+4. ✅ **Updated all PDF/Email templates** to use:
+   - **Font**: Roboto (Google Fonts)
+   - **Primary Color**: #D4AF37 (Gold)
+   - **Secondary Color**: #1A1A1A (Black)
+   - **Logo**: RRL in black box with gold text
+5. ✅ **Allotment Letter** - Removed yellow highlights, now uses gold text highlights
+6. ✅ **Price Breakup PDF** - Updated to black/gold theme
+7. ✅ **Welcome Email** - Updated to black/gold professional design
 
 ## Recent Updates (March 15, 2026 - Session 3)
 
