@@ -25,6 +25,7 @@ import {
   Upload,
   FileText,
   X,
+  Camera,
 } from "lucide-react";
 import {
   Dialog,
@@ -51,6 +52,14 @@ const BookingFormPage = () => {
   const coPanFileRef = useRef(null);
   const coAadharFileRef = useRef(null);
   const coPassportFileRef = useRef(null);
+  
+  // Camera capture refs
+  const panCameraRef = useRef(null);
+  const aadharCameraRef = useRef(null);
+  const passportCameraRef = useRef(null);
+  const coPanCameraRef = useRef(null);
+  const coAadharCameraRef = useRef(null);
+  const coPassportCameraRef = useRef(null);
   
   // Projects list
   const projects = [
@@ -156,6 +165,60 @@ const BookingFormPage = () => {
   
   const removeFile = (fileType) => {
     setUploadedFiles(prev => ({ ...prev, [fileType]: null }));
+  };
+
+  // Reusable Document Upload Component with Camera Option
+  const DocumentUploadField = ({ label, fileType, fileRef, cameraRef, uploadedFile }) => {
+    return (
+      <div className="space-y-2">
+        <Label>{label}</Label>
+        <input
+          type="file"
+          ref={fileRef}
+          className="hidden"
+          accept="image/*,.pdf"
+          onChange={(e) => handleFileUpload(fileType, e.target.files[0])}
+        />
+        <input
+          type="file"
+          ref={cameraRef}
+          className="hidden"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => handleFileUpload(fileType, e.target.files[0])}
+        />
+        {uploadedFile ? (
+          <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
+            <FileText className="w-4 h-4 text-green-600" />
+            <span className="text-sm truncate flex-1">{uploadedFile.name}</span>
+            <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(fileType)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="flex-1" 
+              onClick={() => fileRef.current?.click()}
+              data-testid={`${fileType}-upload-btn`}
+            >
+              <Upload className="w-4 h-4 mr-1" /> Upload
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="flex-1 bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700" 
+              onClick={() => cameraRef.current?.click()}
+              data-testid={`${fileType}-camera-btn`}
+            >
+              <Camera className="w-4 h-4 mr-1" /> Camera
+            </Button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Calculate price based on inputs - Updated with manual floor rise
@@ -547,79 +610,33 @@ const BookingFormPage = () => {
                         Upload Documents
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label>PAN Card</Label>
-                          <input
-                            type="file"
-                            ref={panFileRef}
-                            className="hidden"
-                            accept="image/*,.pdf"
-                            onChange={(e) => handleFileUpload('pan_card', e.target.files[0])}
-                          />
-                          {uploadedFiles.pan_card ? (
-                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                              <FileText className="w-4 h-4 text-green-600" />
-                              <span className="text-sm truncate flex-1">{uploadedFiles.pan_card.name}</span>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('pan_card')}>
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button type="button" variant="outline" className="w-full" onClick={() => panFileRef.current?.click()}>
-                              <Upload className="w-4 h-4 mr-2" /> Upload
-                            </Button>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Aadhaar Card</Label>
-                          <input
-                            type="file"
-                            ref={aadharFileRef}
-                            className="hidden"
-                            accept="image/*,.pdf"
-                            onChange={(e) => handleFileUpload('aadhar_card', e.target.files[0])}
-                          />
-                          {uploadedFiles.aadhar_card ? (
-                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                              <FileText className="w-4 h-4 text-green-600" />
-                              <span className="text-sm truncate flex-1">{uploadedFiles.aadhar_card.name}</span>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('aadhar_card')}>
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button type="button" variant="outline" className="w-full" onClick={() => aadharFileRef.current?.click()}>
-                              <Upload className="w-4 h-4 mr-2" /> Upload
-                            </Button>
-                          )}
-                        </div>
+                        <DocumentUploadField
+                          label="PAN Card"
+                          fileType="pan_card"
+                          fileRef={panFileRef}
+                          cameraRef={panCameraRef}
+                          uploadedFile={uploadedFiles.pan_card}
+                        />
+                        <DocumentUploadField
+                          label="Aadhaar Card"
+                          fileType="aadhar_card"
+                          fileRef={aadharFileRef}
+                          cameraRef={aadharCameraRef}
+                          uploadedFile={uploadedFiles.aadhar_card}
+                        />
                         {(formData.nationality === "NRI" || formData.nationality === "OCI") && (
-                          <div className="space-y-2">
-                            <Label>Passport</Label>
-                            <input
-                              type="file"
-                              ref={passportFileRef}
-                              className="hidden"
-                              accept="image/*,.pdf"
-                              onChange={(e) => handleFileUpload('passport', e.target.files[0])}
-                            />
-                            {uploadedFiles.passport ? (
-                              <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                                <FileText className="w-4 h-4 text-green-600" />
-                                <span className="text-sm truncate flex-1">{uploadedFiles.passport.name}</span>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('passport')}>
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button type="button" variant="outline" className="w-full" onClick={() => passportFileRef.current?.click()}>
-                                <Upload className="w-4 h-4 mr-2" /> Upload
-                              </Button>
-                            )}
-                          </div>
+                          <DocumentUploadField
+                            label="Passport"
+                            fileType="passport"
+                            fileRef={passportFileRef}
+                            cameraRef={passportCameraRef}
+                            uploadedFile={uploadedFiles.passport}
+                          />
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 mt-2">Accepted formats: JPEG, PNG, PDF. Max size: 5MB</p>
+                      <p className="text-xs text-slate-500 mt-2">
+                        Accepted formats: JPEG, PNG, PDF. Max size: 5MB. Use Camera to capture directly from your device.
+                      </p>
                     </div>
                   </div>
 
@@ -737,78 +754,33 @@ const BookingFormPage = () => {
                           Co-Applicant Documents
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label>PAN Card</Label>
-                            <input
-                              type="file"
-                              ref={coPanFileRef}
-                              className="hidden"
-                              accept="image/*,.pdf"
-                              onChange={(e) => handleFileUpload('co_pan_card', e.target.files[0])}
-                            />
-                            {uploadedFiles.co_pan_card ? (
-                              <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                                <FileText className="w-4 h-4 text-green-600" />
-                                <span className="text-sm truncate flex-1">{uploadedFiles.co_pan_card.name}</span>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('co_pan_card')}>
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button type="button" variant="outline" className="w-full" onClick={() => coPanFileRef.current?.click()}>
-                                <Upload className="w-4 h-4 mr-2" /> Upload
-                              </Button>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Aadhaar Card</Label>
-                            <input
-                              type="file"
-                              ref={coAadharFileRef}
-                              className="hidden"
-                              accept="image/*,.pdf"
-                              onChange={(e) => handleFileUpload('co_aadhar_card', e.target.files[0])}
-                            />
-                            {uploadedFiles.co_aadhar_card ? (
-                              <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                                <FileText className="w-4 h-4 text-green-600" />
-                                <span className="text-sm truncate flex-1">{uploadedFiles.co_aadhar_card.name}</span>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('co_aadhar_card')}>
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button type="button" variant="outline" className="w-full" onClick={() => coAadharFileRef.current?.click()}>
-                                <Upload className="w-4 h-4 mr-2" /> Upload
-                              </Button>
-                            )}
-                          </div>
+                          <DocumentUploadField
+                            label="PAN Card"
+                            fileType="co_pan_card"
+                            fileRef={coPanFileRef}
+                            cameraRef={coPanCameraRef}
+                            uploadedFile={uploadedFiles.co_pan_card}
+                          />
+                          <DocumentUploadField
+                            label="Aadhaar Card"
+                            fileType="co_aadhar_card"
+                            fileRef={coAadharFileRef}
+                            cameraRef={coAadharCameraRef}
+                            uploadedFile={uploadedFiles.co_aadhar_card}
+                          />
                           {(formData.co_applicant_nationality === "NRI" || formData.co_applicant_nationality === "OCI") && (
-                            <div className="space-y-2">
-                              <Label>Passport</Label>
-                              <input
-                                type="file"
-                                ref={coPassportFileRef}
-                                className="hidden"
-                                accept="image/*,.pdf"
-                                onChange={(e) => handleFileUpload('co_passport', e.target.files[0])}
-                              />
-                              {uploadedFiles.co_passport ? (
-                                <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                                  <FileText className="w-4 h-4 text-green-600" />
-                                  <span className="text-sm truncate flex-1">{uploadedFiles.co_passport.name}</span>
-                                  <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('co_passport')}>
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <Button type="button" variant="outline" className="w-full" onClick={() => coPassportFileRef.current?.click()}>
-                                  <Upload className="w-4 h-4 mr-2" /> Upload
-                                </Button>
-                              )}
-                            </div>
+                            <DocumentUploadField
+                              label="Passport"
+                              fileType="co_passport"
+                              fileRef={coPassportFileRef}
+                              cameraRef={coPassportCameraRef}
+                              uploadedFile={uploadedFiles.co_passport}
+                            />
                           )}
                         </div>
+                        <p className="text-xs text-slate-500 mt-2">
+                          Accepted formats: JPEG, PNG, PDF. Max size: 5MB. Use Camera to capture directly from your device.
+                        </p>
                       </div>
                     )}
                   </div>
