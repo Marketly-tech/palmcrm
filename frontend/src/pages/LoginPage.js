@@ -5,8 +5,12 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { toast } from "sonner";
-import { Building2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Building2, Eye, EyeOff, Loader2, KeyRound, ArrowLeft } from "lucide-react";
+import axios from "axios";
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -15,6 +19,15 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Forgot Password states
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [resetStep, setResetStep] = useState(1); // 1: email, 2: new password
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,6 +42,57 @@ const LoginPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setResetLoading(true);
+
+    try {
+      // Step 1: Verify email exists
+      if (resetStep === 1) {
+        const response = await axios.post(`${API_URL}/api/auth/verify-email`, { email: forgotEmail });
+        if (response.data.exists) {
+          setResetStep(2);
+          toast.success("Email verified. Please set your new password.");
+        }
+      } 
+      // Step 2: Reset password
+      else if (resetStep === 2) {
+        if (newPassword !== confirmPassword) {
+          toast.error("Passwords do not match");
+          return;
+        }
+        if (newPassword.length < 6) {
+          toast.error("Password must be at least 6 characters");
+          return;
+        }
+        
+        await axios.post(`${API_URL}/api/auth/reset-password`, {
+          email: forgotEmail,
+          new_password: newPassword
+        });
+        
+        toast.success("Password reset successfully! Please login with your new password.");
+        setShowForgotPassword(false);
+        setResetStep(1);
+        setForgotEmail("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "An error occurred");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const closeForgotPassword = () => {
+    setShowForgotPassword(false);
+    setResetStep(1);
+    setForgotEmail("");
+    setNewPassword("");
+    setConfirmPassword("");
   };
 
   return (
@@ -133,15 +197,135 @@ const LoginPage = () => {
                   "Sign In"
                 )}
               </Button>
+              
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary hover:underline"
+                  data-testid="forgot-password-link"
+                >
+                  Forgot Password?
+                </button>
+              </div>
             </form>
-            <div className="mt-6 p-4 bg-slate-50 rounded-lg">
-              <p className="text-xs text-slate-500 mb-2">Demo Credentials:</p>
-              <p className="text-sm font-mono text-slate-700">admin@rrlbuilders.com</p>
-              <p className="text-sm font-mono text-slate-700">admin123</p>
-            </div>
           </CardContent>
         </Card>
       </div>
+      
+      {/* Forgot Password Dialog */}
+      <Dialog open={showForgotPassword} onOpenChange={closeForgotPassword}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              {resetStep === 1 ? "Reset Password" : "Set New Password"}
+            </DialogTitle>
+            <DialogDescription>
+              {resetStep === 1 
+                ? "Enter your email address to reset your password." 
+                : "Create a new password for your account."}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            {resetStep === 1 ? (
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">Email Address</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                  data-testid="forgot-email-input"
+                />
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setResetStep(1)}
+                  className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+                
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-sm text-slate-600">Resetting password for:</p>
+                  <p className="text-sm font-medium">{forgotEmail}</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showNewPassword ? "text" : "password"}
+                      placeholder="Enter new password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="pr-10"
+                      data-testid="new-password-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    data-testid="confirm-password-input"
+                  />
+                </div>
+              </>
+            )}
+            
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeForgotPassword}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={resetLoading}
+                className="flex-1"
+                data-testid="reset-password-btn"
+              >
+                {resetLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {resetStep === 1 ? "Verifying..." : "Resetting..."}
+                  </>
+                ) : (
+                  resetStep === 1 ? "Verify Email" : "Reset Password"
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

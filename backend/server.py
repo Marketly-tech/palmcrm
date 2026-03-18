@@ -617,6 +617,43 @@ async def get_me(user: dict = Depends(get_current_user)):
         created_at=user['created_at']
     )
 
+# Password Reset Models
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    new_password: str
+
+@api_router.post("/auth/verify-email")
+async def verify_email(data: VerifyEmailRequest):
+    """Verify if email exists in the system for password reset"""
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Email not found in our system")
+    return {"exists": True, "message": "Email verified"}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: ResetPasswordRequest):
+    """Reset user password"""
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Email not found in our system")
+    
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    new_hash = hash_password(data.new_password)
+    result = await db.users.update_one(
+        {"email": data.email},
+        {"$set": {"password_hash": new_hash}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=500, detail="Failed to update password")
+    
+    return {"message": "Password reset successfully"}
+
 # ==================== USER MANAGEMENT ROUTES ====================
 @api_router.get("/users", response_model=List[UserResponse])
 async def get_users(user: dict = Depends(check_role([UserRole.ADMIN]))):
