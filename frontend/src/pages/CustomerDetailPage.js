@@ -1548,8 +1548,6 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                       <TableHead className="text-center">%</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead className="text-right">Cumulative</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1567,25 +1565,6 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                         <TableCell className="text-center font-semibold">{item.percentage}%</TableCell>
                         <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
                         <TableCell className="text-right font-mono text-primary font-semibold">{formatCurrency(item.cumulative)}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadge(item.payment_status)}>{item.payment_status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={item.payment_status}
-                            onValueChange={(value) => handleUpdatePaymentStatus(item.id, value)}
-                          >
-                            <SelectTrigger className="w-28">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="paid">Paid</SelectItem>
-                              <SelectItem value="partial">Partial</SelectItem>
-                              <SelectItem value="overdue">Overdue</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
