@@ -90,10 +90,27 @@ def number_to_indian_words(num):
     
     return result.strip() + " Rupees"
 
-def format_indian_currency(amount):
-    """Format amount in Indian currency style"""
+def format_indian_currency(amount, decimals=True):
+    """Format amount in Indian currency style (e.g., 12,34,567.00 or 12,34,567)"""
     amount = float(amount) if amount else 0
-    return f"{amount:,.2f}"
+    int_part = int(amount)
+    
+    # Format integer part with Indian comma system
+    s = str(int_part)
+    if len(s) > 3:
+        # First group of 3, then groups of 2
+        result = s[-3:]
+        s = s[:-3]
+        while s:
+            result = s[-2:] + ',' + result
+            s = s[:-2]
+    else:
+        result = s
+    
+    if decimals:
+        decimal_part = f"{amount:.2f}".split('.')[1]
+        return f"{result}.{decimal_part}"
+    return result
 
 # Security
 security = HTTPBearer()
@@ -408,9 +425,9 @@ class PriceCalculation(BaseModel):
     floor_number: int = 0
     saleable_area: float  # sq.ft
     rate_per_sqft: float
-    include_club_house: bool = True  # Rs. 2L if true
+    include_club_house: bool = True  # Rs. 2,00,000 if true
     club_house_charges: float = 200000
-    additional_parking_count: int = 0  # Rs. 3L per parking
+    additional_parking_count: int = 0  # Rs. 3,00,000 per parking
     additional_parking_rate: float = 300000
     gst_percentage: float = 5
     labour_cess_percentage: float = 0.70
@@ -968,10 +985,10 @@ async def calculate_price(data: PriceCalculation):
     # Base price = Rate × Saleable Area
     base_price = data.rate_per_sqft * data.saleable_area
     
-    # Club house charges (optional, default Rs. 2L)
+    # Club house charges (optional, default Rs. 2,00,000)
     club_house = data.club_house_charges if data.include_club_house else 0
     
-    # Additional parking charges (Rs. 3L per parking)
+    # Additional parking charges (Rs. 3,00,000 per parking)
     additional_parking = data.additional_parking_count * data.additional_parking_rate
     
     # Subtotal before taxes
@@ -1144,7 +1161,7 @@ async def generate_document(data: DocumentGenerate, user: dict = Depends(get_cur
     
     # Format total price with Indian currency format
     total_price = customer.get('total_price', 0)
-    total_price_formatted = "{:,.0f}".format(total_price) if total_price else "0"
+    total_price_formatted = format_indian_currency(total_price, decimals=False) if total_price else "0"
     
     # Calculate UDS if not present
     uds = customer.get('uds', 0)
@@ -1988,13 +2005,23 @@ def generate_price_breakup_html(customer: dict) -> str:
     
     # Format currency in Indian format
     def format_inr(amount):
+        """Format amount in Indian Rupee style without L/Cr abbreviations"""
         amount = float(amount) if amount else 0
-        if amount >= 10000000:  # Crores
-            return f"₹{amount/10000000:.2f} Cr"
-        elif amount >= 100000:  # Lakhs
-            return f"₹{amount/100000:.2f} L"
+        int_part = int(amount)
+        decimal_part = f"{amount:.2f}".split('.')[1]
+        
+        # Format with Indian comma system
+        s = str(int_part)
+        if len(s) > 3:
+            result = s[-3:]
+            s = s[:-3]
+            while s:
+                result = s[-2:] + ',' + result
+                s = s[:-2]
         else:
-            return f"₹{amount:,.2f}"
+            result = s
+        
+        return f"₹{result}.{decimal_part}"
     
     booking_date = customer.get('booking_date', datetime.now().strftime("%d/%m/%Y"))
     if booking_date and '-' in booking_date:
@@ -3745,7 +3772,7 @@ async def submit_booking_form(data: BookingFormData):
         # Floor rise is manual cost per sqft × saleable area
         floor_rise_total = floor_rise_cost * saleable_area
         club_house = 200000  # Default club house
-        parking_charges = data.additional_parking * 300000  # ₹3L per additional parking
+        parking_charges = data.additional_parking * 300000  # ₹3,00,000 per additional parking
         subtotal = base_price + floor_rise_total + club_house + parking_charges
         labour_cess = subtotal * 0.007  # 0.70%
         gst = subtotal * 0.05  # 5%
@@ -4304,8 +4331,23 @@ def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
     """Generate HTML for Payment Schedule PDF with black and gold theme"""
     
     def format_inr(amount):
+        """Format amount in Indian Rupee style without L/Cr abbreviations"""
         amount = float(amount) if amount else 0
-        return f"₹{amount:,.2f}"
+        int_part = int(amount)
+        decimal_part = f"{amount:.2f}".split('.')[1]
+        
+        # Format with Indian comma system
+        s = str(int_part)
+        if len(s) > 3:
+            result = s[-3:]
+            s = s[:-3]
+            while s:
+                result = s[-2:] + ',' + result
+                s = s[:-2]
+        else:
+            result = s
+        
+        return f"₹{result}.{decimal_part}"
     
     booking_date = customer.get('booking_date', datetime.now().strftime("%d/%m/%Y"))
     if booking_date and '-' in booking_date:

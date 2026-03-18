@@ -750,8 +750,8 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
     // Floor Rise is manual cost per sqft × saleable area
     const floorRiseTotal = saleableArea * floorRiseCost;
     
-    const clubHouse = 200000; // ₹2L
-    const parkingCharges = additionalParking * 300000; // ₹3L per additional
+    const clubHouse = 200000; // ₹2,00,000
+    const parkingCharges = additionalParking * 300000; // ₹3,00,000 per additional
     const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges;
     const labourCess = subtotal * 0.007; // 0.70%
     const gst = subtotal * 0.05; // 5%

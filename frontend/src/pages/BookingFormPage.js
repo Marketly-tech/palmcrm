@@ -234,8 +234,8 @@ const BookingFormPage = () => {
     // Floor Rise is now a manual cost input (added to base price)
     const floorRiseTotal = saleableArea * floorRiseCost;
     
-    const clubHouse = 200000; // ₹2L
-    const parkingCharges = additionalParking * 300000; // ₹3L per additional
+    const clubHouse = 200000; // ₹2,00,000
+    const parkingCharges = additionalParking * 300000; // ₹3,00,000 per additional
     const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges;
     const labourCess = subtotal * 0.007; // 0.70%
     const gst = subtotal * 0.05; // 5%
@@ -913,7 +913,7 @@ const BookingFormPage = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="additional_parking">Additional Parking (₹3L each)</Label>
+                      <Label htmlFor="additional_parking">Additional Parking (₹3,00,000 each)</Label>
                       <Input
                         id="additional_parking"
                         name="additional_parking"
