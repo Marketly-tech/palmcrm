@@ -936,11 +936,11 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
           </TabsTrigger>
           <TabsTrigger value="calculator" data-testid="tab-calculator">
             <CreditCard className="w-4 h-4 mr-2" />
-            Payment Schedule
+            Payment Tracking
           </TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments">
             <CreditCard className="w-4 h-4 mr-2" />
-            Payments
+            Payment Schedule
           </TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">
             <FileText className="w-4 h-4 mr-2" />
