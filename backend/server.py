@@ -1587,7 +1587,7 @@ def generate_sales_agreement_template():
         <div class="party-section">
             <p class="party-title">PURCHASER:</p>
             <p><strong><span class="highlight">{customer_name}</span></strong></p>
-            <p>Aged about <span class="highlight">{age}</span> years, {salutation} <span class="highlight">{father_name}</span></p>
+            <p>Aged about <span class="highlight">{age}</span> years, S/o/D/o <span class="highlight">{father_name}</span></p>
             <p>Residing at: <span class="highlight">{address}</span></p>
             <p>AADHAAR No.: <span class="highlight">{aadhaar_number}</span> | PAN No.: <span class="highlight">{pan_number}</span> | Mobile: <span class="highlight">{phone}</span></p>
         </div>
@@ -3024,8 +3024,13 @@ async def preview_sales_agreement_email(customer_id: str, user: dict = Depends(g
     schedule = await db.payment_schedules.find_one({"customer_id": customer_id}, {"_id": 0})
     schedule_items = schedule.get('items', []) if schedule else []
     
-    # Generate Sales Agreement HTML
-    sales_agreement_html = generate_sales_agreement_html(customer, schedule_items)
+    # Get transaction records for payment schedule
+    transactions = await db.payment_transactions.find(
+        {"customer_id": customer_id}, {"_id": 0}
+    ).sort("transaction_date", 1).to_list(1000)
+    
+    # Generate Sales Agreement HTML with transactions
+    sales_agreement_html = generate_sales_agreement_html(customer, schedule_items, transactions)
     
     # Generate price breakup HTML
     price_breakup_html = generate_price_breakup_html(customer)
@@ -3141,7 +3146,12 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
         schedule = await db.payment_schedules.find_one({"customer_id": customer_id}, {"_id": 0})
         schedule_items = schedule.get('items', []) if schedule else []
         
-        sales_agreement_html = generate_sales_agreement_html(customer, schedule_items)
+        # Get transaction records for payment schedule
+        transactions = await db.payment_transactions.find(
+            {"customer_id": customer_id}, {"_id": 0}
+        ).sort("transaction_date", 1).to_list(1000)
+        
+        sales_agreement_html = generate_sales_agreement_html(customer, schedule_items, transactions)
         price_breakup_html = generate_price_breakup_html(customer)
         
         attachments_data.append({
@@ -3280,44 +3290,82 @@ def generate_document_email_html(customer: dict, subject: str, body: str) -> str
     '''
     return html
 
-def generate_sales_agreement_html(customer: dict, schedule_items: list) -> str:
+def generate_sales_agreement_html(customer: dict, schedule_items: list, transactions: list = None) -> str:
     """Generate Sales Agreement HTML with customer data filled in"""
     
     # Format dates
     agreement_date = datetime.now()
     agreement_date_text = agreement_date.strftime("%d") + get_ordinal_suffix(agreement_date.day) + agreement_date.strftime(" Day of %B, %Y")
-    possession_date = "30-09-2030"  # Default expected possession date
+    possession_date = "30-09-2030"  # Fixed possession date for all agreements
     
     # Format currency amounts
     def fmt(amount):
         return format_indian_currency(amount)
     
-    # Generate floor ordinal (1st, 2nd, 3rd, etc.)
-    floor = customer.get('floor', 0)
-    floor_ordinal = str(floor) + get_ordinal_suffix(int(floor) if floor else 1)
+    # Calculate age from date_of_birth
+    age = ""
+    dob = customer.get('date_of_birth')
+    if dob:
+        try:
+            if isinstance(dob, str):
+                dob_date = datetime.strptime(dob, "%Y-%m-%d")
+            else:
+                dob_date = dob
+            today = datetime.now()
+            age = str(today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day)))
+        except:
+            age = ""
     
-    # Salutation based on gender (default to S/o for now)
-    salutation = "S/o" if customer.get('gender', 'male').lower() == 'male' else "D/o"
+    # Generate floor ordinal (1st, 2nd, 3rd, etc.)
+    floor = customer.get('floor', 0) or 0
+    floor_int = int(floor) if floor else 0
+    floor_ordinal = str(floor_int) + get_ordinal_suffix(floor_int) if floor_int > 0 else "Ground"
     
     # Additional parking text
-    additional_parking = customer.get('additional_parking', 0)
+    additional_parking = customer.get('additional_parking', 0) or 0
     additional_parking_text = f" + {additional_parking} additional parking space(s)" if additional_parking > 0 else ""
     
-    # Generate payment schedule rows
-    payment_schedule_rows = ""
-    for i, item in enumerate(schedule_items, 1):
-        payment_schedule_rows += f'''
-        <tr>
-            <td style="text-align: center;">{i}</td>
-            <td>{item.get('installment_name', '')}</td>
-            <td style="text-align: center;">{item.get('percentage', 0)}%</td>
-            <td class="amount">{fmt(item.get('amount', 0))}</td>
-        </tr>
-        '''
+    # Get AADHAAR number from top-level field (not custom_fields)
+    aadhaar_number = customer.get('aadhar_number', '') or customer.get('aadhaar_number', '') or ''
     
-    # If no schedule items, create a default schedule
+    # Generate payment schedule rows from transaction records if available
+    payment_schedule_rows = ""
+    total = customer.get('total_price', 0)
+    
+    if transactions and len(transactions) > 0:
+        # Generate rows from transaction records
+        cumulative = 0
+        for i, txn in enumerate(transactions, 1):
+            amount = txn.get('amount', 0) or 0
+            cumulative += amount
+            percentage = (amount / total * 100) if total > 0 else 0
+            stage_name = txn.get('transaction_stage', '').replace('_', ' ').title()
+            txn_date = txn.get('transaction_date', '')
+            bank = txn.get('bank_name', '')
+            txn_no = txn.get('transaction_number', '')
+            
+            payment_schedule_rows += f'''
+            <tr>
+                <td style="text-align: center;">{i}</td>
+                <td>{stage_name} - {txn_date} ({bank} - {txn_no})</td>
+                <td style="text-align: center;">{percentage:.1f}%</td>
+                <td class="amount">{fmt(amount)}</td>
+            </tr>
+            '''
+    elif schedule_items and len(schedule_items) > 0:
+        # Use provided schedule items
+        for i, item in enumerate(schedule_items, 1):
+            payment_schedule_rows += f'''
+            <tr>
+                <td style="text-align: center;">{i}</td>
+                <td>{item.get('installment_name', '')}</td>
+                <td style="text-align: center;">{item.get('percentage', 0)}%</td>
+                <td class="amount">{fmt(item.get('amount', 0))}</td>
+            </tr>
+            '''
+    
+    # If no schedule items and no transactions, create a default schedule
     if not payment_schedule_rows:
-        total = customer.get('total_price', 0)
         default_milestones = [
             ("Initial Booking Amount (within 10 days)", 10),
             ("Post Execution of Agreement", 10),
@@ -3350,11 +3398,10 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list) -> str:
     replacements = {
         '{agreement_date_text}': agreement_date_text,
         '{customer_name}': customer.get('name', ''),
-        '{age}': str(customer.get('custom_fields', {}).get('age', '35')),
-        '{salutation}': salutation,
+        '{age}': age,
         '{father_name}': customer.get('father_name', ''),
         '{address}': customer.get('address', ''),
-        '{aadhaar_number}': customer.get('custom_fields', {}).get('aadhaar_number', ''),
+        '{aadhaar_number}': aadhaar_number,
         '{pan_number}': customer.get('pan_number', ''),
         '{phone}': customer.get('phone', ''),
         '{project}': customer.get('project', 'RRL PALM ALTEZZE'),

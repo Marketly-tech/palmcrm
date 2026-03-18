@@ -1317,7 +1317,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
 
             <Card>
               <CardHeader>
-                <CardTitle>Finance Details</CardTitle>
+                <CardTitle>Booking Details</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
