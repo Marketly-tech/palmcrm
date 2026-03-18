@@ -1114,6 +1114,29 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                       )}
                     </div>
                     <div>
+                      <Label>Gender</Label>
+                      {editing ? (
+                        <Select
+                          value={editData.gender || "male"}
+                          onValueChange={(value) => setEditData({ ...editData, gender: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male (S/o)</SelectItem>
+                            <SelectItem value="female">Female (D/o)</SelectItem>
+                            <SelectItem value="spouse">Spouse (W/o)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-slate-700 mt-1">
+                          {customer.gender === 'female' ? 'Female (D/o)' : 
+                           customer.gender === 'spouse' ? 'Spouse (W/o)' : 'Male (S/o)'}
+                        </p>
+                      )}
+                    </div>
+                    <div>
                       <Label>Nationality</Label>
                       <p className="text-slate-700 mt-1">{customer.nationality || "Indian"}</p>
                     </div>

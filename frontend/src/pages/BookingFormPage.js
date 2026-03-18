@@ -84,6 +84,7 @@ const BookingFormPage = () => {
     email: "",
     father_name: "",
     date_of_birth: "",
+    gender: "male",  // male, female, or spouse
     pan_number: "",
     aadhar_number: "",
     address: "",
@@ -516,6 +517,22 @@ const BookingFormPage = () => {
                           value={formData.date_of_birth}
                           onChange={handleInputChange}
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gender">Gender</Label>
+                        <Select
+                          value={formData.gender}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male (S/o)</SelectItem>
+                            <SelectItem value="female">Female (D/o)</SelectItem>
+                            <SelectItem value="spouse">Spouse (W/o)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="nationality">Nationality</Label>

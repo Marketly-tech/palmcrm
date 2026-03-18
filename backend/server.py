@@ -224,6 +224,7 @@ class CustomerBase(BaseModel):
     email: EmailStr
     father_name: Optional[str] = None
     date_of_birth: Optional[str] = None
+    gender: Optional[str] = None  # male, female, or spouse (for W/o)
     pan_number: Optional[str] = None
     aadhar_number: Optional[str] = None
     address: Optional[str] = None
@@ -1587,7 +1588,7 @@ def generate_sales_agreement_template():
         <div class="party-section">
             <p class="party-title">PURCHASER:</p>
             <p><strong><span class="highlight">{customer_name}</span></strong></p>
-            <p>Aged about <span class="highlight">{age}</span> years, S/o/D/o <span class="highlight">{father_name}</span></p>
+            <p>Aged about <span class="highlight">{age}</span> years, {salutation} <span class="highlight">{father_name}</span></p>
             <p>Residing at: <span class="highlight">{address}</span></p>
             <p>AADHAAR No.: <span class="highlight">{aadhaar_number}</span> | PAN No.: <span class="highlight">{pan_number}</span> | Mobile: <span class="highlight">{phone}</span></p>
         </div>
@@ -3293,9 +3294,51 @@ def generate_document_email_html(customer: dict, subject: str, body: str) -> str
 def generate_sales_agreement_html(customer: dict, schedule_items: list, transactions: list = None) -> str:
     """Generate Sales Agreement HTML with customer data filled in"""
     
-    # Format dates
+    # Helper function to convert year to words
+    def year_to_words(year):
+        """Convert year like 2026 to 'Two Thousand and Twenty Six'"""
+        ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+                'Seventeen', 'Eighteen', 'Nineteen']
+        tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+        
+        year = int(year)
+        thousands = year // 1000
+        hundreds = (year % 1000) // 100
+        remainder = year % 100
+        
+        result = []
+        if thousands == 2:
+            result.append("Two Thousand")
+        elif thousands == 1:
+            result.append("One Thousand")
+        
+        if hundreds > 0:
+            result.append(ones[hundreds] + " Hundred")
+        
+        if remainder > 0:
+            if result:
+                result.append("and")
+            if remainder < 20:
+                result.append(ones[remainder])
+            else:
+                tens_word = tens[remainder // 10]
+                ones_word = ones[remainder % 10]
+                if ones_word:
+                    result.append(tens_word + " " + ones_word)
+                else:
+                    result.append(tens_word)
+        
+        return " ".join(result)
+    
+    # Format dates - "14th Day of February, Two Thousand and Twenty Six- (14-02-2026)"
     agreement_date = datetime.now()
-    agreement_date_text = agreement_date.strftime("%d") + get_ordinal_suffix(agreement_date.day) + agreement_date.strftime(" Day of %B, %Y")
+    day_ordinal = str(agreement_date.day) + get_ordinal_suffix(agreement_date.day)
+    month_name = agreement_date.strftime("%B")
+    year_words = year_to_words(agreement_date.year)
+    date_numeric = agreement_date.strftime("%d-%m-%Y")
+    agreement_date_text = f"{day_ordinal} Day of {month_name}, {year_words}- ({date_numeric})"
+    
     possession_date = "30-09-2030"  # Fixed possession date for all agreements
     
     # Format currency amounts
@@ -3315,6 +3358,16 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             age = str(today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day)))
         except:
             age = ""
+    
+    # Generate salutation based on gender
+    # S/o for male, D/o for female, W/o for spouse
+    gender = customer.get('gender', '').lower() if customer.get('gender') else 'male'
+    if gender == 'female':
+        salutation = "D/o"
+    elif gender == 'spouse':
+        salutation = "W/o"
+    else:
+        salutation = "S/o"
     
     # Generate floor ordinal (1st, 2nd, 3rd, etc.)
     floor = customer.get('floor', 0) or 0
@@ -3399,6 +3452,7 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
         '{agreement_date_text}': agreement_date_text,
         '{customer_name}': customer.get('name', ''),
         '{age}': age,
+        '{salutation}': salutation,
         '{father_name}': customer.get('father_name', ''),
         '{address}': customer.get('address', ''),
         '{aadhaar_number}': aadhaar_number,
@@ -4103,6 +4157,7 @@ class BookingFormData(BaseModel):
     email: EmailStr
     father_name: Optional[str] = None
     date_of_birth: Optional[str] = None
+    gender: Optional[str] = None  # male, female, or spouse
     pan_number: Optional[str] = None
     aadhar_number: Optional[str] = None
     address: Optional[str] = None
@@ -4204,6 +4259,7 @@ async def submit_booking_form(data: BookingFormData):
         email=data.email,
         father_name=data.father_name or "",
         date_of_birth=data.date_of_birth,
+        gender=data.gender or "male",
         pan_number=data.pan_number or "",
         aadhar_number=data.aadhar_number or "",
         address=data.address or "",
