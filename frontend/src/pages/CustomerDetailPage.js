@@ -1569,39 +1569,6 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                     ))}
                   </TableBody>
                 </Table>
-                
-                {/* Payment Summary */}
-                <div className="mt-6 p-4 bg-slate-50 rounded-lg border">
-                  <h4 className="font-semibold text-slate-700 mb-3">Payment Summary</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-white p-3 rounded-md border">
-                      <p className="text-xs text-slate-500">Total Value</p>
-                      <p className="text-lg font-bold text-slate-800">{formatCurrency(customer.total_price || 0)}</p>
-                    </div>
-                    <div className="bg-white p-3 rounded-md border border-green-200">
-                      <p className="text-xs text-green-600">Total Received</p>
-                      <p className="text-lg font-bold text-green-600">{formatCurrency(customer.total_received || 0)}</p>
-                      <p className="text-xs text-green-500">{(customer.payment_received_percentage || 0).toFixed(1)}%</p>
-                    </div>
-                    <div className="bg-white p-3 rounded-md border border-red-200">
-                      <p className="text-xs text-red-600">Balance Pending</p>
-                      <p className="text-lg font-bold text-red-600">{formatCurrency(customer.balance_amount || (customer.total_price - (customer.total_received || 0)))}</p>
-                      <p className="text-xs text-red-500">{(customer.payment_pending_percentage || 100).toFixed(1)}%</p>
-                    </div>
-                    <div className="bg-white p-3 rounded-md border">
-                      <p className="text-xs text-slate-500">Progress</p>
-                      <div className="mt-1">
-                        <div className="w-full bg-slate-200 rounded-full h-2.5">
-                          <div
-                            className="bg-green-500 h-2.5 rounded-full transition-all duration-500"
-                            style={{ width: `${customer.payment_received_percentage || 0}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-slate-600 mt-1">{paymentSchedule.items.filter(i => i.payment_status === 'paid').length} of {paymentSchedule.items.length} installments paid</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
                 </>
               ) : (
                 <div className="text-center py-8 text-slate-500">
