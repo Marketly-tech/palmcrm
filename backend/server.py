@@ -654,6 +654,35 @@ async def reset_password(data: ResetPasswordRequest):
     
     return {"message": "Password reset successfully"}
 
+# Admin Reset User Password
+class AdminResetPasswordRequest(BaseModel):
+    user_id: str
+    new_password: str
+
+@api_router.post("/admin/reset-user-password")
+async def admin_reset_user_password(data: AdminResetPasswordRequest, current_user: dict = Depends(get_current_user)):
+    """Admin can reset any user's password"""
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Only admins can reset user passwords")
+    
+    user = await db.users.find_one({"id": data.user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    new_hash = hash_password(data.new_password)
+    result = await db.users.update_one(
+        {"id": data.user_id},
+        {"$set": {"password_hash": new_hash}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=500, detail="Failed to update password")
+    
+    return {"message": f"Password reset successfully for {user['name']}"}
+
 # ==================== USER MANAGEMENT ROUTES ====================
 @api_router.get("/users", response_model=List[UserResponse])
 async def get_users(user: dict = Depends(check_role([UserRole.ADMIN]))):

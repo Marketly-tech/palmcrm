@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "../components/ui/dialog";
 import {
   Select,
@@ -39,6 +40,9 @@ import {
   UserPlus,
   Trash2,
   Edit,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -50,6 +54,18 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Edit user state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  
+  // Reset password state
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const [newUser, setNewUser] = useState({
     name: "",
@@ -98,6 +114,72 @@ const SettingsPage = () => {
     }
   };
 
+  const handleEditUser = (userToEdit) => {
+    setEditingUser({ ...userToEdit });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveUserEdit = async () => {
+    if (!editingUser) return;
+    
+    setSaving(true);
+    try {
+      await axios.put(`${API}/users/${editingUser.id}`, {
+        name: editingUser.name,
+        role: editingUser.role,
+        phone: editingUser.phone,
+        is_active: editingUser.is_active,
+      });
+      fetchUsers();
+      setEditDialogOpen(false);
+      setEditingUser(null);
+      toast.success("User updated successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update user");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOpenResetPassword = (userToReset) => {
+    setResetPasswordUser(userToReset);
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowNewPassword(false);
+    setResetPasswordDialogOpen(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser) return;
+    
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    
+    setResettingPassword(true);
+    try {
+      await axios.post(`${API}/admin/reset-user-password`, {
+        user_id: resetPasswordUser.id,
+        new_password: newPassword,
+      });
+      setResetPasswordDialogOpen(false);
+      setResetPasswordUser(null);
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success(`Password reset successfully for ${resetPasswordUser.name}`);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to reset password");
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const handleToggleUserStatus = async (userId, isActive) => {
     try {
       await axios.put(`${API}/users/${userId}`, { is_active: !isActive });
@@ -129,6 +211,17 @@ const SettingsPage = () => {
       support: "bg-yellow-100 text-yellow-700",
     };
     return styles[role] || "bg-slate-100 text-slate-700";
+  };
+
+  const getRoleDescription = (role) => {
+    const descriptions = {
+      admin: "Full access to all features including user management",
+      manager: "Can manage customers, leads, and view reports",
+      accounts: "Can manage payments and financial documents",
+      sales: "Can view and update customer information",
+      support: "Limited access to customer support features",
+    };
+    return descriptions[role] || "Standard user access";
   };
 
   return (
@@ -253,7 +346,7 @@ const SettingsPage = () => {
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -270,12 +363,31 @@ const SettingsPage = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditUser(u)}
+                                title="Edit User"
+                                data-testid={`edit-user-${u.id}`}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenResetPassword(u)}
+                                title="Reset Password"
+                                data-testid={`reset-password-${u.id}`}
+                              >
+                                <KeyRound className="w-4 h-4" />
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleToggleUserStatus(u.id, u.is_active)}
                                 disabled={u.id === user?.id}
+                                title={u.is_active ? "Deactivate" : "Activate"}
                               >
                                 {u.is_active ? "Deactivate" : "Activate"}
                               </Button>
@@ -285,6 +397,7 @@ const SettingsPage = () => {
                                 className="text-red-600 hover:text-red-700"
                                 onClick={() => handleDeleteUser(u.id)}
                                 disabled={u.id === user?.id}
+                                title="Delete User"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -355,16 +468,16 @@ const SettingsPage = () => {
                   <div className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between">
                       <span>Email (SendGrid)</span>
-                      <Badge className="bg-amber-100 text-amber-700">MOCKED</Badge>
+                      <Badge className="bg-green-100 text-green-700">Active</Badge>
                     </div>
                     <p className="text-sm text-slate-500 mt-1">
-                      Configure SendGrid API key for production
+                      Email service configured and ready
                     </p>
                   </div>
                   <div className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between">
                       <span>WhatsApp (Twilio)</span>
-                      <Badge className="bg-amber-100 text-amber-700">MOCKED</Badge>
+                      <Badge className="bg-amber-100 text-amber-700">Pending</Badge>
                     </div>
                     <p className="text-sm text-slate-500 mt-1">
                       Configure Twilio credentials for production
@@ -376,6 +489,178 @@ const SettingsPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              Edit User
+            </DialogTitle>
+            <DialogDescription>
+              Update user details and permissions
+            </DialogDescription>
+          </DialogHeader>
+          {editingUser && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <Input
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                  data-testid="edit-user-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  value={editingUser.email}
+                  disabled
+                  className="bg-slate-50"
+                />
+                <p className="text-xs text-slate-500">Email cannot be changed</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input
+                  value={editingUser.phone || ""}
+                  onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                  placeholder="9876543210"
+                  data-testid="edit-user-phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select
+                  value={editingUser.role}
+                  onValueChange={(value) => setEditingUser({ ...editingUser, role: value })}
+                >
+                  <SelectTrigger data-testid="edit-user-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="accounts">Accounts</SelectItem>
+                    <SelectItem value="sales">Sales</SelectItem>
+                    <SelectItem value="support">Support</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">{getRoleDescription(editingUser.role)}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={editingUser.is_active ? "active" : "inactive"}
+                  onValueChange={(value) => setEditingUser({ ...editingUser, is_active: value === "active" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditDialogOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveUserEdit}
+                  disabled={saving}
+                  className="flex-1"
+                  data-testid="save-edit-user-btn"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              Reset Password
+            </DialogTitle>
+            <DialogDescription>
+              Set a new password for this user
+            </DialogDescription>
+          </DialogHeader>
+          {resetPasswordUser && (
+            <div className="space-y-4">
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-sm text-slate-600">Resetting password for:</p>
+                <p className="font-medium">{resetPasswordUser.name}</p>
+                <p className="text-sm text-slate-500">{resetPasswordUser.email}</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>New Password</Label>
+                <div className="relative">
+                  <Input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Minimum 6 characters"
+                    className="pr-10"
+                    data-testid="admin-new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Confirm Password</Label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  data-testid="admin-confirm-password"
+                />
+              </div>
+              
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setResetPasswordDialogOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleResetPassword}
+                  disabled={resettingPassword || !newPassword || !confirmPassword}
+                  className="flex-1"
+                  data-testid="admin-reset-password-btn"
+                >
+                  {resettingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Reset Password
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
