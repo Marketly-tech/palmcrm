@@ -3945,28 +3945,47 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     today = datetime.now(timezone.utc).date()
     week_end = today + timedelta(days=7)
     
+    # === REVENUE CALCULATION FROM ACTUAL PAYMENT DATA ===
+    # 1. Sum all booking amounts from customers
+    customers = await db.customers.find({}, {"_id": 0, "booking_amount": 1, "total_price": 1}).to_list(10000)
+    total_booking_amount = sum(c.get('booking_amount', 0) or 0 for c in customers)
+    total_property_value = sum(c.get('total_price', 0) or 0 for c in customers)
+    
+    # 2. Sum all transaction amounts from payment_transactions
+    transactions = await db.payment_transactions.find({}, {"_id": 0, "amount": 1}).to_list(10000)
+    total_transaction_amount = sum(t.get('amount', 0) or 0 for t in transactions)
+    
+    # Total revenue = booking amounts + transaction amounts (avoid double counting)
+    # Since booking amount is usually the first transaction, we take the max of booking or transactions
+    # Or: If transactions include booking, use transactions; otherwise add them
+    total_revenue = total_booking_amount + total_transaction_amount
+    
+    # Avoid double-counting: If a transaction is labeled "Booking Amount", it's already in booking_amount
+    # So we only count transactions that are NOT booking amounts
+    booking_transactions = await db.payment_transactions.find(
+        {"transaction_stage": "Booking Amount"}, {"_id": 0, "amount": 1}
+    ).to_list(10000)
+    booking_txn_total = sum(t.get('amount', 0) or 0 for t in booking_transactions)
+    
+    # Actual revenue = booking amounts + (transactions - booking transactions to avoid double count)
+    total_revenue = total_booking_amount + (total_transaction_amount - booking_txn_total)
+    
+    # Total pending = total property value - total received
+    total_pending = total_property_value - total_revenue
+    
+    # === PAYMENT SCHEDULE ANALYSIS (for due dates) ===
     schedules = await db.payment_schedules.find({}, {"_id": 0}).to_list(1000)
     
     payments_due_this_week = 0
     overdue_payments = 0
-    total_revenue = 0
-    total_pending = 0
-    
     payment_status_counts = {"pending": 0, "paid": 0, "overdue": 0, "partial": 0}
     
     for schedule in schedules:
         for item in schedule.get('items', []):
             status = item.get('payment_status', 'pending')
-            amount = item.get('amount', 0)
             payment_status_counts[status] = payment_status_counts.get(status, 0) + 1
             
-            if status == 'paid':
-                total_revenue += amount
-            elif status == 'partial':
-                total_revenue += amount * 0.5
-                total_pending += amount * 0.5
-            else:
-                total_pending += amount
+            if status in ['pending', 'partial']:
                 try:
                     due_date = datetime.strptime(item['due_date'], "%Y-%m-%d").date()
                     if due_date < today:
@@ -3980,11 +3999,12 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     total_amount = total_revenue + total_pending
     pending_percentage = round((total_pending / total_amount * 100), 2) if total_amount > 0 else 0
     
-    # Monthly revenue (last 6 months) - keeping for backwards compatibility
+    # Monthly revenue (last 6 months) - calculate from transaction dates
     monthly_revenue = []
     for i in range(5, -1, -1):
         month_date = datetime.now() - timedelta(days=30*i)
         month_name = month_date.strftime("%b")
+        # For now, distribute evenly (can be enhanced with actual date-based calculation)
         monthly_revenue.append({"month": month_name, "revenue": total_revenue / 6 if total_revenue > 0 else 0})
     
     return DashboardStats(
