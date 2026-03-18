@@ -1000,7 +1000,14 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-slate-500">Received</p>
-            <p className="font-semibold text-green-600">{customer.payment_received_percentage?.toFixed(1) || 0}%</p>
+            <p className="font-semibold text-green-600">
+              {(() => {
+                const totalReceived = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
+                const totalPrice = customer.total_price || 0;
+                const receivedPercentage = totalPrice > 0 ? (totalReceived / totalPrice) * 100 : 0;
+                return `${receivedPercentage.toFixed(1)}%`;
+              })()}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -1431,32 +1438,45 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                 <CardDescription>Track received vs pending payments</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-slate-600">Received</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(customer.total_received)}</p>
-                    <p className="text-lg font-semibold text-green-600">{(customer.payment_received_percentage || 0).toFixed(1)}%</p>
-                  </div>
-                  <div className="text-center p-4 bg-red-50 rounded-lg">
-                    <p className="text-sm text-slate-600">Pending</p>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(customer.balance_amount)}</p>
-                    <p className="text-lg font-semibold text-red-600">{(customer.payment_pending_percentage || 100).toFixed(1)}%</p>
-                  </div>
-                </div>
-                
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Payment Progress</span>
-                    <span>{(customer.payment_received_percentage || 0).toFixed(1)}%</span>
-                  </div>
-                  <div className="h-4 bg-slate-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-green-500 transition-all duration-500"
-                      style={{ width: `${customer.payment_received_percentage || 0}%` }}
-                    />
-                  </div>
-                </div>
+                {(() => {
+                  // Calculate received from transactions
+                  const totalReceived = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
+                  const totalPrice = customer.total_price || 0;
+                  const balanceAmount = totalPrice - totalReceived;
+                  const receivedPercentage = totalPrice > 0 ? (totalReceived / totalPrice) * 100 : 0;
+                  const pendingPercentage = totalPrice > 0 ? (balanceAmount / totalPrice) * 100 : 100;
+                  
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center p-4 bg-green-50 rounded-lg">
+                          <p className="text-sm text-slate-600">Received</p>
+                          <p className="text-2xl font-bold text-green-600">{formatCurrency(totalReceived)}</p>
+                          <p className="text-lg font-semibold text-green-600">{receivedPercentage.toFixed(1)}%</p>
+                        </div>
+                        <div className="text-center p-4 bg-red-50 rounded-lg">
+                          <p className="text-sm text-slate-600">Pending</p>
+                          <p className="text-2xl font-bold text-red-600">{formatCurrency(balanceAmount)}</p>
+                          <p className="text-lg font-semibold text-red-600">{pendingPercentage.toFixed(1)}%</p>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Payment Progress</span>
+                          <span>{receivedPercentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-4 bg-slate-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-green-500 transition-all duration-500"
+                            style={{ width: `${receivedPercentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
 
