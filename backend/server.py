@@ -2436,7 +2436,7 @@ def generate_welcome_email_html(customer: dict) -> str:
             <p>Please find attached the Price Breakup document for your reference.</p>
             
             <div class="signature-section">
-                <div class="signature-name">Pavitra S G</div>
+                <div class="signature-name">John</div>
                 <div class="signature-title">CRM MANAGER</div>
                 <div class="signature-contact">
                     <strong>P:</strong> 9606579135<br>
@@ -2779,7 +2779,7 @@ def generate_document_email_html(customer: dict, subject: str, body: str) -> str
                 
                 <!-- Signature -->
                 <div style="margin-top: 30px; padding: 20px; background: #fafafa; border-radius: 8px;">
-                    <div style="font-size: 15px; font-weight: 600; color: #1A1A1A; margin-bottom: 3px;">Pavitra S G</div>
+                    <div style="font-size: 15px; font-weight: 600; color: #1A1A1A; margin-bottom: 3px;">John</div>
                     <div style="font-size: 12px; color: #D4AF37; font-weight: 500; margin-bottom: 12px;">CRM MANAGER</div>
                     <div style="font-size: 12px; color: #666; line-height: 1.6;">
                         <strong>P:</strong> 9606579135<br>
@@ -3170,7 +3170,7 @@ async def send_email_notification(
                 
                 <!-- Signature -->
                 <div style="margin-top: 30px; padding: 20px; background: #fafafa; border-radius: 8px;">
-                    <div style="font-size: 15px; font-weight: 600; color: #1A1A1A; margin-bottom: 3px;">Pavitra S G</div>
+                    <div style="font-size: 15px; font-weight: 600; color: #1A1A1A; margin-bottom: 3px;">John</div>
                     <div style="font-size: 12px; color: #D4AF37; font-weight: 500; margin-bottom: 12px;">CRM MANAGER</div>
                     <div style="font-size: 12px; color: #666; line-height: 1.6;">
                         <strong>P:</strong> 9606579135<br>
