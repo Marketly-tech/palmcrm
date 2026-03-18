@@ -375,6 +375,32 @@ class ActivityLog(BaseModel):
     details: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class TransactionStage(str, Enum):
+    BOOKING = "booking"
+    AGREEMENT = "agreement"
+    SCHEDULED_DISBURSEMENT = "scheduled_disbursement"
+
+class PaymentTransaction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    customer_id: str
+    transaction_stage: TransactionStage
+    transaction_date: str
+    bank_name: str
+    transaction_number: str
+    amount: Optional[float] = 0
+    notes: Optional[str] = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PaymentTransactionCreate(BaseModel):
+    transaction_stage: TransactionStage
+    transaction_date: str
+    bank_name: str
+    transaction_number: str
+    amount: Optional[float] = 0
+    notes: Optional[str] = ""
+
 class PriceCalculation(BaseModel):
     """Enhanced price calculation matching the Excel formula"""
     unit_number: Optional[str] = None
@@ -845,6 +871,75 @@ async def get_payments_overview(user: dict = Depends(get_current_user)):
                 pending.append(item_data)
     
     return {"pending": pending, "overdue": overdue, "upcoming": upcoming}
+
+# ==================== PAYMENT TRANSACTIONS ====================
+@api_router.get("/transactions/{customer_id}")
+async def get_transactions(customer_id: str, user: dict = Depends(get_current_user)):
+    """Get all transactions for a customer"""
+    transactions = await db.payment_transactions.find(
+        {"customer_id": customer_id}, {"_id": 0}
+    ).sort("transaction_date", -1).to_list(1000)
+    return transactions
+
+@api_router.post("/transactions/{customer_id}")
+async def create_transaction(customer_id: str, transaction: PaymentTransactionCreate, user: dict = Depends(get_current_user)):
+    """Create a new transaction"""
+    # Verify customer exists - check both id and customer_id fields
+    customer = await db.customers.find_one({"$or": [{"id": customer_id}, {"customer_id": customer_id}]})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    new_transaction = PaymentTransaction(
+        customer_id=customer_id,
+        transaction_stage=transaction.transaction_stage,
+        transaction_date=transaction.transaction_date,
+        bank_name=transaction.bank_name,
+        transaction_number=transaction.transaction_number,
+        amount=transaction.amount,
+        notes=transaction.notes
+    )
+    
+    await db.payment_transactions.insert_one(new_transaction.model_dump())
+    await log_activity(user['id'], user['name'], "create", "transaction", new_transaction.id, f"Created transaction for customer {customer_id}")
+    
+    return {"message": "Transaction created", "transaction": new_transaction.model_dump()}
+
+@api_router.put("/transactions/{customer_id}/{transaction_id}")
+async def update_transaction(customer_id: str, transaction_id: str, transaction: PaymentTransactionCreate, user: dict = Depends(get_current_user)):
+    """Update an existing transaction"""
+    existing = await db.payment_transactions.find_one({"id": transaction_id, "customer_id": customer_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    update_data = {
+        "transaction_stage": transaction.transaction_stage.value if hasattr(transaction.transaction_stage, 'value') else transaction.transaction_stage,
+        "transaction_date": transaction.transaction_date,
+        "bank_name": transaction.bank_name,
+        "transaction_number": transaction.transaction_number,
+        "amount": transaction.amount,
+        "notes": transaction.notes,
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    await db.payment_transactions.update_one(
+        {"id": transaction_id},
+        {"$set": update_data}
+    )
+    
+    await log_activity(user['id'], user['name'], "update", "transaction", transaction_id, f"Updated transaction for customer {customer_id}")
+    
+    return {"message": "Transaction updated"}
+
+@api_router.delete("/transactions/{customer_id}/{transaction_id}")
+async def delete_transaction(customer_id: str, transaction_id: str, user: dict = Depends(get_current_user)):
+    """Delete a transaction"""
+    result = await db.payment_transactions.delete_one({"id": transaction_id, "customer_id": customer_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    await log_activity(user['id'], user['name'], "delete", "transaction", transaction_id, f"Deleted transaction for customer {customer_id}")
+    
+    return {"message": "Transaction deleted"}
 
 # ==================== PRICE CALCULATOR ====================
 # Default payment schedule template (from Excel)

@@ -53,7 +53,13 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ## What's Been Implemented
 
 ### March 18, 2026
+- ✅ Added Transaction Records feature to Payment Tracking tab
+  - 3-stage dropdown: Booking, Agreement, Scheduled Disbursement
+  - Transaction fields: Date, Bank Name, Transaction Number, Amount, Notes
+  - Full CRUD operations with Edit/Delete functionality
+- ✅ Renamed tabs: "Payment Schedule" → "Payment Tracking", "Payments" → "Payment Schedule"
 - ✅ Removed "Carpet Area" from all PDFs, emails, customer details, documents, and forms
+- ✅ Updated email signature from "Pavitra S G" to "John"
 - ✅ Camera upload feature for booking form documents
 
 ### Previously Completed
