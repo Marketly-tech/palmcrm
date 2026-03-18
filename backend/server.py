@@ -1529,7 +1529,7 @@ def generate_sales_agreement_template():
             <div class="logo">RRL</div>
             <div>
                 <div class="company-name">RRL Builders and Developers</div>
-                <div class="company-tagline">Building Dreams, Creating Homes</div>
+                <div class="company-tagline">Beyond homes. A lifestyle</div>
             </div>
         </div>
     </div>
@@ -2202,7 +2202,7 @@ def get_default_template(doc_type: DocumentType) -> str:
             <div class="logo">RRL</div>
             <div>
                 <div class="company-name">RRL Builders and Developers</div>
-                <div class="company-tagline">Building Dreams, Creating Homes</div>
+                <div class="company-tagline">Beyond homes. A lifestyle</div>
             </div>
         </div>
         <div class="document-title">Allotment Letter</div>
@@ -2583,7 +2583,7 @@ def generate_price_breakup_html(customer: dict) -> str:
                     <div class="logo">RRL</div>
                     <div>
                         <div class="company-name">RRL Builders and Developers</div>
-                        <div class="company-tagline">Building Dreams, Creating Homes</div>
+                        <div class="company-tagline">Beyond homes. A lifestyle</div>
                     </div>
                 </div>
                 <div class="document-title">Price Break-Up</div>
@@ -2890,7 +2890,7 @@ def generate_welcome_email_html(customer: dict) -> str:
                 <div class="logo">RRL</div>
                 <div class="company-info">
                     <div class="company-name">RRL Builders and Developers</div>
-                    <div class="company-tagline">Building Dreams, Creating Homes</div>
+                    <div class="company-tagline">Beyond homes. A lifestyle</div>
                 </div>
             </div>
             
@@ -3276,7 +3276,7 @@ def generate_document_email_html(customer: dict, subject: str, body: str) -> str
                 <div style="background: #D4AF37; color: #1A1A1A; padding: 10px 15px; border-radius: 6px; font-weight: bold; font-size: 18px; margin-right: 15px;">RRL</div>
                 <div>
                     <div style="color: #D4AF37; font-size: 18px; font-weight: 700;">RRL Builders and Developers</div>
-                    <div style="color: #999; font-size: 11px;">Building Dreams, Creating Homes</div>
+                    <div style="color: #999; font-size: 11px;">Beyond homes. A lifestyle</div>
                 </div>
             </div>
             
@@ -3771,7 +3771,7 @@ async def send_email_notification(
                 <div style="background: #D4AF37; color: #1A1A1A; padding: 10px 15px; border-radius: 6px; font-weight: bold; font-size: 18px; margin-right: 15px;">RRL</div>
                 <div>
                     <div style="color: #D4AF37; font-size: 18px; font-weight: 700;">RRL Builders and Developers</div>
-                    <div style="color: #999; font-size: 11px;">Building Dreams, Creating Homes</div>
+                    <div style="color: #999; font-size: 11px;">Beyond homes. A lifestyle</div>
                 </div>
             </div>
             
@@ -5048,7 +5048,7 @@ def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
                     <div class="logo">RRL</div>
                     <div>
                         <div class="company-name">RRL Builders and Developers</div>
-                        <div class="company-tagline">Building Dreams, Creating Homes</div>
+                        <div class="company-tagline">Beyond homes. A lifestyle</div>
                     </div>
                 </div>
                 <div class="document-title">PAYMENT SCHEDULE</div>
