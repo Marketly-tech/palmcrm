@@ -151,7 +151,6 @@ class UnitPricing(BaseModel):
     unit_number: str
     floor: int
     bhk_type: str  # 2BHK, 3BHK
-    carpet_area: float
     saleable_area: float
     rate_per_sqft: float
     uds: float = 0  # Undivided Share - calculated as saleable_area * 0.495046
@@ -164,7 +163,6 @@ class UnitPricingCreate(BaseModel):
     unit_number: str
     floor: int
     bhk_type: str
-    carpet_area: float
     saleable_area: float
     rate_per_sqft: float
 
@@ -231,7 +229,6 @@ class CustomerBase(BaseModel):
     unit_number: str
     floor: int = 0
     bhk_type: str = ""
-    carpet_area: float = 0
     saleable_area: float = 0
     uds: float = 0  # Undivided Share
     parking: Optional[str] = None
@@ -1067,7 +1064,6 @@ async def generate_document(data: DocumentGenerate, user: dict = Depends(get_cur
         "{project}": customer.get('project', ''),
         "{total_price}": str(total_price),
         "{total_price_formatted}": total_price_formatted,
-        "{carpet_area}": str(customer.get('carpet_area', 0)),
         "{saleable_area}": str(customer.get('saleable_area', 0)),
         "{uds}": str(uds),
         "{booking_amount}": str(customer.get('booking_amount', 0)),
@@ -1365,10 +1361,6 @@ def generate_sales_agreement_template():
             <tr>
                 <th>Super Built-up Area</th>
                 <td><span class="highlight">{saleable_area}</span> Sq. Ft.</td>
-            </tr>
-            <tr>
-                <th>Carpet Area</th>
-                <td><span class="highlight">{carpet_area}</span> Sq. Ft.</td>
             </tr>
             <tr>
                 <th>UDS (Undivided Share)</th>
@@ -2142,10 +2134,6 @@ def generate_price_breakup_html(customer: dict) -> str:
                         <span class="info-value">{customer.get('floor', '-')}</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Carpet Area:</span>
-                        <span class="info-value">{customer.get('carpet_area', 0)} sq.ft</span>
-                    </div>
-                    <div class="info-item">
                         <span class="info-label">Saleable Area:</span>
                         <span class="info-value">{customer.get('saleable_area', 0)} sq.ft</span>
                     </div>
@@ -2883,7 +2871,6 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list) -> str:
         '{floor}': str(customer.get('floor', '')),
         '{bhk_type}': customer.get('bhk_type', ''),
         '{saleable_area}': str(customer.get('saleable_area', 0)),
-        '{carpet_area}': str(customer.get('carpet_area', 0)),
         '{uds}': str(customer.get('uds', 0)),
         '{additional_parking}': str(customer.get('additional_parking', 0)),
         '{base_price_formatted}': fmt(customer.get('base_price', 0)),

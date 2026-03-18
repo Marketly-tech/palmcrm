@@ -79,7 +79,6 @@ const CustomersPage = () => {
     project: "",
     tower: "",
     unit_number: "",
-    carpet_area: "",
     saleable_area: "",
     parking: "",
     total_price: "",
@@ -131,7 +130,6 @@ const CustomersPage = () => {
     try {
       const payload = {
         ...formData,
-        carpet_area: parseFloat(formData.carpet_area) || 0,
         saleable_area: parseFloat(formData.saleable_area) || 0,
         total_price: parseFloat(formData.total_price) || 0,
         booking_amount: parseFloat(formData.booking_amount) || 0,
@@ -149,7 +147,6 @@ const CustomersPage = () => {
         project: "",
         tower: "",
         unit_number: "",
-        carpet_area: "",
         saleable_area: "",
         parking: "",
         total_price: "",
@@ -308,16 +305,6 @@ const CustomersPage = () => {
                     onChange={handleInputChange}
                     required
                     data-testid="customer-unit-input"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="carpet_area">Carpet Area (sq.ft)</Label>
-                  <Input
-                    id="carpet_area"
-                    name="carpet_area"
-                    type="number"
-                    value={formData.carpet_area}
-                    onChange={handleInputChange}
                   />
                 </div>
                 <div className="space-y-2">
