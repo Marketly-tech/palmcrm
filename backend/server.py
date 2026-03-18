@@ -4686,6 +4686,11 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
+# Root-level health endpoint for Kubernetes health probes
+@app.get("/health")
+async def root_health_check():
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+
 # ==================== EXPORT FUNCTIONALITY ====================
 @api_router.get("/export/customers/csv")
 async def export_customers_csv(user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER]))):
@@ -5259,6 +5264,21 @@ async def startup_event():
         doc['created_at'] = doc['created_at'].isoformat()
         await db.users.insert_one(doc)
         logger.info("Default admin user created: admin@rrlbuilders.com / admin123")
+    
+    # Create RRL CRM Admin user if not exists
+    crm_admin = await db.users.find_one({"email": "crm@rrlbuildersanddevelopers.com"})
+    if not crm_admin:
+        crm_admin_user = User(
+            email="crm@rrlbuildersanddevelopers.com",
+            name="RRL CRM Admin",
+            role=UserRole.ADMIN,
+            phone=None
+        )
+        doc = crm_admin_user.model_dump()
+        doc['password_hash'] = hash_password("#RRLnew2026")
+        doc['created_at'] = doc['created_at'].isoformat()
+        await db.users.insert_one(doc)
+        logger.info("RRL CRM Admin user created: crm@rrlbuildersanddevelopers.com")
     
     # Create indexes
     await db.customers.create_index("customer_id", unique=True)
