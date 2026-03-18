@@ -1152,56 +1152,72 @@ async def generate_document(data: DocumentGenerate, user: dict = Depends(get_cur
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
-    template = await db.document_templates.find_one({"doc_type": data.doc_type.value}, {"_id": 0})
-    if not template:
-        # Use default template
-        template = {"content": get_default_template(data.doc_type)}
-    
-    # Replace placeholders
-    content = template['content']
-    
-    # Format total price with Indian currency format
-    total_price = customer.get('total_price', 0)
-    total_price_formatted = format_indian_currency(total_price, decimals=False) if total_price else "0"
-    
-    # Calculate UDS if not present
-    uds = customer.get('uds', 0)
-    if not uds and customer.get('saleable_area'):
-        uds = round(customer.get('saleable_area', 0) * 0.495046, 2)
-    
-    placeholders = {
-        "{customer_name}": customer.get('name', ''),
-        "{customer_id}": customer.get('customer_id', ''),
-        "{unit_number}": customer.get('unit_number', ''),
-        "{tower}": customer.get('tower', ''),
-        "{project}": customer.get('project', ''),
-        "{total_price}": str(total_price),
-        "{total_price_formatted}": total_price_formatted,
-        "{saleable_area}": str(customer.get('saleable_area', 0)),
-        "{uds}": str(uds),
-        "{booking_amount}": str(customer.get('booking_amount', 0)),
-        "{booking_date}": customer.get('booking_date', ''),
-        "{date}": datetime.now().strftime("%d-%m-%Y"),
-        "{father_name}": customer.get('father_name', ''),
-        "{pan_number}": customer.get('pan_number', ''),
-        "{phone}": customer.get('phone', ''),
-        "{email}": customer.get('email', ''),
-        "{address}": customer.get('address', ''),
-        "{bhk_type}": customer.get('bhk_type', ''),
-        "{floor}": str(customer.get('floor', '')),
-        "{rate_per_sqft}": str(customer.get('rate_per_sqft', 0)),
-        "{base_price}": str(customer.get('base_price', 0)),
-        "{gst_amount}": str(customer.get('gst_amount', 0)),
-        "{labour_cess}": str(customer.get('labour_cess', 0)),
-        "{club_house_charges}": str(customer.get('club_house_charges', 0)),
-    }
-    
-    # Add custom fields
-    for key, value in data.custom_fields.items():
-        placeholders[f"{{{key}}}"] = value
-    
-    for placeholder, value in placeholders.items():
-        content = content.replace(placeholder, str(value))
+    # For Sales Agreement, use the dedicated generator function
+    if data.doc_type == DocumentType.SALES_AGREEMENT:
+        # Get payment schedule
+        schedule = await db.payment_schedules.find_one({"customer_id": data.customer_id}, {"_id": 0})
+        schedule_items = schedule.get('items', []) if schedule else []
+        
+        # Get transaction records
+        transactions = await db.payment_transactions.find(
+            {"customer_id": data.customer_id}, {"_id": 0}
+        ).sort("transaction_date", 1).to_list(1000)
+        
+        content = generate_sales_agreement_html(customer, schedule_items, transactions)
+    elif data.doc_type == DocumentType.PRICE_BREAKUP:
+        content = generate_price_breakup_html(customer)
+    elif data.doc_type == DocumentType.ALLOTMENT_LETTER:
+        content = generate_allotment_letter_html(customer)
+    else:
+        # For other document types, use template-based generation
+        template = await db.document_templates.find_one({"doc_type": data.doc_type.value}, {"_id": 0})
+        if not template:
+            template = {"content": get_default_template(data.doc_type)}
+        
+        content = template['content']
+        
+        # Format total price with Indian currency format
+        total_price = customer.get('total_price', 0)
+        total_price_formatted = format_indian_currency(total_price, decimals=False) if total_price else "0"
+        
+        # Calculate UDS if not present
+        uds = customer.get('uds', 0)
+        if not uds and customer.get('saleable_area'):
+            uds = round(customer.get('saleable_area', 0) * 0.495046, 2)
+        
+        placeholders = {
+            "{customer_name}": customer.get('name', ''),
+            "{customer_id}": customer.get('customer_id', ''),
+            "{unit_number}": customer.get('unit_number', ''),
+            "{tower}": customer.get('tower', ''),
+            "{project}": customer.get('project', ''),
+            "{total_price}": str(total_price),
+            "{total_price_formatted}": total_price_formatted,
+            "{saleable_area}": str(customer.get('saleable_area', 0)),
+            "{uds}": str(uds),
+            "{booking_amount}": str(customer.get('booking_amount', 0)),
+            "{booking_date}": customer.get('booking_date', ''),
+            "{date}": datetime.now().strftime("%d-%m-%Y"),
+            "{father_name}": customer.get('father_name', ''),
+            "{pan_number}": customer.get('pan_number', ''),
+            "{phone}": customer.get('phone', ''),
+            "{email}": customer.get('email', ''),
+            "{address}": customer.get('address', ''),
+            "{bhk_type}": customer.get('bhk_type', ''),
+            "{floor}": str(customer.get('floor', '')),
+            "{rate_per_sqft}": str(customer.get('rate_per_sqft', 0)),
+            "{base_price}": str(customer.get('base_price', 0)),
+            "{gst_amount}": str(customer.get('gst_amount', 0)),
+            "{labour_cess}": str(customer.get('labour_cess', 0)),
+            "{club_house_charges}": str(customer.get('club_house_charges', 0)),
+        }
+        
+        # Add custom fields
+        for key, value in data.custom_fields.items():
+            placeholders[f"{{{key}}}"] = value
+        
+        for placeholder, value in placeholders.items():
+            content = content.replace(placeholder, str(value))
     
     # Save generated document
     gen_doc = GeneratedDocument(
