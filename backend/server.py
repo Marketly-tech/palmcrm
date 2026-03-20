@@ -33,7 +33,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # JWT Settings
-JWT_SECRET = os.environ.get('JWT_SECRET', 'rrl-crm-secret-key-change-in-production')
+JWT_SECRET = os.environ.get('JWT_SECRET') or 'rrl-crm-secret-key-2026-secure'
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
@@ -928,12 +928,20 @@ async def get_payments_overview(user: dict = Depends(get_current_user)):
     
     schedules = await db.payment_schedules.find({}, {"_id": 0}).to_list(1000)
     
+    # Fix N+1 query: Fetch all relevant customers in one query
+    customer_ids = list(set(s.get('customer_id') for s in schedules if s.get('customer_id')))
+    customers_list = await db.customers.find(
+        {"id": {"$in": customer_ids}}, 
+        {"_id": 0, "id": 1, "name": 1, "customer_id": 1, "unit_number": 1}
+    ).to_list(1000)
+    customers_dict = {c['id']: c for c in customers_list}
+    
     pending = []
     overdue = []
     upcoming = []
     
     for schedule in schedules:
-        customer = await db.customers.find_one({"id": schedule['customer_id']}, {"_id": 0, "name": 1, "customer_id": 1, "unit_number": 1})
+        customer = customers_dict.get(schedule.get('customer_id'))
         for item in schedule.get('items', []):
             if item['payment_status'] == 'paid':
                 continue
