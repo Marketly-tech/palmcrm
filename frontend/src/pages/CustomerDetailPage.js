@@ -1721,7 +1721,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                             'bg-purple-100 text-purple-700'
                           }>
                             {txn.transaction_stage === 'scheduled_disbursement' ? 'Scheduled Disbursement' : 
-                             txn.transaction_stage.charAt(0).toUpperCase() + txn.transaction_stage.slice(1)}
+                             (txn.transaction_stage ? txn.transaction_stage.charAt(0).toUpperCase() + txn.transaction_stage.slice(1) : 'Payment')}
                           </Badge>
                         </TableCell>
                         <TableCell>{txn.transaction_date}</TableCell>
