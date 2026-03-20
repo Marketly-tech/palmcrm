@@ -194,6 +194,21 @@ const CustomersPage = () => {
     }
   };
 
+  const handleAgreementStatusChange = async (customerId, newStatus) => {
+    try {
+      await axios.put(`${API}/customers/${customerId}`, {
+        agreement_status: newStatus
+      });
+      toast.success(`Agreement status updated to ${newStatus}`);
+      // Update local state
+      setCustomers(customers.map(c => 
+        c.id === customerId ? { ...c, agreement_status: newStatus } : c
+      ));
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update agreement status");
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="customers-page">
       {/* Header */}
@@ -455,6 +470,7 @@ const CustomersPage = () => {
                   <TableHead>Customer ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Project</TableHead>
+                  <TableHead>Flat No.</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Agreement</TableHead>
@@ -478,15 +494,31 @@ const CustomersPage = () => {
                     </TableCell>
                     <TableCell>{customer.project}</TableCell>
                     <TableCell>
+                      <span className="font-mono font-medium text-blue-600">
+                        {customer.unit_number}
+                      </span>
+                    </TableCell>
+                    <TableCell>
                       <span className="font-mono">
                         {customer.tower}-{customer.unit_number}
                       </span>
                     </TableCell>
                     <TableCell>{customer.phone}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusBadge(customer.agreement_status)}>
-                        {customer.agreement_status}
-                      </Badge>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={customer.agreement_status || 'draft'}
+                        onValueChange={(value) => handleAgreementStatusChange(customer.id, value)}
+                      >
+                        <SelectTrigger className={`w-28 h-8 text-xs ${getStatusBadge(customer.agreement_status)}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="sent">Sent</SelectItem>
+                          <SelectItem value="signed">Signed</SelectItem>
+                          <SelectItem value="registered">Registered</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">

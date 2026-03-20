@@ -236,6 +236,18 @@ const CustomerDetailPage = () => {
     }
   };
 
+  const handleAgreementStatusChange = async (newStatus) => {
+    try {
+      await axios.put(`${API}/customers/${id}`, {
+        agreement_status: newStatus
+      });
+      setCustomer({ ...customer, agreement_status: newStatus });
+      toast.success(`Agreement status updated to ${newStatus}`);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update agreement status");
+    }
+  };
+
   const handleAddPayment = async () => {
     if (!newPayment.installment_name || !newPayment.amount || !newPayment.due_date) {
       toast.error("Please fill all required fields");
@@ -995,6 +1007,30 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
           <CardContent className="p-4">
             <p className="text-sm text-slate-500">Stage</p>
             <Badge className={getStatusBadge(customer.stage)}>{customer.stage?.replace("_", " ")}</Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-slate-500 mb-2">Agreement Status</p>
+            <Select
+              value={customer.agreement_status || 'draft'}
+              onValueChange={handleAgreementStatusChange}
+            >
+              <SelectTrigger className={`w-full h-8 ${
+                customer.agreement_status === 'signed' ? 'bg-green-100 text-green-700 border-green-300' :
+                customer.agreement_status === 'registered' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                customer.agreement_status === 'sent' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
+                'bg-slate-100 text-slate-700 border-slate-300'
+              }`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="sent">Sent</SelectItem>
+                <SelectItem value="signed">Signed</SelectItem>
+                <SelectItem value="registered">Registered</SelectItem>
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
         <Card>
