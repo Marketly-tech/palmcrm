@@ -257,6 +257,41 @@ const DashboardPage = () => {
         </div>
       )}
 
+      {/* Total Flat Value & Balance Cards (Admin only) */}
+      {hasRole("admin") && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="hover:shadow-md transition-shadow border-blue-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Flat Value</p>
+                  <p className="text-3xl font-bold text-blue-600 mt-1">{formatCurrency(stats?.total_flat_value || 0)}</p>
+                  <p className="text-sm text-slate-500 mt-1">Combined value of all units</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-shadow border-orange-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Balance</p>
+                  <p className="text-3xl font-bold text-orange-600 mt-1">{formatCurrency(stats?.total_balance || 0)}</p>
+                  <p className="text-sm text-slate-500 mt-1">Outstanding amount to collect</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
+                  <IndianRupee className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Export Data Card (Admin/Manager only) */}

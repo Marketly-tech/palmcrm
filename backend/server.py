@@ -496,6 +496,8 @@ class DashboardStats(BaseModel):
     overdue_payments: int
     total_revenue: float
     total_pending: float
+    total_flat_value: float
+    total_balance: float
     pending_percentage: float
     monthly_revenue: List[Dict[str, Any]]
     payment_status_breakdown: Dict[str, int]
@@ -4021,12 +4023,13 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     
     # === REVENUE CALCULATION FROM CUSTOMER total_received FIELD ===
     # The total_received field on each customer contains the accurate received amount from Excel import
-    customers = await db.customers.find({}, {"_id": 0, "total_received": 1, "total_price": 1}).to_list(10000)
+    customers = await db.customers.find({}, {"_id": 0, "total_received": 1, "total_price": 1, "balance_amount": 1}).to_list(10000)
     total_revenue = sum(c.get('total_received', 0) or 0 for c in customers)
-    total_property_value = sum(c.get('total_price', 0) or 0 for c in customers)
+    total_flat_value = sum(c.get('total_price', 0) or 0 for c in customers)
+    total_balance = sum(c.get('balance_amount', 0) or 0 for c in customers)
     
-    # Total pending = total property value - total received
-    total_pending = total_property_value - total_revenue
+    # Total pending = total flat value - total received (should match total_balance)
+    total_pending = total_flat_value - total_revenue
     
     # === PAYMENT SCHEDULE ANALYSIS (for due dates) ===
     schedules = await db.payment_schedules.find({}, {"_id": 0}).to_list(1000)
@@ -4069,6 +4072,8 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
         overdue_payments=overdue_payments,
         total_revenue=total_revenue if user['role'] == 'admin' else 0,
         total_pending=total_pending if user['role'] == 'admin' else 0,
+        total_flat_value=total_flat_value if user['role'] == 'admin' else 0,
+        total_balance=total_balance if user['role'] == 'admin' else 0,
         pending_percentage=pending_percentage if user['role'] == 'admin' else 0,
         monthly_revenue=monthly_revenue if user['role'] == 'admin' else [],
         payment_status_breakdown=payment_status_counts
