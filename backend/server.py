@@ -751,7 +751,8 @@ async def get_customers(
             {"name": {"$regex": search, "$options": "i"}},
             {"email": {"$regex": search, "$options": "i"}},
             {"phone": {"$regex": search, "$options": "i"}},
-            {"customer_id": {"$regex": search, "$options": "i"}}
+            {"customer_id": {"$regex": search, "$options": "i"}},
+            {"unit_number": {"$regex": search, "$options": "i"}}
         ]
     if project:
         query["project"] = project

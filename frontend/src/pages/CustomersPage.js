@@ -432,7 +432,8 @@ const CustomersPage = () => {
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="signed">Signed</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="registered">Registered</SelectItem>
+                <SelectItem value="disbursement">Disbursement</SelectItem>
               </SelectContent>
             </Select>
             <Select value={agreementFilter || "all"} onValueChange={(v) => setAgreementFilter(v === "all" ? "" : v)}>
