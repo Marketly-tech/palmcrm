@@ -5245,6 +5245,72 @@ async def generate_payment_schedule_pdf(customer_id: str, user: dict = Depends(g
     }
 
 
+# ==================== ADMIN DATA RESET ENDPOINT ====================
+@api_router.post("/admin/reset-data-with-seed")
+async def reset_data_with_seed(user: dict = Depends(get_current_user)):
+    """
+    Admin-only endpoint to reset the database with seed data.
+    This will DELETE all existing customers and transactions, then load seed data.
+    """
+    import json
+    
+    if user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Delete existing data
+        customers_deleted = await db.customers.delete_many({})
+        transactions_deleted = await db.payment_transactions.delete_many({})
+        schedules_deleted = await db.payment_schedules.delete_many({})
+        documents_deleted = await db.documents.delete_many({})
+        
+        logger.info(f"Deleted: {customers_deleted.deleted_count} customers, {transactions_deleted.deleted_count} transactions")
+        
+        # Load seed data
+        seed_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        customers_count = 0
+        transactions_count = 0
+        
+        # Seed customers
+        customers_file = os.path.join(seed_dir, "seed_data_customers.json")
+        if os.path.exists(customers_file):
+            with open(customers_file, "r") as f:
+                customers_data = json.load(f)
+            if customers_data:
+                await db.customers.insert_many(customers_data)
+                customers_count = len(customers_data)
+                logger.info(f"Seeded {customers_count} customers into database")
+        
+        # Seed transactions
+        transactions_file = os.path.join(seed_dir, "seed_data_transactions.json")
+        if os.path.exists(transactions_file):
+            with open(transactions_file, "r") as f:
+                transactions_data = json.load(f)
+            if transactions_data:
+                await db.payment_transactions.insert_many(transactions_data)
+                transactions_count = len(transactions_data)
+                logger.info(f"Seeded {transactions_count} transactions into database")
+        
+        return {
+            "success": True,
+            "message": "Database reset and seeded successfully",
+            "deleted": {
+                "customers": customers_deleted.deleted_count,
+                "transactions": transactions_deleted.deleted_count,
+                "schedules": schedules_deleted.deleted_count,
+                "documents": documents_deleted.deleted_count
+            },
+            "seeded": {
+                "customers": customers_count,
+                "transactions": transactions_count
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error resetting data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error resetting data: {str(e)}")
+
+
 # Include the router in the main app - MUST be after all route definitions
 app.include_router(api_router)
 
@@ -5322,6 +5388,7 @@ async def startup_event():
     await db.customers.create_index("customer_id", unique=True)
     await db.customers.create_index("email")
     await db.users.create_index("email", unique=True)
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
