@@ -5250,6 +5250,9 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
+    import os
+    import json
+    
     # Create default admin user if not exists
     admin = await db.users.find_one({"email": "admin@rrlbuilders.com"})
     if not admin:
@@ -5279,6 +5282,33 @@ async def startup_event():
         doc['created_at'] = doc['created_at'].isoformat()
         await db.users.insert_one(doc)
         logger.info("RRL CRM Admin user created: crm@rrlbuildersanddevelopers.com")
+    
+    # Seed customer data if database is empty
+    customer_count = await db.customers.count_documents({})
+    if customer_count == 0:
+        logger.info("No customers found. Seeding customer data...")
+        # Load seed data from files
+        seed_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Seed customers
+        customers_file = os.path.join(seed_dir, "seed_data_customers.json")
+        if os.path.exists(customers_file):
+            with open(customers_file, "r") as f:
+                customers_data = json.load(f)
+            if customers_data:
+                await db.customers.insert_many(customers_data)
+                logger.info(f"Seeded {len(customers_data)} customers into database")
+        
+        # Seed transactions
+        transactions_file = os.path.join(seed_dir, "seed_data_transactions.json")
+        if os.path.exists(transactions_file):
+            with open(transactions_file, "r") as f:
+                transactions_data = json.load(f)
+            if transactions_data:
+                await db.payment_transactions.insert_many(transactions_data)
+                logger.info(f"Seeded {len(transactions_data)} transactions into database")
+    else:
+        logger.info(f"Database already has {customer_count} customers. Skipping seed.")
     
     # Create indexes
     await db.customers.create_index("customer_id", unique=True)
