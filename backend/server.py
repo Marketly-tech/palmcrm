@@ -4019,30 +4019,11 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     today = datetime.now(timezone.utc).date()
     week_end = today + timedelta(days=7)
     
-    # === REVENUE CALCULATION FROM ACTUAL PAYMENT DATA ===
-    # 1. Sum all booking amounts from customers
-    customers = await db.customers.find({}, {"_id": 0, "booking_amount": 1, "total_price": 1}).to_list(10000)
-    total_booking_amount = sum(c.get('booking_amount', 0) or 0 for c in customers)
+    # === REVENUE CALCULATION FROM CUSTOMER total_received FIELD ===
+    # The total_received field on each customer contains the accurate received amount from Excel import
+    customers = await db.customers.find({}, {"_id": 0, "total_received": 1, "total_price": 1}).to_list(10000)
+    total_revenue = sum(c.get('total_received', 0) or 0 for c in customers)
     total_property_value = sum(c.get('total_price', 0) or 0 for c in customers)
-    
-    # 2. Sum all transaction amounts from payment_transactions
-    transactions = await db.payment_transactions.find({}, {"_id": 0, "amount": 1}).to_list(10000)
-    total_transaction_amount = sum(t.get('amount', 0) or 0 for t in transactions)
-    
-    # Total revenue = booking amounts + transaction amounts (avoid double counting)
-    # Since booking amount is usually the first transaction, we take the max of booking or transactions
-    # Or: If transactions include booking, use transactions; otherwise add them
-    total_revenue = total_booking_amount + total_transaction_amount
-    
-    # Avoid double-counting: If a transaction is labeled "Booking Amount", it's already in booking_amount
-    # So we only count transactions that are NOT booking amounts
-    booking_transactions = await db.payment_transactions.find(
-        {"transaction_stage": "Booking Amount"}, {"_id": 0, "amount": 1}
-    ).to_list(10000)
-    booking_txn_total = sum(t.get('amount', 0) or 0 for t in booking_transactions)
-    
-    # Actual revenue = booking amounts + (transactions - booking transactions to avoid double count)
-    total_revenue = total_booking_amount + (total_transaction_amount - booking_txn_total)
     
     # Total pending = total property value - total received
     total_pending = total_property_value - total_revenue
