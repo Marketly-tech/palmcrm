@@ -164,8 +164,10 @@ const CustomersPage = () => {
   const getStatusBadge = (status) => {
     const styles = {
       draft: "bg-slate-100 text-slate-700",
-      sent: "bg-blue-100 text-blue-700",
+      sent: "bg-yellow-100 text-yellow-700",
       signed: "bg-green-100 text-green-700",
+      registered: "bg-blue-100 text-blue-700",
+      disbursement: "bg-purple-100 text-purple-700",
       completed: "bg-purple-100 text-purple-700",
     };
     return styles[status] || styles.draft;
@@ -517,6 +519,7 @@ const CustomersPage = () => {
                           <SelectItem value="sent">Sent</SelectItem>
                           <SelectItem value="signed">Signed</SelectItem>
                           <SelectItem value="registered">Registered</SelectItem>
+                          <SelectItem value="disbursement">Disbursement</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>

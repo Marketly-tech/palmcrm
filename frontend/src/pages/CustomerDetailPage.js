@@ -1020,6 +1020,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                 customer.agreement_status === 'signed' ? 'bg-green-100 text-green-700 border-green-300' :
                 customer.agreement_status === 'registered' ? 'bg-blue-100 text-blue-700 border-blue-300' :
                 customer.agreement_status === 'sent' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
+                customer.agreement_status === 'disbursement' ? 'bg-purple-100 text-purple-700 border-purple-300' :
                 'bg-slate-100 text-slate-700 border-slate-300'
               }`}>
                 <SelectValue />
@@ -1029,6 +1030,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="signed">Signed</SelectItem>
                 <SelectItem value="registered">Registered</SelectItem>
+                <SelectItem value="disbursement">Disbursement</SelectItem>
               </SelectContent>
             </Select>
           </CardContent>
