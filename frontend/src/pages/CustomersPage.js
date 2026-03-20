@@ -432,7 +432,6 @@ const CustomersPage = () => {
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="signed">Signed</SelectItem>
-                <SelectItem value="registered">Registered</SelectItem>
                 <SelectItem value="disbursement">Disbursement</SelectItem>
               </SelectContent>
             </Select>
@@ -444,7 +443,6 @@ const CustomersPage = () => {
                 <SelectItem value="all">All Agreements</SelectItem>
                 <SelectItem value="upcoming_due">Upcoming Due (Next 5 Days)</SelectItem>
                 <SelectItem value="pending_agreement">Pending Agreement</SelectItem>
-                <SelectItem value="agreement_due">Agreement Signing Due</SelectItem>
               </SelectContent>
             </Select>
           </div>
