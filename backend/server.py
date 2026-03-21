@@ -158,6 +158,7 @@ class DocumentType(str, Enum):
     PRICE_BREAKUP = "price_breakup"
     WELCOME_LETTER = "welcome_letter"
     DEMAND_LETTER = "demand_letter"
+    PAYMENT_SCHEDULE = "payment_schedule"
 
 # ==================== UNIT PRICING MODEL ====================
 class UnitPricing(BaseModel):
@@ -1298,6 +1299,12 @@ async def generate_document(data: DocumentGenerate, user: dict = Depends(get_cur
         content = generate_price_breakup_html(customer)
     elif data.doc_type == DocumentType.ALLOTMENT_LETTER:
         content = generate_allotment_letter_html(customer)
+    elif data.doc_type == DocumentType.PAYMENT_SCHEDULE:
+        # Get transaction records for payment schedule
+        transactions = await db.payment_transactions.find(
+            {"customer_id": data.customer_id}, {"_id": 0}
+        ).sort("transaction_date", 1).to_list(1000)
+        content = generate_payment_schedule_pdf_html(customer, transactions)
     else:
         # For other document types, use template-based generation
         template = await db.document_templates.find_one({"doc_type": data.doc_type.value}, {"_id": 0})
@@ -3263,6 +3270,7 @@ class EmailSendRequest(BaseModel):
     subject: str
     body: str
     recipient_email: Optional[str] = None  # Override customer email if provided
+    cc: Optional[str] = None  # CC email address
 
 @api_router.post("/communication/send-document-email/{customer_id}")
 async def send_document_email(customer_id: str, data: EmailSendRequest, user: dict = Depends(get_current_user)):
@@ -3343,12 +3351,33 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
                 html_content=email_html
             )
             
+            # Add CC if provided
+            if hasattr(data, 'cc') and data.cc:
+                message.add_cc(data.cc)
+            
+            # Generate PDFs and add as attachments
+            for att in attachments_data:
+                try:
+                    pdf_bytes = HTML(string=att['html']).write_pdf()
+                    encoded_pdf = base64.b64encode(pdf_bytes).decode()
+                    
+                    attachment = Attachment(
+                        FileContent(encoded_pdf),
+                        FileName(att['filename']),
+                        FileType('application/pdf'),
+                        Disposition('attachment')
+                    )
+                    message.add_attachment(attachment)
+                    logger.info(f"Added attachment: {att['filename']}")
+                except Exception as pdf_error:
+                    logger.error(f"Error generating PDF attachment {att['filename']}: {str(pdf_error)}")
+            
             sg = SendGridAPIClient(SENDGRID_API_KEY)
             response = sg.send(message)
             
             if response.status_code in [200, 201, 202]:
                 email_status = "sent"
-                logger.info(f"{data.email_type} email sent to {recipient_email}")
+                logger.info(f"{data.email_type} email sent to {recipient_email} with {len(attachments_data)} attachments")
             else:
                 email_status = "failed"
                 logger.error(f"Failed to send {data.email_type} email to {recipient_email}")
@@ -3708,6 +3737,160 @@ def generate_allotment_letter_html(customer: dict) -> str:
     
     return filled_html
 
+
+def generate_payment_schedule_pdf_html(customer: dict, transactions: list = None) -> str:
+    """Generate Payment Schedule PDF HTML with customer data and transactions"""
+    
+    def fmt(amount):
+        """Format amount in Indian Rupee style"""
+        amount = float(amount) if amount else 0
+        int_part = int(amount)
+        decimal_part = f"{amount:.2f}".split('.')[1]
+        
+        s = str(int_part)
+        if len(s) > 3:
+            result = s[-3:]
+            s = s[:-3]
+            while s:
+                result = s[-2:] + ',' + result
+                s = s[:-2]
+        else:
+            result = s
+        
+        return f"₹{result}.{decimal_part}"
+    
+    # Build transactions table
+    transactions_rows = ""
+    total_received = 0
+    
+    if transactions and len(transactions) > 0:
+        for i, txn in enumerate(transactions, 1):
+            amount = txn.get('amount', 0) or 0
+            total_received += amount
+            txn_date = txn.get('transaction_date', '-')
+            bank = txn.get('bank_name', '-') or '-'
+            txn_no = txn.get('transaction_number', '-') or '-'
+            stage = (txn.get('transaction_stage', '-') or 'Payment').replace('_', ' ').title()
+            
+            transactions_rows += f'''
+            <tr>
+                <td style="text-align: center; padding: 10px; border: 1px solid #ddd;">{i}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{txn_date}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{stage}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{bank}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{txn_no}</td>
+                <td style="text-align: right; padding: 10px; border: 1px solid #ddd;">{fmt(amount)}</td>
+            </tr>
+            '''
+    
+    total_price = customer.get('total_price', 0) or 0
+    balance = total_price - total_received
+    
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; padding: 20px; color: #1A1A1A; }}
+            .header {{ text-align: center; border-bottom: 3px solid #D4AF37; padding-bottom: 20px; margin-bottom: 20px; }}
+            .header h1 {{ color: #1A1A1A; margin: 0; font-size: 24px; }}
+            .header p {{ color: #666; margin: 5px 0; }}
+            .customer-info {{ background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+            .customer-info h3 {{ color: #D4AF37; margin-top: 0; }}
+            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }}
+            .info-item {{ padding: 5px 0; }}
+            .info-label {{ color: #666; font-size: 12px; }}
+            .info-value {{ font-weight: bold; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th {{ background: #1A1A1A; color: #D4AF37; padding: 12px; text-align: left; }}
+            .summary {{ margin-top: 20px; background: #1A1A1A; color: white; padding: 15px; border-radius: 8px; }}
+            .summary-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; }}
+            .summary-row:last-child {{ border-bottom: none; }}
+            .summary-label {{ color: #D4AF37; }}
+            .summary-value {{ font-weight: bold; }}
+            .balance {{ color: #ff6b6b; font-size: 1.2em; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>RRL BUILDERS AND DEVELOPERS</h1>
+            <p>Beyond homes. A lifestyle</p>
+            <h2 style="margin-top: 15px; color: #D4AF37;">PAYMENT SCHEDULE</h2>
+        </div>
+        
+        <div class="customer-info">
+            <h3>Customer Details</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Customer Name</div>
+                    <div class="info-value">{customer.get('name', '-')}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Customer ID</div>
+                    <div class="info-value">{customer.get('customer_id', '-')}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Project</div>
+                    <div class="info-value">{customer.get('project', '-')}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Unit Number</div>
+                    <div class="info-value">{customer.get('tower', '')}-{customer.get('unit_number', '-')}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Phone</div>
+                    <div class="info-value">{customer.get('phone', '-')}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Email</div>
+                    <div class="info-value">{customer.get('email', '-')}</div>
+                </div>
+            </div>
+        </div>
+        
+        <h3>Payment Transactions</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 15%;">Date</th>
+                    <th style="width: 20%;">Type</th>
+                    <th style="width: 20%;">Bank</th>
+                    <th style="width: 20%;">Reference</th>
+                    <th style="width: 20%; text-align: right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {transactions_rows if transactions_rows else '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No transactions recorded</td></tr>'}
+            </tbody>
+        </table>
+        
+        <div class="summary">
+            <div class="summary-row">
+                <span class="summary-label">Total Unit Value</span>
+                <span class="summary-value">{fmt(total_price)}</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Total Received</span>
+                <span class="summary-value" style="color: #4CAF50;">{fmt(total_received)}</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Balance Pending</span>
+                <span class="summary-value balance">{fmt(balance)}</span>
+            </div>
+        </div>
+        
+        <p style="text-align: center; margin-top: 30px; color: #666; font-size: 12px;">
+            Generated on {datetime.now().strftime("%d/%m/%Y at %H:%M")} | RRL Builders CRM
+        </p>
+    </body>
+    </html>
+    '''
+    
+    return html
+
+
 def get_ordinal_suffix(day):
     """Get ordinal suffix for a day number"""
     if 11 <= day <= 13:
@@ -3770,13 +3953,29 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
                 html_content=welcome_html
             )
             
+            # Generate and attach Price Breakup PDF
+            try:
+                pdf_bytes = HTML(string=price_breakup_html).write_pdf()
+                encoded_pdf = base64.b64encode(pdf_bytes).decode()
+                
+                attachment = Attachment(
+                    FileContent(encoded_pdf),
+                    FileName(filename),
+                    FileType('application/pdf'),
+                    Disposition('attachment')
+                )
+                message.add_attachment(attachment)
+                logger.info(f"Added Price Breakup attachment: {filename}")
+            except Exception as pdf_error:
+                logger.error(f"Error generating PDF attachment: {str(pdf_error)}")
+            
             sg = SendGridAPIClient(SENDGRID_API_KEY)
             response = sg.send(message)
             
             if response.status_code in [200, 201, 202]:
                 email_status = "sent"
-                sendgrid_response = {"status_code": response.status_code, "body": "Email sent successfully"}
-                logger.info(f"Welcome email sent to {recipient_email} - Status: {response.status_code}")
+                sendgrid_response = {"status_code": response.status_code, "body": "Email sent successfully with attachment"}
+                logger.info(f"Welcome email sent to {recipient_email} with Price Breakup PDF - Status: {response.status_code}")
             else:
                 email_status = "failed"
                 sendgrid_response = {"status_code": response.status_code, "error": "Unexpected status code"}

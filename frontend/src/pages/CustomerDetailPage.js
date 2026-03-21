@@ -140,6 +140,8 @@ const CustomerDetailPage = () => {
   const [emailComposerData, setEmailComposerData] = useState(null);
   const [editedEmailSubject, setEditedEmailSubject] = useState("");
   const [editedEmailBody, setEditedEmailBody] = useState("");
+  const [editedEmailTo, setEditedEmailTo] = useState("");
+  const [editedEmailCc, setEditedEmailCc] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   
   // File Upload
@@ -443,6 +445,8 @@ const CustomerDetailPage = () => {
       setEmailComposerData(response.data);
       setEditedEmailSubject(response.data.subject);
       setEditedEmailBody(response.data.body);
+      setEditedEmailTo(response.data.recipient_email || customer.email);
+      setEditedEmailCc("");
       setEmailComposerOpen(true);
     } catch (error) {
       toast.error("Failed to generate welcome email preview");
@@ -458,6 +462,8 @@ const CustomerDetailPage = () => {
       setEmailComposerData(response.data);
       setEditedEmailSubject(response.data.subject);
       setEditedEmailBody(response.data.body);
+      setEditedEmailTo(response.data.recipient_email || customer.email);
+      setEditedEmailCc("");
       setEmailComposerOpen(true);
     } catch (error) {
       toast.error("Failed to generate sales agreement preview");
@@ -473,6 +479,8 @@ const CustomerDetailPage = () => {
       setEmailComposerData(response.data);
       setEditedEmailSubject(response.data.subject);
       setEditedEmailBody(response.data.body);
+      setEditedEmailTo(response.data.recipient_email || customer.email);
+      setEditedEmailCc("");
       setEmailComposerOpen(true);
     } catch (error) {
       toast.error("Failed to generate allotment letter preview");
@@ -489,7 +497,9 @@ const CustomerDetailPage = () => {
       const response = await axios.post(`${API}/communication/send-document-email/${id}`, {
         email_type: emailComposerData.email_type,
         subject: editedEmailSubject,
-        body: editedEmailBody
+        body: editedEmailBody,
+        recipient_email: editedEmailTo,
+        cc: editedEmailCc || null
       });
       toast.success(response.data.message);
       setEmailComposerOpen(false);
@@ -1950,7 +1960,9 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                         <SelectContent>
                           <SelectItem value="sales_agreement">Sales Agreement</SelectItem>
                           <SelectItem value="allotment_letter">Allotment Letter</SelectItem>
+                          <SelectItem value="price_breakup">Price Breakup</SelectItem>
                           <SelectItem value="disbursement_letter">Disbursement Letter</SelectItem>
+                          <SelectItem value="payment_schedule">Payment Schedule</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2417,13 +2429,26 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-slate-500">To</Label>
+                    <Label className="text-xs text-slate-500">To (Editable)</Label>
                     <Input 
-                      value={emailComposerData.recipient_email} 
-                      readOnly 
-                      className="bg-slate-50"
+                      value={editedEmailTo} 
+                      onChange={(e) => setEditedEmailTo(e.target.value)}
+                      placeholder="recipient@email.com"
+                      className="border-primary/50"
                     />
                   </div>
+                  <div>
+                    <Label className="text-xs text-slate-500">CC (Optional)</Label>
+                    <Input 
+                      value={editedEmailCc} 
+                      onChange={(e) => setEditedEmailCc(e.target.value)}
+                      placeholder="cc@email.com"
+                      className="border-primary/50"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-slate-500">Customer</Label>
                     <Input 
