@@ -824,6 +824,12 @@ async def get_customer(customer_id: str, user: dict = Depends(get_current_user))
 
 @api_router.put("/customers/{customer_id}")
 async def update_customer(customer_id: str, updates: Dict[str, Any], user: dict = Depends(get_current_user)):
+    # Accounts role can only update agreement_status, not other customer details
+    if user['role'] == 'accounts':
+        allowed_fields = {'agreement_status'}
+        if not set(updates.keys()).issubset(allowed_fields):
+            raise HTTPException(status_code=403, detail="Accounts role can only update agreement status")
+    
     updates['updated_at'] = datetime.now(timezone.utc).isoformat()
     result = await db.customers.update_one({"id": customer_id}, {"$set": updates})
     if result.modified_count == 0:
@@ -1066,7 +1072,11 @@ async def update_transaction(customer_id: str, transaction_id: str, transaction:
 
 @api_router.delete("/transactions/{customer_id}/{transaction_id}")
 async def delete_transaction(customer_id: str, transaction_id: str, user: dict = Depends(get_current_user)):
-    """Delete a transaction"""
+    """Delete a transaction - restricted for accounts role"""
+    # Accounts role cannot delete transactions
+    if user['role'] == 'accounts':
+        raise HTTPException(status_code=403, detail="Accounts role cannot delete transactions")
+    
     result = await db.payment_transactions.delete_one({"id": transaction_id, "customer_id": customer_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Transaction not found")
@@ -5000,7 +5010,11 @@ async def preview_document(doc_id: str, user: dict = Depends(get_current_user)):
 # Delete generated document
 @api_router.delete("/documents/{doc_id}")
 async def delete_generated_document(doc_id: str, user: dict = Depends(get_current_user)):
-    """Delete a generated document"""
+    """Delete a generated document - restricted for accounts role"""
+    # Accounts role cannot delete documents
+    if user['role'] == 'accounts':
+        raise HTTPException(status_code=403, detail="Accounts role cannot delete documents")
+    
     doc = await db.generated_documents.find_one({"id": doc_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -5013,7 +5027,11 @@ async def delete_generated_document(doc_id: str, user: dict = Depends(get_curren
 # Delete uploaded customer document
 @api_router.delete("/customers/{customer_id}/documents/{doc_id}")
 async def delete_uploaded_document(customer_id: str, doc_id: str, user: dict = Depends(get_current_user)):
-    """Delete an uploaded customer document"""
+    """Delete an uploaded customer document - restricted for accounts role"""
+    # Accounts role cannot delete documents
+    if user['role'] == 'accounts':
+        raise HTTPException(status_code=403, detail="Accounts role cannot delete documents")
+    
     doc = await db.customer_documents.find_one({"id": doc_id, "customer_id": customer_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")

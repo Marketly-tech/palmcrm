@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -56,6 +57,9 @@ const API = `${BACKEND_URL}/api`;
 
 const CustomersPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAccountsRole = user?.role === 'accounts';
+  
   const [customers, setCustomers] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -535,15 +539,17 @@ const CustomersPage = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={(e) => handleDeleteClick(customer, e)}
-                          data-testid={`delete-customer-${customer.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {!isAccountsRole && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => handleDeleteClick(customer, e)}
+                            data-testid={`delete-customer-${customer.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

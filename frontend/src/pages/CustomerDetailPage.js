@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -85,6 +86,10 @@ const CustomerDetailPage = () => {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({});
   const [saving, setSaving] = useState(false);
+  
+  // Auth context for role-based access
+  const { user } = useAuth();
+  const isAccountsRole = user?.role === 'accounts';
   
   // Live calculated values during editing
   const [liveCalc, setLiveCalc] = useState(null);
@@ -985,10 +990,12 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
               </Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => setEditing(true)} data-testid="edit-customer-btn">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
+            !isAccountsRole && (
+              <Button variant="outline" onClick={() => setEditing(true)} data-testid="edit-customer-btn">
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            )
           )}
         </div>
       </div>
@@ -1787,15 +1794,17 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-500 hover:text-red-700"
-                              onClick={() => handleDeleteTransaction(txn.id)}
-                              data-testid={`delete-transaction-${txn.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            {!isAccountsRole && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:text-red-700"
+                                onClick={() => handleDeleteTransaction(txn.id)}
+                                data-testid={`delete-transaction-${txn.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -2005,15 +2014,17 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                         >
                           <Download className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDeleteDocClick(doc, 'generated')}
-                          data-testid={`delete-doc-${doc.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {!isAccountsRole && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteDocClick(doc, 'generated')}
+                            data-testid={`delete-doc-${doc.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2115,15 +2126,17 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                         >
                           <Download className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDeleteDocClick(doc, 'uploaded')}
-                          data-testid={`delete-upload-${doc.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {!isAccountsRole && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteDocClick(doc, 'uploaded')}
+                            data-testid={`delete-upload-${doc.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

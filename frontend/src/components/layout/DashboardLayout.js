@@ -26,14 +26,14 @@ import {
 } from "lucide-react";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Leads", href: "/leads", icon: UserPlus },
-  { name: "Customers", href: "/customers", icon: Users },
-  { name: "Payments", href: "/payments", icon: CreditCard },
-  { name: "Documents", href: "/documents", icon: FileText },
-  { name: "Payment Tracking", href: "/calculator", icon: CreditCard },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "sales", "support"] },
+  { name: "Leads", href: "/leads", icon: UserPlus, roles: ["admin", "manager", "sales"] },
+  { name: "Customers", href: "/customers", icon: Users, roles: ["admin", "manager", "accounts", "sales", "support"] },
+  { name: "Payments", href: "/payments", icon: CreditCard, roles: ["admin", "manager", "accounts"] },
+  { name: "Documents", href: "/documents", icon: FileText, roles: ["admin", "manager", "accounts"] },
+  { name: "Payment Tracking", href: "/calculator", icon: CreditCard, roles: ["admin", "manager", "accounts"] },
+  { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "manager"] },
+  { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
 ];
 
 const DashboardLayout = ({ children }) => {
@@ -100,7 +100,9 @@ const DashboardLayout = ({ children }) => {
 
         {/* Navigation */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {navigation.map((item) => (
+          {navigation
+            .filter((item) => !item.roles || item.roles.includes(user?.role))
+            .map((item) => (
             <NavLink
               key={item.name}
               to={item.href}
