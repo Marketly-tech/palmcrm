@@ -995,6 +995,23 @@ async def create_transaction(customer_id: str, transaction: PaymentTransactionCr
     )
     
     await db.payment_transactions.insert_one(new_transaction.model_dump())
+    
+    # Update customer's total_received and balance_amount
+    all_transactions = await db.payment_transactions.find({"customer_id": customer_id}, {"_id": 0, "amount": 1}).to_list(1000)
+    total_received = sum(t.get('amount', 0) or 0 for t in all_transactions)
+    total_price = customer.get('total_price', 0) or 0
+    balance_amount = total_price - total_received
+    
+    await db.customers.update_one(
+        {"$or": [{"id": customer_id}, {"customer_id": customer_id}]},
+        {"$set": {
+            "total_received": total_received,
+            "balance_amount": balance_amount,
+            "payment_received_percentage": round((total_received / total_price) * 100, 2) if total_price > 0 else 0,
+            "payment_pending_percentage": round((balance_amount / total_price) * 100, 2) if total_price > 0 else 100
+        }}
+    )
+    
     await log_activity(user['id'], user['name'], "create", "transaction", new_transaction.id, f"Created transaction for customer {customer_id}")
     
     return {"message": "Transaction created", "transaction": new_transaction.model_dump()}
@@ -1021,6 +1038,24 @@ async def update_transaction(customer_id: str, transaction_id: str, transaction:
         {"$set": update_data}
     )
     
+    # Update customer's total_received and balance_amount
+    customer = await db.customers.find_one({"$or": [{"id": customer_id}, {"customer_id": customer_id}]})
+    if customer:
+        all_transactions = await db.payment_transactions.find({"customer_id": customer_id}, {"_id": 0, "amount": 1}).to_list(1000)
+        total_received = sum(t.get('amount', 0) or 0 for t in all_transactions)
+        total_price = customer.get('total_price', 0) or 0
+        balance_amount = total_price - total_received
+        
+        await db.customers.update_one(
+            {"$or": [{"id": customer_id}, {"customer_id": customer_id}]},
+            {"$set": {
+                "total_received": total_received,
+                "balance_amount": balance_amount,
+                "payment_received_percentage": round((total_received / total_price) * 100, 2) if total_price > 0 else 0,
+                "payment_pending_percentage": round((balance_amount / total_price) * 100, 2) if total_price > 0 else 100
+            }}
+        )
+    
     await log_activity(user['id'], user['name'], "update", "transaction", transaction_id, f"Updated transaction for customer {customer_id}")
     
     return {"message": "Transaction updated"}
@@ -1031,6 +1066,24 @@ async def delete_transaction(customer_id: str, transaction_id: str, user: dict =
     result = await db.payment_transactions.delete_one({"id": transaction_id, "customer_id": customer_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Update customer's total_received and balance_amount
+    customer = await db.customers.find_one({"$or": [{"id": customer_id}, {"customer_id": customer_id}]})
+    if customer:
+        all_transactions = await db.payment_transactions.find({"customer_id": customer_id}, {"_id": 0, "amount": 1}).to_list(1000)
+        total_received = sum(t.get('amount', 0) or 0 for t in all_transactions)
+        total_price = customer.get('total_price', 0) or 0
+        balance_amount = total_price - total_received
+        
+        await db.customers.update_one(
+            {"$or": [{"id": customer_id}, {"customer_id": customer_id}]},
+            {"$set": {
+                "total_received": total_received,
+                "balance_amount": balance_amount,
+                "payment_received_percentage": round((total_received / total_price) * 100, 2) if total_price > 0 else 0,
+                "payment_pending_percentage": round((balance_amount / total_price) * 100, 2) if total_price > 0 else 100
+            }}
+        )
     
     await log_activity(user['id'], user['name'], "delete", "transaction", transaction_id, f"Deleted transaction for customer {customer_id}")
     
@@ -4022,15 +4075,28 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     today = datetime.now(timezone.utc).date()
     week_end = today + timedelta(days=7)
     
-    # === REVENUE CALCULATION FROM CUSTOMER total_received FIELD ===
-    # The total_received field on each customer contains the accurate received amount from Excel import
-    customers = await db.customers.find({}, {"_id": 0, "total_received": 1, "total_price": 1, "balance_amount": 1}).to_list(10000)
-    total_revenue = sum(c.get('total_received', 0) or 0 for c in customers)
-    total_flat_value = sum(c.get('total_price', 0) or 0 for c in customers)
-    total_balance = sum(c.get('balance_amount', 0) or 0 for c in customers)
+    # === REVENUE CALCULATION FROM INDIVIDUAL TRANSACTION RECORDS ===
+    # Sum all transaction amounts from payment_transactions collection for dynamic updates
+    transactions = await db.payment_transactions.find({}, {"_id": 0, "amount": 1}).to_list(100000)
+    total_revenue = sum(t.get('amount', 0) or 0 for t in transactions)
     
-    # Total pending = total flat value - total received (should match total_balance)
-    total_pending = total_flat_value - total_revenue
+    # Get total flat value and balance from customers
+    customers = await db.customers.find({}, {"_id": 0, "total_price": 1, "booking_amount": 1}).to_list(10000)
+    total_flat_value = sum(c.get('total_price', 0) or 0 for c in customers)
+    
+    # Add booking amounts that might not be in transactions yet
+    total_booking_amounts = sum(c.get('booking_amount', 0) or 0 for c in customers)
+    
+    # Check if booking amounts are already included in transactions
+    # If total_revenue is much less than booking amounts, add them
+    if total_revenue < total_booking_amounts:
+        total_revenue = total_booking_amounts + total_revenue
+    
+    # Total balance = total flat value - total revenue collected
+    total_balance = total_flat_value - total_revenue
+    
+    # Total pending = same as balance
+    total_pending = total_balance
     
     # === PAYMENT SCHEDULE ANALYSIS (for due dates) ===
     schedules = await db.payment_schedules.find({}, {"_id": 0}).to_list(1000)
