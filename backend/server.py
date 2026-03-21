@@ -3527,16 +3527,41 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
     # Get AADHAAR number from top-level field (not custom_fields)
     aadhaar_number = customer.get('aadhar_number', '') or customer.get('aadhaar_number', '') or ''
     
-    # Generate payment schedule rows from transaction records if available
+    # Generate payment schedule rows - ONLY show Booking and Agreement transactions
     payment_schedule_rows = ""
     total = customer.get('total_price', 0)
+    booking_amount = customer.get('booking_amount', 0) or 0
     
+    # Filter transactions to only include booking and agreement stages
+    booking_agreement_transactions = []
     if transactions and len(transactions) > 0:
-        # Generate rows from transaction records
-        cumulative = 0
-        for i, txn in enumerate(transactions, 1):
+        for txn in transactions:
+            stage = (txn.get('transaction_stage', '') or '').lower()
+            if stage in ['booking', 'agreement', 'booking_amount', 'agreement_amount']:
+                booking_agreement_transactions.append(txn)
+    
+    # Calculate total paid from booking + agreement transactions
+    total_paid_booking_agreement = sum(txn.get('amount', 0) or 0 for txn in booking_agreement_transactions)
+    
+    # If booking amount exists but not in transactions, add it
+    if booking_amount > 0 and total_paid_booking_agreement < booking_amount:
+        # Add booking amount as first entry
+        payment_schedule_rows += f'''
+        <tr>
+            <td style="text-align: center;">1</td>
+            <td>Initial Booking Amount</td>
+            <td style="text-align: center;">{(booking_amount / total * 100) if total > 0 else 0:.1f}%</td>
+            <td class="amount">{fmt(booking_amount)}</td>
+        </tr>
+        '''
+        row_num = 2
+    else:
+        row_num = 1
+    
+    # Add booking and agreement transactions
+    if booking_agreement_transactions:
+        for txn in booking_agreement_transactions:
             amount = txn.get('amount', 0) or 0
-            cumulative += amount
             percentage = (amount / total * 100) if total > 0 else 0
             stage_name = txn.get('transaction_stage', '').replace('_', ' ').title()
             txn_date = txn.get('transaction_date', '')
@@ -3545,25 +3570,34 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             
             payment_schedule_rows += f'''
             <tr>
-                <td style="text-align: center;">{i}</td>
+                <td style="text-align: center;">{row_num}</td>
                 <td>{stage_name} - {txn_date} ({bank} - {txn_no})</td>
                 <td style="text-align: center;">{percentage:.1f}%</td>
                 <td class="amount">{fmt(amount)}</td>
             </tr>
             '''
-    elif schedule_items and len(schedule_items) > 0:
-        # Use provided schedule items
-        for i, item in enumerate(schedule_items, 1):
-            payment_schedule_rows += f'''
-            <tr>
-                <td style="text-align: center;">{i}</td>
-                <td>{item.get('installment_name', '')}</td>
-                <td style="text-align: center;">{item.get('percentage', 0)}%</td>
-                <td class="amount">{fmt(item.get('amount', 0))}</td>
-            </tr>
-            '''
+            row_num += 1
     
-    # If no schedule items and no transactions, create a default schedule
+    # Calculate balance and add remaining payment schedule
+    total_received = booking_amount if booking_amount > total_paid_booking_agreement else total_paid_booking_agreement
+    if booking_amount > 0 and total_paid_booking_agreement > 0:
+        total_received = max(booking_amount, total_paid_booking_agreement)
+    
+    balance = total - total_received
+    
+    # Add balance row if there's remaining amount
+    if balance > 0:
+        balance_percentage = (balance / total * 100) if total > 0 else 0
+        payment_schedule_rows += f'''
+        <tr>
+            <td style="text-align: center;">{row_num}</td>
+            <td><strong>Balance Amount (As per Payment Schedule)</strong></td>
+            <td style="text-align: center;">{balance_percentage:.1f}%</td>
+            <td class="amount"><strong>{fmt(balance)}</strong></td>
+        </tr>
+        '''
+    
+    # If no transactions at all, use default payment schedule
     if not payment_schedule_rows:
         default_milestones = [
             ("Initial Booking Amount (within 10 days)", 10),
