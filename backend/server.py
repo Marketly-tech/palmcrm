@@ -4731,10 +4731,74 @@ async def submit_booking_form(data: BookingFormData):
     
     await log_activity("system", "Booking Form", "create", "customer", customer.id, f"New booking: {customer.name} for {data.project} - {data.unit_number}")
     
+    # === AUTO-SEND WELCOME EMAIL WITH PRICE BREAKUP ===
+    email_status = "not_sent"
+    if customer.email and SENDGRID_API_KEY:
+        try:
+            # Generate welcome email HTML
+            welcome_html = generate_welcome_email_html(doc)
+            
+            # Generate price breakup HTML
+            price_breakup_html = generate_price_breakup_html(doc)
+            
+            # Create email message
+            subject = f"Welcome to {customer.project} - Booking Confirmation & Terms"
+            message = Mail(
+                from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME),
+                to_emails=customer.email,
+                subject=subject,
+                html_content=welcome_html
+            )
+            
+            # Generate and attach Price Breakup PDF
+            try:
+                pdf_bytes = HTML(string=price_breakup_html).write_pdf()
+                encoded_pdf = base64.b64encode(pdf_bytes).decode()
+                
+                filename = f"RRL_PriceBreakup_{customer.name.replace(' ', '_')}.pdf"
+                attachment = Attachment(
+                    FileContent(encoded_pdf),
+                    FileName(filename),
+                    FileType('application/pdf'),
+                    Disposition('attachment')
+                )
+                message.add_attachment(attachment)
+            except Exception as pdf_error:
+                logger.error(f"Error generating PDF for auto-email: {str(pdf_error)}")
+            
+            # Send email
+            sg = SendGridAPIClient(SENDGRID_API_KEY)
+            response = sg.send(message)
+            
+            if response.status_code in [200, 201, 202]:
+                email_status = "sent"
+                logger.info(f"Auto-sent welcome email to {customer.email} for new booking")
+                
+                # Log communication
+                log = CommunicationLog(
+                    customer_id=customer.id,
+                    channel="email",
+                    message_type="Auto Welcome Email",
+                    content=f"To: {customer.email}\nSubject: {subject}\n\n[Auto-sent on booking submission with Price Breakup PDF]",
+                    status="sent",
+                    sent_by="system"
+                )
+                log_doc = log.model_dump()
+                log_doc['sent_at'] = log_doc['sent_at'].isoformat()
+                await db.communication_logs.insert_one(log_doc)
+            else:
+                email_status = "failed"
+                logger.error(f"Failed to auto-send welcome email: Status {response.status_code}")
+                
+        except Exception as e:
+            email_status = "error"
+            logger.error(f"Error auto-sending welcome email: {str(e)}")
+    
     return {
         "message": "Booking submitted successfully! Our team will contact you shortly.",
         "customer_id": customer.customer_id,
-        "reference_id": customer.id
+        "reference_id": customer.id,
+        "welcome_email_status": email_status
     }
 
 # Public document upload endpoint (no auth required)

@@ -26,6 +26,7 @@ import {
   FileText,
   X,
   Camera,
+  Mail,
 } from "lucide-react";
 import {
   Dialog,
@@ -398,8 +399,21 @@ const BookingFormPage = () => {
               <p className="text-sm text-slate-500">Reference Number</p>
               <p className="text-lg font-mono font-bold text-primary">{submissionResult?.customer_id}</p>
             </div>
-            <p className="text-sm text-slate-500">
-              A confirmation email will be sent to {formData.email}
+            
+            {/* Email Confirmation */}
+            <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-4">
+              <div className="flex items-center justify-center gap-2 text-green-700">
+                <Mail className="w-5 h-5" />
+                <span className="font-medium">Welcome Email Sent!</span>
+              </div>
+              <p className="text-sm text-green-600 mt-2">
+                A confirmation email with your <strong>Price Breakup</strong> and <strong>Terms & Conditions</strong> has been sent to:
+              </p>
+              <p className="text-sm font-medium text-green-800 mt-1">{formData.email}</p>
+            </div>
+            
+            <p className="text-xs text-slate-400">
+              Please check your inbox (and spam folder) for the booking confirmation.
             </p>
           </CardContent>
         </Card>
