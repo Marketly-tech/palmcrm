@@ -27,6 +27,15 @@ from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileT
 # WeasyPrint for PDF generation
 from weasyprint import HTML
 
+# ==================== MODULAR IMPORTS ====================
+# Importing from new modular structure for future migration
+# These will gradually replace inline definitions
+from config import settings
+from utils import number_to_indian_words as utils_number_to_indian_words
+from utils import format_indian_currency as utils_format_indian_currency
+# Note: Enums are still defined locally in server.py to avoid migration issues
+# In future refactoring, switch to: from utils.enums import ...
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -35,15 +44,15 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# JWT Settings
-JWT_SECRET = os.environ.get('JWT_SECRET') or 'rrl-crm-secret-key-2026-secure'
-JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_HOURS = 24
+# JWT Settings (using config.settings)
+JWT_SECRET = settings.JWT_SECRET
+JWT_ALGORITHM = settings.JWT_ALGORITHM
+JWT_EXPIRATION_HOURS = settings.JWT_EXPIRATION_HOURS
 
-# SendGrid Settings
-SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
-SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@rrlbuilders.com')
-SENDGRID_FROM_NAME = os.environ.get('SENDGRID_FROM_NAME', 'RRL Group')
+# SendGrid Settings (using config.settings)
+SENDGRID_API_KEY = settings.SENDGRID_API_KEY
+SENDGRID_FROM_EMAIL = settings.SENDGRID_FROM_EMAIL
+SENDGRID_FROM_NAME = settings.SENDGRID_FROM_NAME
 
 # Create the main app
 app = FastAPI(title="RRL Builders CRM API")

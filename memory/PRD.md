@@ -8,13 +8,19 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ### 1. Lead/Booking Intake
 - Public-facing form to capture customer, co-applicant, and property data
 - Document uploads with camera capture functionality ✅
+- Editable Club House Charges field ✅
+- Additional Charges (manual entry) field ✅
 
 ### 2. Customer Profile
 - Detailed, editable customer profiles
 - Tabs: Personal Details, Price Calculator, Payment Schedule, Documents, Communication History
+- Editable Club House Charges in profile ✅
+- Additional Charges field ✅
 
 ### 3. Price Breakup Calculator
 - Automated, live calculator for total property price ✅
+- Club House Charges integration ✅
+- Additional Charges integration ✅
 
 ### 4. Payment Plan
 - Track payment schedules ✅
@@ -27,7 +33,8 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - Admin can delete leads, customers, documents with confirmation ✅
 
 ### 7. User Roles & Security
-- Role-based access control (Admin, Manager, Sales) ✅
+- Role-based access control (Admin, Manager, Sales, Accounts) ✅
+- ACCOUNTS role restrictions (read-only, no delete) ✅
 
 ### 8. Automated Communications
 - Email integration (SendGrid) ✅
@@ -36,6 +43,9 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ### 9. Dashboard
 - KPIs and countdowns for important deadlines ✅
 - Data export functionality ✅
+- Total Flat Value card ✅
+- Total Balance card ✅
+- Dynamic revenue calculation from transactions ✅
 
 ---
 
@@ -52,7 +62,20 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 
 ## What's Been Implemented
 
-### March 18, 2026 (Session 2)
+### March 23, 2026 (Session 3)
+- ✅ **Verified "Club House Charges" and "Additional Charges" features:**
+  - Both fields editable on Booking Form (Step 2)
+  - Both fields editable on Customer Detail Page (Edit mode)
+  - Live price calculations working correctly
+- ✅ **Backend Refactoring - Phase 1:**
+  - Created modular file structure (config.py, database.py, utils/, auth/, customers/, documents/)
+  - Centralized configuration and environment settings
+  - Created reusable utility functions and enum definitions
+- ✅ **Frontend Refactoring - Phase 1:**
+  - Created `/components/customer/` directory
+  - Extracted utility functions and ChecklistTab component
+
+### March 20, 2026 (Session 2)
 - ✅ Changed tagline to "Beyond homes. A lifestyle" in all PDFs, emails, and client-facing docs
 - ✅ **Complete Data Import from Excel:**
   - Deleted all test data from CRM
@@ -107,13 +130,53 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 2. Document checklist feature for KYC tracking
 3. Enhanced dashboard with more charts/analytics
 4. Activity logs/audit trail
-5. **Code Refactoring:**
-   - Backend: Break down `server.py` (>5100 lines) into modular structure
-   - Frontend: Decompose `CustomerDetailPage.js` (>2400 lines)
+5. **Code Refactoring:** IN PROGRESS
+   - Backend: Break down `server.py` (5770+ lines) into modular structure
+   - Frontend: Decompose `CustomerDetailPage.js` (2600+ lines)
 
 ### P3 - Low Priority
 1. User-uploadable email attachments
 2. PDF template editor UI
+
+---
+
+## Code Refactoring Progress (March 23, 2026)
+
+### Backend Modular Structure Created:
+```
+/app/backend/
+├── config.py              # Configuration and env settings ✅
+├── database.py            # MongoDB connection helpers ✅
+├── server.py              # Main app (still monolithic)
+├── auth/
+│   ├── __init__.py        ✅
+│   ├── models.py          # User, Token models ✅
+│   └── utils.py           # Password hashing, JWT ✅
+├── customers/
+│   ├── __init__.py        ✅
+│   └── models.py          # Customer, Payment models ✅
+├── documents/
+│   ├── __init__.py        ✅
+│   └── models.py          # Document models ✅
+├── dashboard/
+│   └── __init__.py        # Dashboard stats models ✅
+└── utils/
+    ├── __init__.py        # Common utilities ✅
+    └── enums.py           # All enums ✅
+```
+
+### Frontend Component Structure:
+```
+/app/frontend/src/components/customer/
+├── index.js               # Exports ✅
+├── utils.js               # Utility functions ✅
+└── ChecklistTab.jsx       # Checklist tab component ✅
+```
+
+### Next Steps for Refactoring:
+1. Move route handlers from server.py to separate route files
+2. Create more frontend tab components (Details, Calculator, Payments, etc.)
+3. Gradually migrate server.py to use new modules
 
 ---
 
