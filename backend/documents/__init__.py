@@ -1,10 +1,15 @@
-"""Documents module initialization."""
+"""
+Documents module for RRL CRM.
+"""
 from documents.models import (
     DocumentTemplate, DocumentGenerate, GeneratedDocument,
-    DocumentChecklist, CommunicationLog, ActivityLog, EmailSendRequest
+    CommunicationLog, ActivityLog
 )
 
 __all__ = [
-    'DocumentTemplate', 'DocumentGenerate', 'GeneratedDocument',
-    'DocumentChecklist', 'CommunicationLog', 'ActivityLog', 'EmailSendRequest'
+    "DocumentTemplate",
+    "DocumentGenerate",
+    "GeneratedDocument",
+    "CommunicationLog",
+    "ActivityLog",
 ]

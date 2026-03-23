@@ -1,27 +1,26 @@
 """
-Customer-related models for RRL CRM.
+Customer models for RRL CRM.
 """
-from typing import Optional, List
-from pydantic import BaseModel, EmailStr
-from datetime import datetime
-from utils.enums import CustomerStage, AgreementStatus, FinanceType, PaymentStatus, TransactionStage
+from typing import Optional, Dict, Any
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
+import uuid
 
 
 class CustomerBase(BaseModel):
-    # Personal Information
-    full_name: str
-    email: Optional[str] = None
+    # Primary Applicant
+    name: str
     phone: str
+    email: EmailStr
     father_name: Optional[str] = None
     date_of_birth: Optional[str] = None
-    gender: Optional[str] = "male"
-    nationality: Optional[str] = "Indian"
+    gender: Optional[str] = None  # male, female, or spouse (for W/o)
     pan_number: Optional[str] = None
     aadhar_number: Optional[str] = None
-    profession: Optional[str] = None
+    address: Optional[str] = None
     company: Optional[str] = None
     designation: Optional[str] = None
-    address: Optional[str] = None
+    nationality: str = "Indian"
     
     # Co-Applicant Details
     co_applicant_name: Optional[str] = None
@@ -30,52 +29,66 @@ class CustomerBase(BaseModel):
     co_applicant_email: Optional[str] = None
     co_applicant_pan: Optional[str] = None
     co_applicant_aadhar: Optional[str] = None
-    co_applicant_profession: Optional[str] = None
-    co_applicant_nationality: Optional[str] = None
     co_applicant_address: Optional[str] = None
     
     # Property Details
-    project: Optional[str] = None
-    tower: Optional[str] = None
-    unit_number: Optional[str] = None
-    bhk_type: Optional[str] = None
-    floor: Optional[int] = None
-    saleable_area: Optional[float] = None
-    uds: Optional[float] = None
+    project: str
+    tower: str
+    unit_number: str
+    floor: int = 0
+    bhk_type: str = ""
+    saleable_area: float = 0
+    uds: float = 0  # Undivided Share
+    parking: Optional[str] = None
+    additional_parking: int = 0  # Number of additional parking (legacy)
     
     # Pricing
-    rate_per_sqft: Optional[float] = None
-    floor_rise_cost: Optional[float] = 0
-    base_price: Optional[float] = None
-    floor_rise_total: Optional[float] = 0
-    additional_parking: int = 0
-    club_house_charges: float = 200000
-    additional_charges: float = 0
-    additional_parking_charges: float = 0
-    labour_cess: Optional[float] = None
-    gst: Optional[float] = None
-    total_flat_value: Optional[float] = None
+    rate_per_sqft: float = 0
+    base_price: float = 0  # rate * saleable_area
+    club_house_charges: float = 200000  # Default 200000, editable
+    infrastructure_charges: float = 0
+    additional_charges: float = 0  # Manual additional charges
+    additional_parking_charges: float = 0  # Legacy field
+    labour_cess: float = 0  # 0.70%
+    gst_percentage: float = 5
+    gst_amount: float = 0
+    total_price: float = 0  # Total including GST
     
-    # Finance
-    finance_type: Optional[FinanceType] = FinanceType.SELF
-    bank_name: Optional[str] = None
-    loan_amount: Optional[float] = None
-    
-    # Booking
+    # Payment Tracking
+    booking_amount: float = 0
     booking_date: Optional[str] = None
-    booking_amount: Optional[float] = None
-    booking_reference: Optional[str] = None
-    payment_method: Optional[str] = None
+    agreement_date: Optional[str] = None
+    total_received: float = 0
+    balance_amount: float = 0
+    payment_received_percentage: float = 0
+    payment_pending_percentage: float = 100
+    
+    # Finance Details
+    finance_type: str = "self"  # self, loan, mixed
+    finance_bank: Optional[str] = None
+    loan_amount: float = 0
+    self_contribution: float = 0
+    first_disbursement_amount: float = 0
+    first_disbursement_date: Optional[str] = None
     
     # Status
-    stage: CustomerStage = CustomerStage.LEAD
-    agreement_status: AgreementStatus = AgreementStatus.PENDING
+    stage: str = "pending_approval"  # pending_approval, qualified, agreement_pending, agreement_done, registration_done
+    agreement_status: str = "draft"
+    ownership: str = "builder"  # builder, customer
+    registration_date: Optional[str] = None
+    handover_date: Optional[str] = None
     
-    # Documents
-    pan_card_url: Optional[str] = None
-    aadhar_card_url: Optional[str] = None
-    co_applicant_pan_url: Optional[str] = None
-    co_applicant_aadhar_url: Optional[str] = None
+    # Transaction Details
+    transaction_details: Optional[str] = None
+    transaction_date: Optional[str] = None
+    transaction_bank: Optional[str] = None
+    
+    # Notes
+    remarks: Optional[str] = None
+    custom_fields: Dict[str, Any] = {}
+    
+    # Document Uploads (store file paths/urls)
+    uploaded_documents: Dict[str, str] = {}  # {doc_type: file_url}
 
 
 class CustomerCreate(CustomerBase):
@@ -83,104 +96,38 @@ class CustomerCreate(CustomerBase):
 
 
 class Customer(CustomerBase):
-    id: str
-    customer_id: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    customer_id: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_by: Optional[str] = None
 
 
-class PaymentScheduleItem(BaseModel):
-    id: str
-    milestone: str
-    percentage: float
-    amount: float
-    due_date: Optional[str] = None
-    status: PaymentStatus = PaymentStatus.PENDING
-    paid_date: Optional[str] = None
-    paid_amount: Optional[float] = 0
-    notes: Optional[str] = None
-
-
-class PaymentScheduleCreate(BaseModel):
+class DocumentChecklist(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     customer_id: str
-    items: List[PaymentScheduleItem]
+    items: Dict[str, bool] = {
+        "kyc_documents": False,
+        "pan_card": False,
+        "aadhar": False,
+        "agreement_copy": False,
+        "bank_documents": False,
+        "passport_photo": False,
+        "address_proof": False
+    }
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class PaymentSchedule(BaseModel):
-    id: str
-    customer_id: str
-    items: List[PaymentScheduleItem]
-    created_at: Optional[str] = None
-
-
-class PaymentTransaction(BaseModel):
-    id: str
-    customer_id: str
-    stage: TransactionStage = TransactionStage.BOOKING
-    transaction_date: str
-    bank_name: Optional[str] = None
-    transaction_number: Optional[str] = None
-    amount: float
-    notes: Optional[str] = None
-    created_at: Optional[str] = None
-    created_by: Optional[str] = None
-
-
-class PaymentTransactionCreate(BaseModel):
-    stage: TransactionStage = TransactionStage.BOOKING
-    transaction_date: str
-    bank_name: Optional[str] = None
-    transaction_number: Optional[str] = None
-    amount: float
-    notes: Optional[str] = None
-
-
-class PriceCalculation(BaseModel):
-    saleable_area: float
-    rate_per_sqft: float
-    floor: int = 0
-    floor_rise_cost: float = 0
-    include_club_house: bool = True
-    club_house_charges: float = 200000
-    additional_charges: float = 0
-    additional_parking_count: int = 0
-    additional_parking_rate: float = 300000
-    labour_cess_rate: float = 0.007
-    gst_rate: float = 0.05
-
-
-class PriceResult(BaseModel):
-    saleable_area: float
-    rate_per_sqft: float
-    base_price: float
-    floor_rise_cost: float
-    floor_rise_total: float
-    club_house_charges: float
-    additional_charges: float = 0
-    additional_parking_charges: float = 0
-    subtotal: float
-    labour_cess: float
-    gst: float
-    total_flat_value: float
-    amount_in_words: str
-
-
-class DisbursementCalculation(BaseModel):
-    total_flat_value: float
-    booking_amount: float
-    agreement_percentage: float = 15
-
-
-class DisbursementResult(BaseModel):
-    booking_amount: float
-    agreement_amount: float
-    disbursement_amount: float
-
-
-class PaymentTrackingResult(BaseModel):
-    total_flat_value: float
-    total_received: float
-    balance: float
-    received_percentage: float
-    balance_percentage: float
+class GoogleFormWebhook(BaseModel):
+    customer_name: str
+    phone: str
+    email: EmailStr
+    project: str
+    tower: str
+    unit_number: str
+    father_name: Optional[str] = None
+    pan_number: Optional[str] = None
+    booking_amount: Optional[float] = 0
+    booking_date: Optional[str] = None

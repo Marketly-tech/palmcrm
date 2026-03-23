@@ -1,75 +1,61 @@
 """
-Document-related models for RRL CRM.
+Document models for RRL CRM.
 """
-from typing import Optional, List, Dict
-from pydantic import BaseModel
+from typing import Optional, Dict
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, ConfigDict
+import uuid
+
 from utils.enums import DocumentType, AgreementStatus
 
 
 class DocumentTemplate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
-    type: DocumentType
+    doc_type: DocumentType
     content: str
-    variables: List[str] = []
-    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class DocumentGenerate(BaseModel):
     customer_id: str
-    template_type: DocumentType
-    custom_data: Optional[Dict] = None
+    doc_type: DocumentType
+    custom_fields: Dict[str, str] = {}
 
 
 class GeneratedDocument(BaseModel):
-    id: str
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     customer_id: str
-    template_type: DocumentType
-    generated_at: str
-    html_content: str
-    pdf_url: Optional[str] = None
-    status: AgreementStatus = AgreementStatus.PENDING
-    signed_at: Optional[str] = None
-
-
-class DocumentChecklist(BaseModel):
-    customer_id: str
-    pan_card: bool = False
-    aadhar_card: bool = False
-    photo: bool = False
-    address_proof: bool = False
-    bank_statement: bool = False
-    income_proof: bool = False
-    co_applicant_pan: bool = False
-    co_applicant_aadhar: bool = False
-    co_applicant_photo: bool = False
+    doc_type: DocumentType
+    content: str
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    generated_by: str
+    signed_copy_url: Optional[str] = None
+    status: AgreementStatus = AgreementStatus.DRAFT
 
 
 class CommunicationLog(BaseModel):
-    id: str
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     customer_id: str
-    type: str  # email, whatsapp, call
-    subject: Optional[str] = None
+    channel: str  # email, whatsapp
+    message_type: str
     content: str
-    sent_at: str
-    sent_by: str
     status: str = "sent"
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    sent_by: str
 
 
 class ActivityLog(BaseModel):
-    id: str
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
     user_name: str
     action: str
     entity_type: str
     entity_id: str
     details: str
-    timestamp: str
-
-
-class EmailSendRequest(BaseModel):
-    subject: str
-    body: str
-    to_email: Optional[str] = None
-    cc_emails: Optional[List[str]] = None
-    doc_type: Optional[str] = None
-    include_price_breakup: bool = False
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -15,75 +15,62 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called RRL
 **User's preferred language**: English
 
 **what currently exists?**
-A comprehensive full-stack application (React/FastAPI/MongoDB) is in place. The CRM now features a complete user management system with role-based access control, admin password reset capabilities, and a self-service Forgot Password flow. All demo data has been purged and replaced with 35 real customer records imported from a user-provided Excel file. The main dashboard is now connected to live transaction data, accurately reflecting Total Revenue Collected and Pending Payments. All client-facing documents and emails have been updated with the new company tagline. The backend has been made more robust for deployment with the addition of a root health check endpoint and a startup script to auto-create an admin user.
+The full-stack CRM application is fully functional. The last user-requested feature, making Club House Charges and Additional Charges editable, has been implemented and successfully verified.
+
+A critical code refactoring effort has begun to address significant technical debt. The monolithic  file is being broken down into a modular structure. The new directory structure (, , , , etc.) and initial configuration files (, ) have been created. The main  has been updated to use these new modules, and the application has been verified to be running correctly after this initial structural change. A similar refactoring plan has been laid out for the frontend monolith , with the initial component directory structure and placeholder files created.
 
 **Last working item**:
-    - Last item agent was working: The user was unable to log in to their production URL () after the agent created a new admin user, because the changes and the new user only existed in the preview environment. The agent correctly identified the discrepancy and fixed the underlying deployment issues by adding a root  endpoint and an  script in  to automatically create the admin user in any environment. The user reported being unable to click the Deploy button in the UI to push these fixes live.
-    - Status: BLOCKED
+    - Last item agent was working: Initiating a critical code refactoring for both the backend and frontend. The agent successfully created the modular file structure for the backend, minimally adapted  to use it, and verified the application's stability. The agent also laid out the directory structure for the frontend refactoring.
+    - Status: IN PROGRESS
     - Agent Testing Done: Y
-    - Which testing method agent to use? NA (The issue is a platform/UI problem on the user's end, not a code problem). The next agent's first step should be to ask the user if they managed to deploy.
+    - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1:  (Priority: P0) Production Deployment is Blocked
-  
-  Issues Detail:
-  - Issue 1: 
-     - Attempted fixes: The agent successfully implemented code changes to make the application deployment-ready. A root  endpoint was added for Kubernetes probes, and a startup event was added to  to auto-create the  admin user. This ensures the user will exist in the production database upon deployment. The agent confirmed the code works in the preview environment.
-     - Next debug checklist: 
-        1. Ask the user if they were able to resolve the issue with the Deploy button (e.g., by refreshing the page, using a different browser, or contacting Emergent support).
-        2. Reiterate that the agent cannot trigger deployments and that this is a platform UI issue.
-        3. If the user confirms they have deployed but it still fails, request the *new* deployment logs to analyze. The previous logs are irrelevant as they predate the fixes.
-     - Why fix this issue and what will be achieved with the fix? This is a hard blocker. The user cannot access any of the recently completed features on their live domain until a successful deployment occurs.
-     - Status:  BLOCKED
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on other issue: Blocked on user action or platform support.
+  - None.
 
 **In progress Task List**:
-  - None. All development tasks from the agent's side are complete pending the user's deployment.
+  - Task 1:  (Priority: P0) Critical Code Refactoring
+ Task Detail:
+  - Task 1: 
+     - Where to resume: 
+        - **Backend:** The modular file structure is in place. The next step is to incrementally move the logic (routes, models, utility functions) from the monolithic  into their respective new module files (e.g., , ).
+        - **Frontend:** The component directory  and placeholder files exist. The next step is to start extracting JSX and logic from  into new, smaller components (e.g., , ) and then compose them back into the main page.
+     - What will be achieved with this? This will significantly improve the code's maintainability, scalability, and readability, making future development faster and less error-prone.
+     - Status:  IN PROGRESS
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on something: No.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - P1: **Test Application with Real Data:** Once deployed, perform a thorough test of all major features (customer profiles, payment tracking, document generation) on the production environment.
+    - P1: **Test Application with Real Data:** Once refactoring is at a stable point, perform a thorough test of all major features, especially the 'ACCOUNTS' role restrictions, on the production environment.
     
     Future Tasks:
     - P2: **Integrate WhatsApp via Twilio:** Replace the current  link with a full backend integration.
     - P2: **Implement Document Checklist:** Add a checklist feature to the customer profile to track KYC documents.
     - P2: **Enhance Dashboard:** Add more charts and analytics for admin users.
     - P2: **Implement Activity Logs:** Create a secure audit trail for user actions.
-    - P2: **CRITICAL Code Refactoring:**
-        - **Backend:** Break down the monolithic  file (now >5500 lines) into a modular structure (e.g., , , ).
-        - **Frontend:** Decompose the massive  file (now >2500 lines) and  into smaller, reusable components.
     - P3: **User-Uploadable Attachments:** Enhance the email composer to allow users to upload local files.
     - P3: **Template Editor:** Build an admin-facing UI to edit PDF templates.
 
 **Completed work in this session**
-- **Deployment Readiness:**
-  - Added a root  endpoint and an  function in  to auto-create the admin user, resolving critical deployment blockers.
-- **User Authentication & Management:**
-  - Created a new admin user ().
-  - Implemented a full Forgot Password feature with UI and backend endpoints.
-  - Enhanced the  to allow admins to edit user roles/details and reset any user's password.
-- **Data Import & Management:**
-  - Successfully deleted all test data from the database.
-  - Parsed the user's Excel file () and imported 35 customer records into the  and  collections.
-  - Debugged and resolved multiple issues during import related to database names, collection names, and data schemas.
-- **Dashboard & Core Logic:**
-  - Connected the main dashboard's Total Revenue Collected metric to live data from the  (booking amount) and  collections.
-  - Updated the project name for all imported customers to RRL Palm Altezze.
-- **Branding & UI:**
-  - Changed the company tagline to Beyond homes. A lifestyle across all PDF templates and email communications in .
-- **Bug Fixes:**
-  - Resolved a critical, recurring bug where a placeholder appeared in the generated Sales Agreement PDF.
-  - Fixed an  serialization error preventing the customer detail page from loading.
-  - Verified that a previously reported mobile UI bug in the transaction dialog is no longer present.
+- **Feature Verification:**
+  - Fully verified that the Club House Charges and Additional Charges fields are correctly implemented and editable on both the Booking Form and the Customer Detail page.
+- **Critical Refactoring (Phase 1 - Backend):**
+  - Created a new modular directory structure (, , , , etc.).
+  - Created initial , , and  files.
+  - Updated  to import from these new modules and confirmed the application remains fully functional.
+- **Critical Refactoring (Phase 1 - Frontend):**
+  - Devised a refactoring plan for .
+  - Created the component directory  and initial placeholder files (, ).
+- **Documentation:**
+  - Updated  to reflect the refactoring progress and updated backlog.
 
 **Earlier issues found/mentioned but not fixed**
    - None.
 
 **Known issue recurrence from previous fork**
-  - **Deployment Failures:** The user has now faced deployment issues multiple times. The root causes have been addressed in code (missing health check, empty DB), but the act of deployment itself is now the recurring blocker.
+  - None.
 
 **Code Architecture**
 
@@ -91,86 +78,79 @@ A comprehensive full-stack application (React/FastAPI/MongoDB) is in place. The 
 **Key Technical Concepts**
 - **Backend:** FastAPI, Python, Motor (async MongoDB client)
 - **Frontend:** React, JavaScript, , TailwindCSS, Shadcn UI
-- **Database:** MongoDB
-- **Authentication:** JWT with role-based access. Password hashing with .
-- **Deployment:** The backend now includes a startup script () and a root  endpoint for Kubernetes compatibility.
+- **Code Refactoring (Modularization):** Actively breaking down monolithic files (, ) into a feature-based modular structure to improve maintainability.
+- **Data Seeding on Startup:** The application uses a startup event to populate the database from JSON files.
 
 **key DB schema**
   - **users:** 
-  - **customers:** A large Pydantic model in . Imported data now populates this.
-  - **payment_transactions:** . This collection now holds all imported transaction data.
+  - **customers:** Schema includes  and .
+  - **payment_transactions:** Unchanged.
 
 **changes in tech stack**
   - No changes.
 
 **All files of reference**
-*   : CRITICAL. Contains all backend logic, including the new startup script, health endpoint, user management APIs, and forgot password flow. It is dangerously large.
-*   : Contains the new Forgot Password link and UI logic.
-*   : Contains the new admin user management UI (edit user, reset password).
-*   : The massive customer profile component.
-*   : The source file for the successfully imported customer data.
+*   : The monolith currently being refactored.
+*   : The frontend monolith currently being refactored.
+*   : New file for centralized configuration.
+*   : New file for database connection setup.
+*   : New file to hold all application enums.
+*   : New directory for refactored customer page components.
+*   : Updated to reflect current progress.
 
 **Areas that need refactoring**:
-- **:** At over 5500 lines, this file is a severe liability. Refactoring into a modular structure (routes, services, models) is the highest priority technical debt item.
-- ** & :** Both are large and complex. They should be decomposed into smaller, single-responsibility components to improve maintainability.
+- **:** At over 5700 lines, this is the highest priority. The refactoring is in progress.
+- **:** At over 2600 lines, this is the second-highest priority. The refactoring is in progress.
 
 **key api endpoints**
-- **Health Check (New):** 
-- **Forgot Password (New):**
+- The existing endpoints were verified to be working after the initial refactoring.
     - 
     - 
-- **Admin User Management (New):**
-    -  (Update user)
-    -  (Admin resets user password)
+    - 
 
 **Critical Info for New Agent**
-- **THE DEPLOYMENT IS BLOCKED BY THE USER.** Your top priority is to guide the user to resolve their inability to click the Deploy button. The codebase is ready for deployment. The issue is not with the code but with the user's interaction with the platform's UI. Do not attempt to re-implement the deployment fixes; they are already in place.
-- **Explain Preview vs. Production:** The root of the login confusion was the user testing on their production URL while the agent's changes were in the preview environment. You must be prepared to explain this concept again.
-- **Refactoring is Urgent:** The  and  monoliths are becoming unmanageable. Once the deployment is successful, you should strongly advocate for prioritizing the refactoring task to ensure the project's long-term health.
+- **Refactoring is the top priority.** The last user request was completed and verified. You must now continue the critical code refactoring task.
+- **Proceed Incrementally.** The refactoring is complex. Move small, logical chunks of code at a time (e.g., one API endpoint, one component tab) and test after each move to ensure the application remains stable. Do not attempt to move everything at once.
+- **Backend First, Then Frontend:** It's advisable to complete a significant portion of the backend refactoring before moving to the frontend, as frontend components depend on the API structure.
+- **Memory Crash:** The previous session experienced a memory limit issue, although the environment has since been upgraded. Be mindful of this and ensure processes are stable.
 
 **documents and test reports created in this job**
 -  was updated.
 
 **Last 10 User Messages and any pending HUMAN messages** 
- -  - User is blocked by platform UI. (Status: BLOCKED)
- -  - User reiterates deployment issue. (Status: BLOCKED)
- - 
- - User provides old, irrelevant deployment logs.
- -  - User provides a screenshot showing they are testing on the production URL, not the preview URL where changes were made.
- -  - User reports login failure on production URL.
- -  - User reports login failure on production URL.
- -  - User reports login failure on production URL.
- -  - Feature request. (Status: COMPLETED)
- -  - Feature request. (Status: COMPLETED)
+ -   - User approved the plan to verify the last feature and then begin refactoring. (Status: COMPLETED & IN PROGRESS)
 
 **Project Health Check:**
-- **Broken:** Production deployment is stalled due to a UI issue on the user's end, preventing all recent work from going live.
+- **Broken:** None.
 - **Mocked:** 
     - WhatsApp (Twilio) integration is a placeholder  link.
     - Activity Log export on the dashboard is disabled.
 
 **3rd Party Integrations**
 - **SendGrid (Email):** Fully integrated.
-- **WeasyPrint:** Used for backend PDF generation.
-- **openpyxl:** Used for the successful data import.
+- **WeasyPrint:** Integrated for PDF generation.
+- **openpyxl:** Used for Excel data parsing.
 
 **Testing status**
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: None in the code. The only regression is the user's ability to deploy.
+  - Known regressions: None.
 
 **Credentials to test flow:**
-- **Email:** 
-- **Password:** 
-- **Note:** These credentials will only work after the latest changes are successfully deployed to the target environment.
+- **Admin:**
+  - **Email:** 
+  - **Password:** 
+- **Accounts Role (for testing restrictions):**
+  - **Email:** 
+  - **Password:** 
 
 **What agent forgot to execute**
 - The technical debt of creating dedicated ============================= test session starts ==============================
 platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
 rootdir: /app
 plugins: anyio-4.12.1
-collected 58 items / 1 error
+collected 82 items / 1 error
 
 ==================================== ERRORS ====================================
 ___________ ERROR collecting backend/tests/test_payment_tracking.py ____________
@@ -181,4 +161,4 @@ E   AttributeError: 'NoneType' object has no attribute 'rstrip'
 =========================== short test summary info ============================
 ERROR backend/tests/test_payment_tracking.py - AttributeError: 'NoneType' obj...
 !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
-=============================== 1 error in 0.49s =============================== files for critical backend logic remains. Given the increased complexity of , this is more important than ever and should be part of the refactoring effort.</analysis>
+=============================== 1 error in 0.31s =============================== files for backend logic still exists. This should be incorporated into the refactoring process; as logic is moved into new modules, corresponding tests should be created in a  directory.</analysis>

@@ -28,13 +28,26 @@ from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileT
 from weasyprint import HTML
 
 # ==================== MODULAR IMPORTS ====================
-# Importing from new modular structure for future migration
-# These will gradually replace inline definitions
+# Importing from new modular structure
 from config import settings
+from database import get_database, db as module_db
 from utils import number_to_indian_words as utils_number_to_indian_words
 from utils import format_indian_currency as utils_format_indian_currency
-# Note: Enums are still defined locally in server.py to avoid migration issues
-# In future refactoring, switch to: from utils.enums import ...
+from utils.enums import (
+    UserRole as EnumUserRole, CustomerStage as EnumCustomerStage,
+    AgreementStatus as EnumAgreementStatus, FinanceType as EnumFinanceType,
+    PaymentStatus as EnumPaymentStatus, DocumentType as EnumDocumentType,
+    TransactionStage as EnumTransactionStage
+)
+
+# Import modular routers
+from auth import router as auth_router, admin_router as auth_admin_router, users_router
+from auth import get_current_user as module_get_current_user, log_activity as module_log_activity
+from auth import hash_password as module_hash_password, verify_password as module_verify_password
+from auth import create_token as module_create_token, check_role as module_check_role
+from customers import router as customers_router
+from payments import schedule_router, transactions_router, calculator_router
+from dashboard import router as dashboard_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -5696,6 +5709,18 @@ async def reset_data_with_seed(user: dict = Depends(get_current_user)):
 
 # Include the router in the main app - MUST be after all route definitions
 app.include_router(api_router)
+
+# Include modular routers under /api prefix
+# NOTE: These are duplicates for now - the original routes in api_router still work
+# Once fully tested, the original routes can be removed from server.py
+# app.include_router(auth_router, prefix="/api")
+# app.include_router(auth_admin_router, prefix="/api")
+# app.include_router(users_router, prefix="/api")
+# app.include_router(customers_router, prefix="/api")
+# app.include_router(schedule_router, prefix="/api")
+# app.include_router(transactions_router, prefix="/api")
+# app.include_router(calculator_router, prefix="/api")
+# app.include_router(dashboard_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,

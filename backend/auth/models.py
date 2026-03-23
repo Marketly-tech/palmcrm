@@ -1,17 +1,21 @@
 """
 Authentication models for RRL CRM.
+Matches the working models from server.py.
 """
-from typing import Optional, List
-from pydantic import BaseModel, EmailStr
+from typing import Optional
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
+import uuid
+
 from utils.enums import UserRole
 
 
 class UserBase(BaseModel):
-    username: str
     email: EmailStr
+    name: str
     role: UserRole = UserRole.SALES
-    full_name: Optional[str] = None
     phone: Optional[str] = None
+    is_active: bool = True
 
 
 class UserCreate(UserBase):
@@ -24,23 +28,24 @@ class UserLogin(BaseModel):
 
 
 class User(UserBase):
-    id: str
-    status: str = "active"
-    created_at: Optional[str] = None
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class UserResponse(BaseModel):
     id: str
-    username: str
     email: str
-    role: str
-    full_name: Optional[str] = None
+    name: str
+    role: UserRole
     phone: Optional[str] = None
-    status: str = "active"
+    is_active: bool
+    created_at: str
 
 
 class TokenResponse(BaseModel):
-    token: str
+    access_token: str
+    token_type: str = "bearer"
     user: UserResponse
 
 
@@ -51,7 +56,6 @@ class VerifyEmailRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
     new_password: str
-    token: Optional[str] = None
 
 
 class AdminResetPasswordRequest(BaseModel):
