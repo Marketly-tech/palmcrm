@@ -215,6 +215,7 @@ const CustomerDetailPage = () => {
           ...dataToSave,
           base_price: liveCalc.basePrice,
           club_house_charges: liveCalc.clubHouse,
+          additional_charges: liveCalc.additionalCharges,
           additional_parking_charges: liveCalc.parkingCharges,
           labour_cess: liveCalc.labourCess,
           gst_amount: liveCalc.gst,
@@ -777,9 +778,14 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
     // Floor Rise is manual cost per sqft × saleable area
     const floorRiseTotal = saleableArea * floorRiseCost;
     
-    const clubHouse = 200000; // ₹2,00,000
+    // Club House - editable, default ₹2,00,000
+    const clubHouse = parseFloat(editData?.club_house_charges) || 200000;
+    
+    // Additional Charges - editable manual entry
+    const additionalCharges = parseFloat(editData?.additional_charges) || 0;
+    
     const parkingCharges = additionalParking * 300000; // ₹3,00,000 per additional
-    const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges;
+    const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges + additionalCharges;
     const labourCess = subtotal * 0.007; // 0.70%
     const gst = subtotal * 0.05; // 5%
     const total = subtotal + labourCess + gst;
@@ -790,7 +796,8 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
       floorRiseCost,
       floorRiseTotal: Math.round(floorRiseTotal),
       effectiveRate: ratePerSqft + floorRiseCost,
-      clubHouse,
+      clubHouse: Math.round(clubHouse),
+      additionalCharges: Math.round(additionalCharges),
       parkingCharges: Math.round(parkingCharges),
       subtotal: Math.round(subtotal),
       labourCess: Math.round(labourCess),
@@ -1333,9 +1340,34 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                     </div>
                     <div>
                       <Label>Club House</Label>
-                      <p className="text-slate-700 mt-1">
-                        {editing && liveCalc ? formatCurrency(liveCalc.clubHouse) : formatCurrency(customer.club_house_charges)}
-                      </p>
+                      {editing ? (
+                        <Input
+                          type="number"
+                          value={editData.club_house_charges || 200000}
+                          onChange={(e) => setEditData({...editData, club_house_charges: parseFloat(e.target.value) || 0})}
+                          className="mt-1"
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">
+                          {formatCurrency(customer.club_house_charges)}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Additional Charges</Label>
+                      {editing ? (
+                        <Input
+                          type="number"
+                          value={editData.additional_charges || 0}
+                          onChange={(e) => setEditData({...editData, additional_charges: parseFloat(e.target.value) || 0})}
+                          className="mt-1"
+                          placeholder="Enter additional charges"
+                        />
+                      ) : (
+                        <p className="text-slate-700 mt-1">
+                          {formatCurrency(customer.additional_charges || 0)}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label>Labour Cess (0.70%)</Label>
@@ -1381,6 +1413,12 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                         )}
                         <span>Club House & Infrastructure:</span>
                         <span className="font-medium text-right">{formatCurrency(liveCalc.clubHouse)}</span>
+                        {liveCalc.additionalCharges > 0 && (
+                          <>
+                            <span>Additional Charges:</span>
+                            <span className="font-medium text-right">{formatCurrency(liveCalc.additionalCharges)}</span>
+                          </>
+                        )}
                         <span>Additional Parking:</span>
                         <span className="font-medium text-right">{formatCurrency(liveCalc.parkingCharges)}</span>
                         <span className="font-semibold pt-2 border-t">New Total:</span>

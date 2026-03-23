@@ -115,7 +115,8 @@ const BookingFormPage = () => {
     rate_per_sqft: "6600",
     floor_rise_cost: "0",  // Manual floor rise cost input
     parking: "1",
-    additional_parking: "0",
+    club_house_charges: "200000",  // Editable club house charges
+    additional_charges: "0",  // Manual additional charges
     
     // Payment
     booking_amount: "",
@@ -223,12 +224,13 @@ const BookingFormPage = () => {
     );
   };
 
-  // Calculate price based on inputs - Updated with manual floor rise
+  // Calculate price based on inputs - Updated with manual floor rise and additional charges
   const calculatePrice = () => {
     const saleableArea = parseFloat(formData.saleable_area) || 0;
     const ratePerSqft = parseFloat(formData.rate_per_sqft) || 0;
     const floorRiseCost = parseFloat(formData.floor_rise_cost) || 0;  // Manual input
-    const additionalParking = parseInt(formData.additional_parking) || 0;
+    const clubHouseCharges = parseFloat(formData.club_house_charges) || 200000;  // Editable
+    const additionalCharges = parseFloat(formData.additional_charges) || 0;  // Manual input
     
     // Base price = Total Saleable Area × Rate/sqft
     const basePrice = saleableArea * ratePerSqft;
@@ -236,9 +238,7 @@ const BookingFormPage = () => {
     // Floor Rise is now a manual cost input (added to base price)
     const floorRiseTotal = saleableArea * floorRiseCost;
     
-    const clubHouse = 200000; // ₹2,00,000
-    const parkingCharges = additionalParking * 300000; // ₹3,00,000 per additional
-    const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges;
+    const subtotal = basePrice + floorRiseTotal + clubHouseCharges + additionalCharges;
     const labourCess = subtotal * 0.007; // 0.70%
     const gst = subtotal * 0.05; // 5%
     const total = subtotal + labourCess + gst;
@@ -248,8 +248,8 @@ const BookingFormPage = () => {
       floorRiseCost,
       floorRiseTotal,
       effectiveRate: ratePerSqft + floorRiseCost,
-      clubHouse,
-      parkingCharges,
+      clubHouse: clubHouseCharges,
+      additionalCharges,
       subtotal,
       labourCess,
       gst,
@@ -276,13 +276,12 @@ const BookingFormPage = () => {
         saleable_area: parseFloat(formData.saleable_area) || 0,
         rate_per_sqft: parseFloat(formData.rate_per_sqft) || 0,
         floor_rise_cost: parseFloat(formData.floor_rise_cost) || 0,
-        additional_parking: parseInt(formData.additional_parking) || 0,
+        club_house_charges: parseFloat(formData.club_house_charges) || 200000,
+        additional_charges: parseFloat(formData.additional_charges) || 0,
         booking_amount: parseFloat(formData.booking_amount) || 0,
         total_price: priceCalc.total,
         base_price: priceCalc.basePrice,
         floor_rise_total: priceCalc.floorRiseTotal,
-        club_house_charges: priceCalc.clubHouse,
-        additional_parking_charges: priceCalc.parkingCharges,
         labour_cess: priceCalc.labourCess,
         gst_amount: priceCalc.gst,
       };
@@ -944,15 +943,29 @@ const BookingFormPage = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="additional_parking">Additional Parking (₹3,00,000 each)</Label>
+                      <Label htmlFor="club_house_charges">Club House Charges (₹)</Label>
                       <Input
-                        id="additional_parking"
-                        name="additional_parking"
+                        id="club_house_charges"
+                        name="club_house_charges"
                         type="number"
                         min="0"
-                        value={formData.additional_parking}
+                        value={formData.club_house_charges}
                         onChange={handleInputChange}
+                        placeholder="200000"
                       />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="additional_charges">Additional Charges (₹) - Manual Entry</Label>
+                      <Input
+                        id="additional_charges"
+                        name="additional_charges"
+                        type="number"
+                        min="0"
+                        value={formData.additional_charges}
+                        onChange={handleInputChange}
+                        placeholder="Enter any additional charges"
+                      />
+                      <p className="text-xs text-slate-500">Enter any extra charges like parking, amenities, etc.</p>
                     </div>
                   </div>
 
@@ -974,8 +987,12 @@ const BookingFormPage = () => {
                         <span className="text-slate-600">Club House & Infrastructure:</span>
                         <span className="font-medium text-right">{formatCurrency(priceCalc.clubHouse)}</span>
                         
-                        <span className="text-slate-600">Additional Parking ({formData.additional_parking || 0}):</span>
-                        <span className="font-medium text-right">{formatCurrency(priceCalc.parkingCharges)}</span>
+                        {priceCalc.additionalCharges > 0 && (
+                          <>
+                            <span className="text-slate-600">Additional Charges:</span>
+                            <span className="font-medium text-right">{formatCurrency(priceCalc.additionalCharges)}</span>
+                          </>
+                        )}
                         
                         <span className="text-slate-600">Labour Cess (0.70%):</span>
                         <span className="font-medium text-right">{formatCurrency(priceCalc.labourCess)}</span>
@@ -1179,8 +1196,12 @@ const BookingFormPage = () => {
                       )}
                       <p className="text-slate-600">Club House & Infrastructure:</p>
                       <p className="font-medium text-right">{formatCurrency(priceCalc.clubHouse)}</p>
-                      <p className="text-slate-600">Additional Parking:</p>
-                      <p className="font-medium text-right">{formatCurrency(priceCalc.parkingCharges)}</p>
+                      {priceCalc.additionalCharges > 0 && (
+                        <>
+                          <p className="text-slate-600">Additional Charges:</p>
+                          <p className="font-medium text-right">{formatCurrency(priceCalc.additionalCharges)}</p>
+                        </>
+                      )}
                       <p className="text-slate-600">Labour Cess (0.70%):</p>
                       <p className="font-medium text-right">{formatCurrency(priceCalc.labourCess)}</p>
                       <p className="text-slate-600">GST (5%):</p>

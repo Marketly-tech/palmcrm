@@ -254,14 +254,15 @@ class CustomerBase(BaseModel):
     saleable_area: float = 0
     uds: float = 0  # Undivided Share
     parking: Optional[str] = None
-    additional_parking: int = 0  # Number of additional parking
+    additional_parking: int = 0  # Number of additional parking (legacy)
     
     # Pricing
     rate_per_sqft: float = 0
     base_price: float = 0  # rate * saleable_area
-    club_house_charges: float = 0  # Default 200000
+    club_house_charges: float = 200000  # Default 200000, editable
     infrastructure_charges: float = 0
-    additional_parking_charges: float = 0  # 300000 per parking
+    additional_charges: float = 0  # Manual additional charges
+    additional_parking_charges: float = 0  # Legacy field
     labour_cess: float = 0  # 0.70%
     gst_percentage: float = 5
     gst_amount: float = 0
@@ -431,8 +432,9 @@ class PriceCalculation(BaseModel):
     saleable_area: float  # sq.ft
     rate_per_sqft: float
     include_club_house: bool = True  # Rs. 2,00,000 if true
-    club_house_charges: float = 200000
-    additional_parking_count: int = 0  # Rs. 3,00,000 per parking
+    club_house_charges: float = 200000  # Editable
+    additional_charges: float = 0  # Manual additional charges
+    additional_parking_count: int = 0  # Legacy field
     additional_parking_rate: float = 300000
     gst_percentage: float = 5
     labour_cess_percentage: float = 0.70
@@ -448,8 +450,9 @@ class PriceResult(BaseModel):
     # Calculations
     base_price: float  # rate * saleable_area
     club_house_charges: float
-    additional_parking_charges: float
-    subtotal_before_taxes: float  # base + club + parking
+    additional_charges: float = 0  # Manual additional charges
+    additional_parking_charges: float = 0  # Legacy
+    subtotal_before_taxes: float  # base + club + charges
     labour_cess: float  # 0.70% of subtotal
     gst_amount: float  # 5% of subtotal
     total_flat_value: float  # subtotal + taxes
@@ -1125,19 +1128,19 @@ DEFAULT_PAYMENT_SCHEDULE = [
 async def calculate_price(data: PriceCalculation):
     """
     Calculate total flat value with all charges
-    Formula: (Rate/sqft × Saleable Area) + Club House + Additional Parking + Labour Cess + GST
+    Formula: (Rate/sqft × Saleable Area) + Club House + Additional Charges + Labour Cess + GST
     """
     # Base price = Rate × Saleable Area
     base_price = data.rate_per_sqft * data.saleable_area
     
-    # Club house charges (optional, default Rs. 2,00,000)
+    # Club house charges (editable, default Rs. 2,00,000)
     club_house = data.club_house_charges if data.include_club_house else 0
     
-    # Additional parking charges (Rs. 3,00,000 per parking)
-    additional_parking = data.additional_parking_count * data.additional_parking_rate
+    # Additional manual charges
+    additional_charges = data.additional_charges or 0
     
     # Subtotal before taxes
-    subtotal = base_price + club_house + additional_parking
+    subtotal = base_price + club_house + additional_charges
     
     # Labour cess (0.70% of subtotal)
     labour_cess = subtotal * (data.labour_cess_percentage / 100)
@@ -1159,7 +1162,7 @@ async def calculate_price(data: PriceCalculation):
         rate_per_sqft=data.rate_per_sqft,
         base_price=round(base_price, 2),
         club_house_charges=round(club_house, 2),
-        additional_parking_charges=round(additional_parking, 2),
+        additional_charges=round(additional_charges, 2),
         subtotal_before_taxes=round(subtotal, 2),
         labour_cess=round(labour_cess, 2),
         gst_amount=round(gst_amount, 2),
