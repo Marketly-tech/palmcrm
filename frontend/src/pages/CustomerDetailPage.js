@@ -2543,6 +2543,11 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                           {emailComposerData.attachment_filename_2}
                         </Badge>
                       )}
+                      {emailComposerData.attachment_filename_3 && (
+                        <Badge variant="outline" className="text-xs">
+                          {emailComposerData.attachment_filename_3}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2551,15 +2556,20 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
               {/* Preview Tabs */}
               <div>
                 <Tabs defaultValue="preview">
-                  <TabsList className="grid grid-cols-3 w-full max-w-lg">
+                  <TabsList className={`grid w-full max-w-2xl ${emailComposerData.email_type === 'welcome' ? 'grid-cols-4' : 'grid-cols-3'}`}>
                     <TabsTrigger value="preview">Email Preview</TabsTrigger>
                     <TabsTrigger value="attachment1">
-                      {emailComposerData.email_type === 'welcome' ? 'Price Breakup' : 
+                      {emailComposerData.email_type === 'welcome' ? 'Form Preview' : 
                        emailComposerData.email_type === 'sales_agreement' ? 'Sales Agreement' : 
                        'Allotment Letter'}
                     </TabsTrigger>
                     {emailComposerData.attachment_html_2 && (
-                      <TabsTrigger value="attachment2">Price Breakup</TabsTrigger>
+                      <TabsTrigger value="attachment2">
+                        {emailComposerData.email_type === 'welcome' ? 'Terms & Conditions' : 'Price Breakup'}
+                      </TabsTrigger>
+                    )}
+                    {emailComposerData.attachment_html_3 && (
+                      <TabsTrigger value="attachment3">Price Breakup</TabsTrigger>
                     )}
                   </TabsList>
                   
@@ -2574,6 +2584,12 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                   {emailComposerData.attachment_html_2 && (
                     <TabsContent value="attachment2" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
                       <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html_2 || "" }} />
+                    </TabsContent>
+                  )}
+                  
+                  {emailComposerData.attachment_html_3 && (
+                    <TabsContent value="attachment3" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
+                      <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html_3 || "" }} />
                     </TabsContent>
                   )}
                 </Tabs>

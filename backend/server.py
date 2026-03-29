@@ -3952,8 +3952,10 @@ async def generate_price_breakup_pdf(customer_id: str, user: dict = Depends(get_
 @api_router.get("/communication/preview-welcome-email/{customer_id}")
 async def preview_welcome_email(customer_id: str, user: dict = Depends(get_current_user)):
     """
-    Preview Welcome Email with Price Breakup PDF attachment before sending.
-    Returns HTML content for preview without actually sending.
+    Preview Welcome Email with 3 PDF attachments before sending:
+    1. Booking Form Preview
+    2. Terms & Conditions
+    3. Price Breakup
     """
     customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
     if not customer:
@@ -3962,12 +3964,18 @@ async def preview_welcome_email(customer_id: str, user: dict = Depends(get_curre
     # Generate welcome email HTML
     welcome_html = generate_welcome_email_html(customer)
     
-    # Generate price breakup HTML (for PDF attachment preview)
+    # Generate all 3 PDF attachment HTMLs
+    form_preview_html = generate_booking_form_preview_html(customer)
+    terms_conditions_html = generate_terms_and_conditions_html(customer)
     price_breakup_html = generate_price_breakup_html(customer)
     
-    filename = f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf"
+    customer_name_safe = customer.get('name', 'Customer').replace(' ', '_')
+    filename_form = f"RRL_BookingFormPreview_{customer_name_safe}.pdf"
+    filename_terms = f"RRL_TermsAndConditions_{customer_name_safe}.pdf"
+    filename_price = f"RRL_PriceBreakup_{customer_name_safe}.pdf"
+    
     recipient_email = customer.get('email')
-    subject = f"Welcome to {customer.get('project', 'RRL Builders')} - Booking Confirmation"
+    subject = f"Welcome to {customer.get('project', 'RRL Builders')} - Booking Confirmation & Documents"
     
     # Default email body (editable)
     default_body = f"""Hello {customer.get('name', '')},
@@ -3976,7 +3984,10 @@ Greetings from RRL Builders and Developers Pvt Ltd.
 
 It is our distinct pleasure to welcome you to {customer.get('project', 'RRL Palm Altezze')} and to congratulate you on the acquisition of your Residence Flat No. {customer.get('unit_number', '')}.
 
-Please find attached the Price Breakup document for your reference.
+Please find attached the following documents for your reference:
+1. Booking Form Preview - Your submitted booking details
+2. Terms & Conditions - Important terms governing your allotment
+3. Price Breakup - Detailed price calculation
 
 Your dedicated Relationship Director will connect with you personally to ensure that every interaction with us is seamless and tailored to your expectations."""
     
@@ -3987,8 +3998,14 @@ Your dedicated Relationship Director will connect with you personally to ensure 
         "subject": subject,
         "body": default_body,
         "email_html": welcome_html,
-        "attachment_html": price_breakup_html,
-        "attachment_filename": filename,
+        # 3 attachments for welcome email
+        "attachment_html": form_preview_html,  # Primary attachment - Form Preview
+        "attachment_filename": filename_form,
+        "attachment_html_2": terms_conditions_html,  # Terms & Conditions
+        "attachment_filename_2": filename_terms,
+        "attachment_html_3": price_breakup_html,  # Price Breakup
+        "attachment_filename_3": filename_price,
+        "attachments": [filename_form, filename_terms, filename_price],
         "has_sendgrid": bool(SENDGRID_API_KEY)
     }
 
