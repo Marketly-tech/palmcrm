@@ -1617,8 +1617,9 @@ def generate_sales_agreement_template():
         }
         
         .clause {
-            margin: 12px 0;
+            margin: 8px 0;
             text-align: justify;
+            page-break-inside: avoid;
         }
         
         .clause-number {
@@ -1663,18 +1664,18 @@ def generate_sales_agreement_template():
         }
         
         .schedule-section {
-            page-break-before: always;
-            margin-top: 20px;
+            margin-top: 15px;
+            margin-bottom: 10px;
         }
         
         .schedule-header {
             background: #1A1A1A;
             color: #D4AF37;
-            padding: 12px 15px;
+            padding: 10px 15px;
             font-weight: 700;
-            font-size: 14pt;
+            font-size: 13pt;
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
         
         .boundary-table {
