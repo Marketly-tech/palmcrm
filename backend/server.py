@@ -5711,16 +5711,15 @@ async def reset_data_with_seed(user: dict = Depends(get_current_user)):
 app.include_router(api_router)
 
 # Include modular routers under /api prefix
-# NOTE: These are duplicates for now - the original routes in api_router still work
-# Once fully tested, the original routes can be removed from server.py
-# app.include_router(auth_router, prefix="/api")
-# app.include_router(auth_admin_router, prefix="/api")
-# app.include_router(users_router, prefix="/api")
-# app.include_router(customers_router, prefix="/api")
-# app.include_router(schedule_router, prefix="/api")
-# app.include_router(transactions_router, prefix="/api")
-# app.include_router(calculator_router, prefix="/api")
-# app.include_router(dashboard_router, prefix="/api")
+# Phase 2: These routers will gradually replace the inline routes in api_router
+app.include_router(auth_router, prefix="/api")
+app.include_router(auth_admin_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
+app.include_router(customers_router, prefix="/api")
+app.include_router(schedule_router, prefix="/api")
+app.include_router(transactions_router, prefix="/api")
+app.include_router(calculator_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
