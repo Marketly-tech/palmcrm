@@ -1720,13 +1720,19 @@ def generate_sales_agreement_template():
         }
         
         .footer {
-            margin-top: 30px;
+            margin-top: 20px;
             padding-top: 15px;
             border-top: 2px solid #D4AF37;
             text-align: center;
             font-size: 9pt;
             color: #666;
-            page-break-inside: avoid;
+        }
+        
+        /* Position footer at bottom of last page */
+        @page:last {
+            @bottom-center {
+                content: element(footer);
+            }
         }
         
         .page-break {
@@ -1739,6 +1745,14 @@ def generate_sales_agreement_template():
         }
         
         .party-section {
+            page-break-inside: avoid;
+        }
+        
+        .witness-section {
+            page-break-inside: avoid;
+        }
+        
+        .signature-section {
             page-break-inside: avoid;
         }
     </style>
@@ -2229,7 +2243,7 @@ def generate_sales_agreement_template():
                 </div>
             </div>
             
-            <div class="witness-section" style="page-break-inside: avoid;">
+            <div class="witness-section">
                 <p><strong>WITNESSES:</strong></p>
                 <div class="signature-row" style="margin-top: 20px;">
                     <div class="signature-box">
@@ -2247,7 +2261,7 @@ def generate_sales_agreement_template():
         </div>
     </div>
     
-    <div class="footer" style="page-break-inside: avoid;">
+    <div class="footer">
         <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
         <p>4th Floor, RRL TOWERS, Sompura Gate, Sarjapura Road, Bengaluru – 562125</p>
         <p>www.rrlbuildersanddevelopers.com | RERA: PRM/KA/RERA/1251/308/PR/141025/008167</p>
