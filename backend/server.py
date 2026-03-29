@@ -4436,80 +4436,34 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
     # Get AADHAAR number from top-level field (not custom_fields)
     aadhaar_number = customer.get('aadhar_number', '') or customer.get('aadhaar_number', '') or ''
     
-    # Generate payment schedule rows - ONLY show Booking and Agreement transactions
+    # ==================== PAYMENT SCHEDULE (Milestones from Payment Schedule Tab) ====================
     payment_schedule_rows = ""
-    total = customer.get('total_price', 0)
+    total = customer.get('total_price', 0) or 0
     booking_amount = customer.get('booking_amount', 0) or 0
     
-    # Filter transactions to only include booking and agreement stages
-    booking_agreement_transactions = []
-    if transactions and len(transactions) > 0:
-        for txn in transactions:
-            stage = (txn.get('transaction_stage', '') or '').lower()
-            if stage in ['booking', 'agreement', 'booking_amount', 'agreement_amount']:
-                booking_agreement_transactions.append(txn)
-    
-    # Calculate total paid from booking + agreement transactions
-    total_paid_booking_agreement = sum(txn.get('amount', 0) or 0 for txn in booking_agreement_transactions)
-    
-    # If booking amount exists but not in transactions, add it
-    if booking_amount > 0 and total_paid_booking_agreement < booking_amount:
-        # Add booking amount as first entry
-        payment_schedule_rows += f'''
-        <tr>
-            <td style="text-align: center;">1</td>
-            <td>Initial Booking Amount</td>
-            <td style="text-align: center;">{(booking_amount / total * 100) if total > 0 else 0:.1f}%</td>
-            <td class="amount">{fmt(booking_amount)}</td>
-        </tr>
-        '''
-        row_num = 2
-    else:
-        row_num = 1
-    
-    # Add booking and agreement transactions
-    if booking_agreement_transactions:
-        for txn in booking_agreement_transactions:
-            amount = txn.get('amount', 0) or 0
-            percentage = (amount / total * 100) if total > 0 else 0
-            stage_name = txn.get('transaction_stage', '').replace('_', ' ').title()
-            txn_date = txn.get('transaction_date', '')
-            bank = txn.get('bank_name', '')
-            txn_no = txn.get('transaction_number', '')
+    # Use schedule_items from Payment Schedule tab (the 13-point milestone schedule)
+    if schedule_items and len(schedule_items) > 0:
+        for i, item in enumerate(schedule_items, 1):
+            milestone_name = item.get('installment_name', '') or item.get('milestone', '')
+            percentage = item.get('percentage', 0) or 0
+            amount = item.get('amount', 0) or 0
+            
+            # If amount is 0 but we have percentage and total, calculate
+            if amount == 0 and percentage > 0 and total > 0:
+                amount = total * percentage / 100
             
             payment_schedule_rows += f'''
             <tr>
-                <td style="text-align: center;">{row_num}</td>
-                <td>{stage_name} - {txn_date} ({bank} - {txn_no})</td>
-                <td style="text-align: center;">{percentage:.1f}%</td>
+                <td style="text-align: center;">{i}</td>
+                <td>{milestone_name}</td>
+                <td style="text-align: center;">{percentage}%</td>
                 <td class="amount">{fmt(amount)}</td>
             </tr>
             '''
-            row_num += 1
-    
-    # Calculate balance and add remaining payment schedule
-    total_received = booking_amount if booking_amount > total_paid_booking_agreement else total_paid_booking_agreement
-    if booking_amount > 0 and total_paid_booking_agreement > 0:
-        total_received = max(booking_amount, total_paid_booking_agreement)
-    
-    balance = total - total_received
-    
-    # Add balance row if there's remaining amount
-    if balance > 0:
-        balance_percentage = (balance / total * 100) if total > 0 else 0
-        payment_schedule_rows += f'''
-        <tr>
-            <td style="text-align: center;">{row_num}</td>
-            <td><strong>Balance Amount (As per Payment Schedule)</strong></td>
-            <td style="text-align: center;">{balance_percentage:.1f}%</td>
-            <td class="amount"><strong>{fmt(balance)}</strong></td>
-        </tr>
-        '''
-    
-    # If no transactions at all, use default payment schedule
-    if not payment_schedule_rows:
+    else:
+        # Use default 13-point payment schedule if no schedule_items
         default_milestones = [
-            ("Initial Booking Amount (within 10 days)", 10),
+            ("Initial Booking Amount (within 10 days of Booking)", 10),
             ("Post Execution of Agreement", 10),
             ("On Completion of Foundation", 10),
             ("On Completion of Podium Slab", 10),
@@ -4520,11 +4474,11 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             ("Upon Completion of 18th Floor Roof Slab", 5),
             ("Upon Completion of 22nd Floor Roof Slab", 5),
             ("Upon Completion of Top Roof Slab", 10),
-            ("Upon Completion of Flooring", 10),
-            ("Upon Handover / Registration", 10),
+            ("Upon Completion of Flooring of Particular Property", 10),
+            ("Upon Handover / Possession / Registration", 10),
         ]
         for i, (name, pct) in enumerate(default_milestones, 1):
-            amount = total * pct / 100
+            amount = total * pct / 100 if total > 0 else 0
             payment_schedule_rows += f'''
             <tr>
                 <td style="text-align: center;">{i}</td>
@@ -4534,11 +4488,33 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             </tr>
             '''
     
-    # Generate transaction rows for all transactions
+    # ==================== TRANSACTION DETAILS (All Payments Received) ====================
     transaction_rows = ""
     total_received_amount = 0
+    row_num = 1
+    
+    # First add booking amount if exists
+    if booking_amount > 0:
+        total_received_amount += booking_amount
+        booking_date = customer.get('booking_date', '')
+        txn_bank = customer.get('transaction_bank', '') or ''
+        txn_ref = customer.get('transaction_details', '') or ''
+        bank_ref = f"{txn_bank} - {txn_ref}" if txn_bank or txn_ref else "Booking Payment"
+        
+        transaction_rows += f'''
+        <tr>
+            <td style="text-align: center;">{row_num}</td>
+            <td>{booking_date}</td>
+            <td>Booking</td>
+            <td>{bank_ref}</td>
+            <td class="amount">{fmt(booking_amount)}</td>
+        </tr>
+        '''
+        row_num += 1
+    
+    # Add all other transactions from Payment Tracking
     if transactions and len(transactions) > 0:
-        for i, txn in enumerate(transactions, 1):
+        for txn in transactions:
             amount = txn.get('amount', 0) or 0
             total_received_amount += amount
             stage = (txn.get('transaction_stage', '') or '').replace('_', ' ').title()
@@ -4548,32 +4524,20 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             
             transaction_rows += f'''
             <tr>
-                <td style="text-align: center;">{i}</td>
+                <td style="text-align: center;">{row_num}</td>
                 <td>{txn_date}</td>
                 <td>{stage}</td>
                 <td>{bank} - {txn_no}</td>
                 <td class="amount">{fmt(amount)}</td>
             </tr>
             '''
+            row_num += 1
     
-    # If no transactions, show booking amount if available
-    if not transaction_rows and booking_amount > 0:
-        total_received_amount = booking_amount
-        transaction_rows = f'''
-        <tr>
-            <td style="text-align: center;">1</td>
-            <td>{customer.get('booking_date', '')}</td>
-            <td>Booking</td>
-            <td>{customer.get('transaction_bank', '')} - {customer.get('transaction_details', '')}</td>
-            <td class="amount">{fmt(booking_amount)}</td>
-        </tr>
-        '''
-    
-    # If still no transactions, show placeholder
+    # If no transactions and no booking amount
     if not transaction_rows:
         transaction_rows = '''
         <tr>
-            <td colspan="5" style="text-align: center; color: #666;">No transactions recorded yet</td>
+            <td colspan="5" style="text-align: center; color: #666; padding: 15px;">No payments received yet</td>
         </tr>
         '''
     
