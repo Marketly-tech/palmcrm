@@ -1753,20 +1753,29 @@ def generate_sales_agreement_template():
             <p>A Private Limited Company having its registered office at:</p>
             <p>4th Floor, RRL TOWERS, Sompura Gate, Sarjapura Road, Bengaluru – 562125</p>
             <p>PAN No. AAKCR4125J</p>
-            <p>Represented by its Managing Director, <strong>MR. RAM R</strong></p>
-            <p>S/o C Rajareddy, Residing at: #23/1, Sarjapura Road, Sompura Gate, Vinayaka Nagar, Sompura, Bengaluru - 562125</p>
-            <p>AADHAAR No: 457278356452 | PAN No.: BELPR1909B</p>
+            <p style="margin-top: 10px;"><strong>Represented by its Managing Director,</strong></p>
+            <p style="margin-left: 20px;"><strong>MR. RAM R</strong></p>
+            <p style="margin-left: 20px;">Aged about 36 years</p>
+            <p style="margin-left: 20px;">S/o C Rajareddy</p>
+            <p style="margin-left: 20px;">Residing at: #23/1, Sarjapura Road, Sompura Gate, Vinayaka Nagar, Sompura, Bengaluru, Karnataka - 562125</p>
+            <p style="margin-left: 20px;">AADHAAR No: 457278356452</p>
+            <p style="margin-left: 20px;">PAN No.: BELPR1909B</p>
         </div>
         
-        <p>Hereinafter referred to as the <strong>'OWNER'</strong> (which expression unless repugnant to the context shall mean and include his heirs, legal representatives, administrators, executors, successors and assigns)</p>
+        <p>Hereinafter referred to as the <strong>'OWNER'</strong> (which expression unless repugnant to the context shall mean and include his heirs, legal representatives, administrators, executors, successors and assigns); and</p>
         
         <div class="party-section">
             <p class="party-title">5. M/s. RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED</p>
             <p>A Private Limited Company having its registered office at:</p>
             <p>4th Floor, RRL TOWERS, Sompura Gate, Sarjapura Road, Bengaluru – 562125</p>
             <p>PAN No. AAKCR4125J</p>
-            <p>Represented by its Managing Director, <strong>MR. RAM R</strong></p>
-            <p>AADHAAR No: 457278356452 | PAN No.: BELPR1909B</p>
+            <p style="margin-top: 10px;"><strong>Represented by its Managing Director,</strong></p>
+            <p style="margin-left: 20px;"><strong>MR. RAM R</strong></p>
+            <p style="margin-left: 20px;">Aged about 36 years</p>
+            <p style="margin-left: 20px;">S/o C. Rajareddy</p>
+            <p style="margin-left: 20px;">Residing at: #23/1, Sarjapura Road, Sompura Gate, Vinayaka Nagar, Sompura, Bengaluru, Karnataka - 562125</p>
+            <p style="margin-left: 20px;">AADHAAR No: 457278356452</p>
+            <p style="margin-left: 20px;">PAN No.: BELPR1909B</p>
         </div>
         
         <p>Hereinafter referred to as the <strong>'BUILDER'</strong> (which expression unless repugnant to the context shall mean and include his successors in office and assigns)</p>
@@ -1847,13 +1856,17 @@ def generate_sales_agreement_template():
         
         <p class="clause">WHEREAS, in pursuance of the above a residential <span class="highlight">{bhk_type}</span> flat bearing Flat No. <span class="highlight">{unit_number}</span>, to be built on the <span class="highlight">{floor_ordinal}</span> Floor measuring about <span class="highlight">{saleable_area}</span> Sq. Ft. of Super Built-up Area, to be built on the Schedule 'A' Property along with one covered Car Parking Space (more fully described herein and hereinafter referred to as the "Schedule 'C' Property") along with <span class="highlight">{uds}</span> Sq. Ft. of Undivided Share, title and interest in the Schedule 'A' Property (morefully described herein and hereinafter referred to as the "Schedule 'B' Property") has fallen into the share of the BUILDER herein.</p>
         
-        <p class="clause">WHEREAS, the ALLOTTEE/S has applied to the BUILDER to purchase the Schedule 'B' Property along with proportionate share in the common areas of the building built on Schedule 'A' Property along with one covered car parking space.</p>
+        <p class="clause">WHEREAS, the ALLOTTEE/S has applied to the BUILDER to purchase the Schedule 'B' Property and Schedule 'C' Property along with proportionate share in the common areas of the building built on Schedule 'A' Property along with one covered car parking space.</p>
         
         <p class="clause">WHEREAS, the VENDORS have allotted Schedule 'B' Property and Schedule 'C' Property in favour of the PURCHASER/S and has intended to sell the same for valuable consideration herein below mentioned.</p>
         
         <p class="clause">WHEREAS the VENDORS have agreed to sell the Schedule 'B' Property and Schedule 'C' Property to the ALLOTTEE/S and the ALLOTTEE/S has/have agreed to purchase the Schedule 'B' Property and Schedule 'C' Property for consideration mentioned herein below and upon such other terms and conditions agreed to between them as detailed herein below.</p>
         
-        <p class="clause">The Parties have gone through all the terms and conditions set out in this Agreement and understood the mutual rights and obligations detailed herein. The Parties hereby confirm that they are signing this Agreement with full knowledge of all the laws, rules, regulations, notifications, etc., applicable to the Project. The Parties, relying on the confirmations, representations and assurances of each other to faithfully abide by all the terms, conditions and stipulations contained in this Agreement and all applicable laws, are now willing to enter into this Agreement on the terms and conditions appearing hereinafter.</p>
+        <p class="clause">The Parties have gone through all the terms and conditions set out in this Agreement and understood the mutual rights and obligations detailed herein.</p>
+        
+        <p class="clause">The Parties hereby confirm that they are signing this Agreement with full knowledge of all the laws, rules, regulations, notifications, etc., applicable to the Project.</p>
+        
+        <p class="clause">The Parties, relying on the confirmations, representations and assurances of each other to faithfully abide by all the terms, conditions and stipulations contained in this Agreement and all applicable laws, are now willing to enter into this Agreement on the terms and conditions appearing hereinafter.</p>
         
         <!-- SECTION II: TERMS AND CONDITIONS -->
         <div class="section-title">II. IT IS HEREBY AGREED BY AND BETWEEN THE PARTIES AS FOLLOWS:</div>
@@ -1878,7 +1891,7 @@ def generate_sales_agreement_template():
         
         <p class="clause"><span class="clause-number">(iii)</span> The payment of sale consideration being the essence of this Agreement, the PURCHASER/S will pay the balance consideration and all amounts payable under this Agreement without any default in accordance with the payment schedule and timelines mentioned hereunder. All such payments shall be made after deduction of applicable TDS (if any).</p>
         
-        <div class="sub-section-title">Payment Schedule and Amount:</div>
+        <div class="sub-section-title">Payment Schedule:</div>
         
         <table class="schedule">
             <thead>
@@ -1897,6 +1910,29 @@ def generate_sales_agreement_template():
                     <td colspan="2" style="color: #D4AF37; font-weight: bold;">TOTAL</td>
                     <td style="color: #D4AF37; font-weight: bold;">100%</td>
                     <td class="amount" style="color: #D4AF37; font-weight: bold;">{total_price_formatted}</td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <div class="sub-section-title">Transaction Details (Payments Received):</div>
+        
+        <table class="schedule">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 20%;">Date</th>
+                    <th style="width: 20%;">Stage</th>
+                    <th style="width: 25%;">Bank / Reference</th>
+                    <th style="width: 30%;">Amount (Rs.)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {transaction_rows}
+            </tbody>
+            <tfoot>
+                <tr style="background: #1A1A1A;">
+                    <td colspan="4" style="color: #D4AF37; font-weight: bold;">TOTAL RECEIVED</td>
+                    <td class="amount" style="color: #D4AF37; font-weight: bold;">{total_received_formatted}</td>
                 </tr>
             </tfoot>
         </table>
@@ -4498,6 +4534,49 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             </tr>
             '''
     
+    # Generate transaction rows for all transactions
+    transaction_rows = ""
+    total_received_amount = 0
+    if transactions and len(transactions) > 0:
+        for i, txn in enumerate(transactions, 1):
+            amount = txn.get('amount', 0) or 0
+            total_received_amount += amount
+            stage = (txn.get('transaction_stage', '') or '').replace('_', ' ').title()
+            txn_date = txn.get('transaction_date', '')
+            bank = txn.get('bank_name', '')
+            txn_no = txn.get('transaction_number', '')
+            
+            transaction_rows += f'''
+            <tr>
+                <td style="text-align: center;">{i}</td>
+                <td>{txn_date}</td>
+                <td>{stage}</td>
+                <td>{bank} - {txn_no}</td>
+                <td class="amount">{fmt(amount)}</td>
+            </tr>
+            '''
+    
+    # If no transactions, show booking amount if available
+    if not transaction_rows and booking_amount > 0:
+        total_received_amount = booking_amount
+        transaction_rows = f'''
+        <tr>
+            <td style="text-align: center;">1</td>
+            <td>{customer.get('booking_date', '')}</td>
+            <td>Booking</td>
+            <td>{customer.get('transaction_bank', '')} - {customer.get('transaction_details', '')}</td>
+            <td class="amount">{fmt(booking_amount)}</td>
+        </tr>
+        '''
+    
+    # If still no transactions, show placeholder
+    if not transaction_rows:
+        transaction_rows = '''
+        <tr>
+            <td colspan="5" style="text-align: center; color: #666;">No transactions recorded yet</td>
+        </tr>
+        '''
+    
     # Get template and fill in values using string replacement to avoid CSS conflicts
     template = generate_sales_agreement_template()
     
@@ -4533,6 +4612,8 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
         '{booking_date}': customer.get('booking_date', ''),
         '{possession_date}': possession_date,
         '{payment_schedule_rows}': payment_schedule_rows,
+        '{transaction_rows}': transaction_rows,
+        '{total_received_formatted}': fmt(total_received_amount),
         '{date}': datetime.now().strftime("%d/%m/%Y"),
         '{customer_id}': customer.get('customer_id', '')
     }
