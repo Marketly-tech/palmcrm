@@ -4488,7 +4488,7 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             </tr>
             '''
     
-    # ==================== TRANSACTION DETAILS (All Payments Received) ====================
+    # ==================== TRANSACTION DETAILS (Booking + Agreement Payments Only) ====================
     transaction_rows = ""
     total_received_amount = 0
     row_num = 1
@@ -4512,26 +4512,29 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
         '''
         row_num += 1
     
-    # Add all other transactions from Payment Tracking
+    # Add ONLY Agreement stage transactions from Payment Tracking
     if transactions and len(transactions) > 0:
         for txn in transactions:
-            amount = txn.get('amount', 0) or 0
-            total_received_amount += amount
-            stage = (txn.get('transaction_stage', '') or '').replace('_', ' ').title()
-            txn_date = txn.get('transaction_date', '')
-            bank = txn.get('bank_name', '')
-            txn_no = txn.get('transaction_number', '')
-            
-            transaction_rows += f'''
-            <tr>
-                <td style="text-align: center;">{row_num}</td>
-                <td>{txn_date}</td>
-                <td>{stage}</td>
-                <td>{bank} - {txn_no}</td>
-                <td class="amount">{fmt(amount)}</td>
-            </tr>
-            '''
-            row_num += 1
+            stage = (txn.get('transaction_stage', '') or '').lower()
+            # Only include agreement stage transactions
+            if stage in ['agreement', 'agreement_amount', 'post_agreement']:
+                amount = txn.get('amount', 0) or 0
+                total_received_amount += amount
+                stage_display = 'Agreement'
+                txn_date = txn.get('transaction_date', '')
+                bank = txn.get('bank_name', '')
+                txn_no = txn.get('transaction_number', '')
+                
+                transaction_rows += f'''
+                <tr>
+                    <td style="text-align: center;">{row_num}</td>
+                    <td>{txn_date}</td>
+                    <td>{stage_display}</td>
+                    <td>{bank} - {txn_no}</td>
+                    <td class="amount">{fmt(amount)}</td>
+                </tr>
+                '''
+                row_num += 1
     
     # If no transactions and no booking amount
     if not transaction_rows:
