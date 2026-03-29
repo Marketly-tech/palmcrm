@@ -1771,7 +1771,11 @@ def generate_sales_agreement_template():
             <p>Aged about 4 years, S/o Yeshaswini N</p>
             <p>Residing at: Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District - 560087</p>
             <p>AADHAAR No: 318812583405 | PAN No.: NA</p>
-            <p>Represented by his natural guardian, mother MRS. YESHASWINI N</p>
+            <p style="margin-top: 10px;">Represented by his natural guardian, mother <strong>MRS. YESHASWINI N</strong></p>
+            <p style="margin-left: 20px;">Aged about 36 years</p>
+            <p style="margin-left: 20px;">D/o Late Narayana Reddy</p>
+            <p style="margin-left: 20px;">Residing at: Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District - 560087</p>
+            <p style="margin-left: 20px;">AADHAAR No: 661099599743 | PAN No.: AUCPY4059M</p>
         </div>
         
         <div class="party-section">
