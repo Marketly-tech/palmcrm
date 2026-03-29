@@ -1435,6 +1435,35 @@ def generate_sales_agreement_template():
             padding: 15px 25px;
         }
         
+        /* Prevent orphans and widows */
+        p, li, td {
+            orphans: 3;
+            widows: 3;
+        }
+        
+        /* Prevent page breaks inside important elements */
+        .party-section, table, .clause, .sub-clause {
+            page-break-inside: avoid;
+        }
+        
+        /* Ensure tables don't break badly */
+        table {
+            page-break-inside: auto;
+        }
+        
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+        
+        thead {
+            display: table-header-group;
+        }
+        
+        tfoot {
+            display: table-footer-group;
+        }
+        
         .header {
             display: flex;
             justify-content: space-between;
@@ -1559,6 +1588,7 @@ def generate_sales_agreement_template():
             border-collapse: collapse;
             margin: 15px 0;
             font-size: 9pt;
+            page-break-inside: auto;
         }
         
         table.schedule th, table.schedule td {
@@ -1571,6 +1601,10 @@ def generate_sales_agreement_template():
             background: #1A1A1A;
             color: #D4AF37;
             font-weight: 500;
+        }
+        
+        table.schedule tr {
+            page-break-inside: avoid;
         }
         
         table.schedule tr:nth-child(even) {
