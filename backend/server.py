@@ -1726,10 +1726,20 @@ def generate_sales_agreement_template():
             text-align: center;
             font-size: 9pt;
             color: #666;
+            page-break-inside: avoid;
         }
         
         .page-break {
             page-break-after: always;
+        }
+        
+        /* Prevent content from overlapping at page boundaries */
+        .section-title, .sub-section-title {
+            page-break-after: avoid;
+        }
+        
+        .party-section {
+            page-break-inside: avoid;
         }
     </style>
 </head>
@@ -1843,7 +1853,9 @@ def generate_sales_agreement_template():
         
         <p class="clause">WHEREAS the OWNERS represent that they are the absolute owners of agricultural land bearing Sy. No. 73/6 (Old Sy. No. 73/5 and Old Old Sy. No. 73) to an extent of 1 Acre 38 Guntas, situated at Jantagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, morefully described in the schedule hereunder mentioned and herein after referred to as the "Schedule Property".</p>
         
-        <p class="clause">Whereas the larger extent of agricultural land measuring 03 – 36 (Acres – Guntas), situated at Sy. No. 73, Jantagondanahalli Village, Sarjapura Hobli, Anekal taluk, Bengaluru Urban District, originally belonged to one Mr. Late Gurappa S/o Nanjappa. Thereafter, one Mr. Late Narayana Reddy @ Narayana @ Narayanappa S/o Mr. Late Gurappa and Nanjappa @ Nanja Reddy S/o Late Gurappa has been in joint possession and enjoyment of larger extent of agricultural land measuring 03 – 36 (Acres – Guntas), in Sy. No. 73, situated at Jantagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District.</p>
+        <p class="clause">Whereas the larger extent of agricultural land measuring 03 – 36 (Acres – Guntas), situated at Sy. No. 73, Jantagondanahalli Village, Sarjapura Hobli, Anekal taluk, Bengaluru Urban District, originally belonged to one Mr. Late Gurappa S/o Nanjappa.</p>
+        
+        <p class="clause">Thereafter, one Mr. Late Narayana Reddy @ Narayana @ Narayanappa S/o Mr. Late Gurappa and Nanjappa @ Nanja Reddy S/o Late Gurappa has been in joint possession and enjoyment of larger extent of agricultural land measuring 03 – 36 (Acres – Guntas), in Sy. No. 73, situated at Jantagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District.</p>
         
         <p class="clause">Thereafter, Mr. Late Narayana Reddy @ Narayana @ Narayanappa, S/o Mr. Late Gurappa, more specifically has been in enjoyment and possession of 02 – 1 ½ (Acres – Guntas) in Sy. No. 73, situated at Jantagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, by way of family arrangement.</p>
         
@@ -2216,7 +2228,7 @@ def generate_sales_agreement_template():
                 </div>
             </div>
             
-            <div class="witness-section">
+            <div class="witness-section" style="page-break-inside: avoid;">
                 <p><strong>WITNESSES:</strong></p>
                 <div class="signature-row" style="margin-top: 20px;">
                     <div class="signature-box">
@@ -2234,7 +2246,7 @@ def generate_sales_agreement_template():
         </div>
     </div>
     
-    <div class="footer">
+    <div class="footer" style="page-break-inside: avoid;">
         <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
         <p>4th Floor, RRL TOWERS, Sompura Gate, Sarjapura Road, Bengaluru – 562125</p>
         <p>www.rrlbuildersanddevelopers.com | RERA: PRM/KA/RERA/1251/308/PR/141025/008167</p>
