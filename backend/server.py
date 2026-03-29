@@ -2873,6 +2873,795 @@ def generate_price_breakup_html(customer: dict) -> str:
     '''
     return html
 
+
+
+def generate_booking_form_preview_html(customer: dict) -> str:
+    """Generate a PDF preview of the submitted booking form with all customer data"""
+    
+    # Format dates
+    booking_date = customer.get('booking_date', '')
+    if booking_date and '-' in str(booking_date):
+        try:
+            dt = datetime.strptime(str(booking_date), "%Y-%m-%d")
+            booking_date = dt.strftime("%d/%m/%Y")
+        except (ValueError, TypeError):
+            pass
+    
+    dob = customer.get('date_of_birth', '')
+    if dob and '-' in str(dob):
+        try:
+            dt = datetime.strptime(str(dob), "%Y-%m-%d")
+            dob = dt.strftime("%d/%m/%Y")
+        except (ValueError, TypeError):
+            pass
+    
+    # Format amounts
+    def format_currency(amount):
+        try:
+            return f"₹ {float(amount or 0):,.2f}"
+        except (ValueError, TypeError):
+            return "₹ 0.00"
+    
+    # Get gender display
+    gender = customer.get('gender', '')
+    if gender == 'male':
+        gender_display = 'Male (S/o)'
+    elif gender == 'female':
+        gender_display = 'Female (D/o)'
+    elif gender == 'spouse':
+        gender_display = 'Spouse (W/o)'
+    else:
+        gender_display = gender or '-'
+    
+    # Finance type display
+    finance_type = customer.get('finance_type', 'self')
+    finance_display = {
+        'self': 'Self Funded',
+        'loan': 'Bank Loan',
+        'mixed': 'Mixed (Self + Loan)'
+    }.get(finance_type, finance_type)
+    
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+            
+            body {{
+                font-family: 'Roboto', sans-serif;
+                background: #fff;
+                padding: 20px 30px;
+                margin: 0;
+                color: #1A1A1A;
+                font-size: 11px;
+                line-height: 1.4;
+            }}
+            
+            .header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding-bottom: 15px;
+                border-bottom: 3px solid #D4AF37;
+                margin-bottom: 20px;
+            }}
+            
+            .logo-section {{
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            
+            .logo {{
+                width: 45px;
+                height: 45px;
+                background: linear-gradient(135deg, #1A1A1A 0%, #333 100%);
+                color: #D4AF37;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 16px;
+                border-radius: 6px;
+            }}
+            
+            .company-name {{
+                font-size: 16px;
+                font-weight: 700;
+                color: #1A1A1A;
+            }}
+            
+            .company-tagline {{
+                font-size: 9px;
+                color: #D4AF37;
+                font-style: italic;
+            }}
+            
+            .document-title {{
+                font-size: 18px;
+                font-weight: 700;
+                color: #1A1A1A;
+                text-align: right;
+            }}
+            
+            .document-subtitle {{
+                font-size: 10px;
+                color: #666;
+                text-align: right;
+            }}
+            
+            .section {{
+                margin-bottom: 15px;
+                background: #fafafa;
+                padding: 12px;
+                border-radius: 6px;
+                border: 1px solid #eee;
+            }}
+            
+            .section-title {{
+                font-size: 12px;
+                font-weight: 700;
+                color: #1A1A1A;
+                border-bottom: 2px solid #D4AF37;
+                padding-bottom: 6px;
+                margin-bottom: 10px;
+            }}
+            
+            .info-grid {{
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }}
+            
+            .info-grid-2 {{
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }}
+            
+            .info-item {{
+                padding: 4px 0;
+            }}
+            
+            .info-label {{
+                color: #666;
+                font-size: 9px;
+                display: block;
+                margin-bottom: 2px;
+            }}
+            
+            .info-value {{
+                font-weight: 500;
+                color: #1A1A1A;
+                font-size: 11px;
+            }}
+            
+            .highlight {{
+                color: #D4AF37;
+                font-weight: 600;
+            }}
+            
+            .price-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 8px;
+            }}
+            
+            .price-table th, .price-table td {{
+                padding: 8px;
+                text-align: left;
+                font-size: 10px;
+            }}
+            
+            .price-table th {{
+                background: #1A1A1A;
+                color: #D4AF37;
+                font-weight: 500;
+            }}
+            
+            .price-table td {{
+                border-bottom: 1px solid #e0e0e0;
+            }}
+            
+            .price-table .total-row {{
+                background: #1A1A1A !important;
+                color: #D4AF37;
+                font-weight: 700;
+            }}
+            
+            .price-table .amount {{
+                text-align: right;
+            }}
+            
+            .footer {{
+                margin-top: 20px;
+                padding-top: 10px;
+                border-top: 2px solid #D4AF37;
+                font-size: 9px;
+                color: #666;
+            }}
+            
+            .signature-section {{
+                margin-top: 30px;
+                display: flex;
+                justify-content: space-between;
+            }}
+            
+            .signature-box {{
+                text-align: center;
+                width: 200px;
+            }}
+            
+            .signature-line {{
+                border-top: 1px solid #333;
+                margin-top: 40px;
+                padding-top: 5px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="logo-section">
+                <div class="logo">RRL</div>
+                <div>
+                    <div class="company-name">RRL Builders and Developers</div>
+                    <div class="company-tagline">Beyond homes. A lifestyle</div>
+                </div>
+            </div>
+            <div>
+                <div class="document-title">Booking Form Preview</div>
+                <div class="document-subtitle">Customer ID: {customer.get('customer_id', '-')}</div>
+            </div>
+        </div>
+        
+        <!-- Primary Applicant Details -->
+        <div class="section">
+            <div class="section-title">Primary Applicant Details</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Full Name</span>
+                    <span class="info-value">{customer.get('name', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Father's/Husband's Name</span>
+                    <span class="info-value">{customer.get('father_name', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Gender</span>
+                    <span class="info-value">{gender_display}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Date of Birth</span>
+                    <span class="info-value">{dob or '-'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Phone Number</span>
+                    <span class="info-value">{customer.get('phone', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Email Address</span>
+                    <span class="info-value">{customer.get('email', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">PAN Number</span>
+                    <span class="info-value">{customer.get('pan_number', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Aadhaar Number</span>
+                    <span class="info-value">{customer.get('aadhar_number', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Nationality</span>
+                    <span class="info-value">{customer.get('nationality', 'Indian')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Company</span>
+                    <span class="info-value">{customer.get('company', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Designation</span>
+                    <span class="info-value">{customer.get('designation', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Profession</span>
+                    <span class="info-value">{customer.get('profession', '-')}</span>
+                </div>
+            </div>
+            <div class="info-grid-2" style="margin-top: 8px;">
+                <div class="info-item">
+                    <span class="info-label">Permanent Address</span>
+                    <span class="info-value">{customer.get('address', '-')}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Co-Applicant Details (if exists) -->
+        {f"""
+        <div class="section">
+            <div class="section-title">Co-Applicant Details</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Full Name</span>
+                    <span class="info-value">{customer.get('co_applicant_name', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Father's/Husband's Name</span>
+                    <span class="info-value">{customer.get('co_applicant_father_name', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Phone Number</span>
+                    <span class="info-value">{customer.get('co_applicant_phone', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Email Address</span>
+                    <span class="info-value">{customer.get('co_applicant_email', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">PAN Number</span>
+                    <span class="info-value">{customer.get('co_applicant_pan', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Aadhaar Number</span>
+                    <span class="info-value">{customer.get('co_applicant_aadhar', '-')}</span>
+                </div>
+            </div>
+            <div class="info-grid-2" style="margin-top: 8px;">
+                <div class="info-item">
+                    <span class="info-label">Address</span>
+                    <span class="info-value">{customer.get('co_applicant_address', '-')}</span>
+                </div>
+            </div>
+        </div>
+        """ if customer.get('co_applicant_name') else ''}
+        
+        <!-- Property Details -->
+        <div class="section">
+            <div class="section-title">Property Details</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Project</span>
+                    <span class="info-value highlight">{customer.get('project', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Tower</span>
+                    <span class="info-value">{customer.get('tower', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Unit Number</span>
+                    <span class="info-value highlight">{customer.get('unit_number', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">BHK Type</span>
+                    <span class="info-value">{customer.get('bhk_type', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Floor</span>
+                    <span class="info-value">{customer.get('floor', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Saleable Area</span>
+                    <span class="info-value">{customer.get('saleable_area', 0)} sq.ft</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">UDS</span>
+                    <span class="info-value">{customer.get('uds', '-')} sq.ft</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Parking</span>
+                    <span class="info-value">{customer.get('parking', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Additional Parking</span>
+                    <span class="info-value">{customer.get('additional_parking', 0)}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Price Details -->
+        <div class="section">
+            <div class="section-title">Price Details</div>
+            <table class="price-table">
+                <tr>
+                    <th>Description</th>
+                    <th class="amount">Amount</th>
+                </tr>
+                <tr>
+                    <td>Rate per sq.ft</td>
+                    <td class="amount">{format_currency(customer.get('rate_per_sqft', 0))}</td>
+                </tr>
+                <tr>
+                    <td>Base Price ({customer.get('saleable_area', 0)} sq.ft × {format_currency(customer.get('rate_per_sqft', 0))})</td>
+                    <td class="amount">{format_currency(customer.get('base_price', 0))}</td>
+                </tr>
+                <tr>
+                    <td>Floor Rise Total</td>
+                    <td class="amount">{format_currency(customer.get('floor_rise_total', 0))}</td>
+                </tr>
+                <tr>
+                    <td>Club House Charges</td>
+                    <td class="amount">{format_currency(customer.get('club_house_charges', 200000))}</td>
+                </tr>
+                <tr>
+                    <td>Additional Charges</td>
+                    <td class="amount">{format_currency(customer.get('additional_charges', 0))}</td>
+                </tr>
+                <tr>
+                    <td>Labour Cess (0.70%)</td>
+                    <td class="amount">{format_currency(customer.get('labour_cess', 0))}</td>
+                </tr>
+                <tr>
+                    <td>GST (5%)</td>
+                    <td class="amount">{format_currency(customer.get('gst_amount', 0))}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Total Flat Value</strong></td>
+                    <td class="amount"><strong>{format_currency(customer.get('total_price', 0))}</strong></td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Booking & Finance Details -->
+        <div class="section">
+            <div class="section-title">Booking & Finance Details</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Booking Date</span>
+                    <span class="info-value">{booking_date or '-'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Booking Amount</span>
+                    <span class="info-value highlight">{format_currency(customer.get('booking_amount', 0))}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Finance Type</span>
+                    <span class="info-value">{finance_display}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Finance Bank</span>
+                    <span class="info-value">{customer.get('finance_bank', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Transaction Reference</span>
+                    <span class="info-value">{customer.get('transaction_details', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Transaction Bank</span>
+                    <span class="info-value">{customer.get('transaction_bank', '-')}</span>
+                </div>
+            </div>
+            {f'<div class="info-item" style="margin-top: 8px;"><span class="info-label">Remarks</span><span class="info-value">{customer.get("remarks", "-")}</span></div>' if customer.get('remarks') else ''}
+        </div>
+        
+        <!-- Signature Section -->
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line">Customer Signature</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line">For RRL Builders</div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This is a system-generated booking form preview. Please verify all details are correct.</p>
+            <p><strong>RRL Builders and Developers Pvt. Ltd.</strong> | Toll Free: 1800-102-8182 | www.rrlbuilders.in</p>
+        </div>
+    </body>
+    </html>
+    '''
+    return html
+
+
+def generate_terms_and_conditions_html(customer: dict) -> str:
+    """Generate a Terms and Conditions PDF with the allotment letter terms"""
+    
+    project = customer.get('project', 'RRL Palm Altezze')
+    customer_name = customer.get('name', 'Customer')
+    unit_number = customer.get('unit_number', '')
+    
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+            
+            body {{
+                font-family: 'Roboto', sans-serif;
+                background: #fff;
+                padding: 20px 35px;
+                margin: 0;
+                color: #1A1A1A;
+                font-size: 10px;
+                line-height: 1.5;
+            }}
+            
+            .header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding-bottom: 15px;
+                border-bottom: 3px solid #D4AF37;
+                margin-bottom: 20px;
+            }}
+            
+            .logo-section {{
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            
+            .logo {{
+                width: 40px;
+                height: 40px;
+                background: linear-gradient(135deg, #1A1A1A 0%, #333 100%);
+                color: #D4AF37;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 14px;
+                border-radius: 6px;
+            }}
+            
+            .company-name {{
+                font-size: 14px;
+                font-weight: 700;
+                color: #1A1A1A;
+            }}
+            
+            .company-tagline {{
+                font-size: 8px;
+                color: #D4AF37;
+                font-style: italic;
+            }}
+            
+            .document-title {{
+                font-size: 16px;
+                font-weight: 700;
+                color: #1A1A1A;
+                text-align: right;
+            }}
+            
+            .intro {{
+                margin-bottom: 15px;
+                padding: 10px;
+                background: #f9f9f9;
+                border-left: 3px solid #D4AF37;
+            }}
+            
+            .terms-list {{
+                counter-reset: term-counter;
+            }}
+            
+            .term-item {{
+                margin-bottom: 10px;
+                padding: 8px 10px;
+                background: #fafafa;
+                border-radius: 4px;
+                border-left: 2px solid #e0e0e0;
+            }}
+            
+            .term-item:hover {{
+                border-left-color: #D4AF37;
+            }}
+            
+            .term-number {{
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                background: #1A1A1A;
+                color: #D4AF37;
+                border-radius: 50%;
+                text-align: center;
+                line-height: 20px;
+                font-weight: 600;
+                font-size: 9px;
+                margin-right: 8px;
+            }}
+            
+            .term-text {{
+                display: inline;
+            }}
+            
+            .highlight {{
+                color: #D4AF37;
+                font-weight: 600;
+            }}
+            
+            .bank-details {{
+                margin: 10px 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+            }}
+            
+            .bank-details p {{
+                margin: 3px 0;
+            }}
+            
+            .acceptance {{
+                margin-top: 20px;
+                padding: 12px;
+                background: #1A1A1A;
+                color: #fff;
+                border-radius: 6px;
+            }}
+            
+            .acceptance .highlight {{
+                color: #D4AF37;
+            }}
+            
+            .signature-section {{
+                margin-top: 30px;
+                display: flex;
+                justify-content: space-between;
+            }}
+            
+            .signature-box {{
+                text-align: center;
+                width: 180px;
+            }}
+            
+            .signature-line {{
+                border-top: 1px solid #333;
+                margin-top: 35px;
+                padding-top: 5px;
+                font-size: 9px;
+            }}
+            
+            .footer {{
+                margin-top: 15px;
+                padding-top: 10px;
+                border-top: 2px solid #D4AF37;
+                font-size: 8px;
+                color: #666;
+                text-align: center;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="logo-section">
+                <div class="logo">RRL</div>
+                <div>
+                    <div class="company-name">RRL Builders and Developers</div>
+                    <div class="company-tagline">Beyond homes. A lifestyle</div>
+                </div>
+            </div>
+            <div class="document-title">Terms & Conditions</div>
+        </div>
+        
+        <div class="intro">
+            <p>The following Terms and Conditions govern the allotment of <span class="highlight">Unit No. {unit_number}</span> 
+            in project <span class="highlight">{project}</span> to <span class="highlight">Mr./Mrs. {customer_name}</span>. 
+            Please read carefully and acknowledge your understanding and acceptance.</p>
+        </div>
+        
+        <div class="terms-list">
+            <div class="term-item">
+                <span class="term-number">1</span>
+                <span class="term-text">In consideration of and subject to the Allottee(s) complying with the terms and conditions of this letter, executing and registering necessary documents and agreements under applicable law, and agreeing to make and making timely payment of amounts due, the developer allots the Flat in the project "{project}" in the favour of <span class="highlight">Mr./Mrs. {customer_name}</span>.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">2</span>
+                <span class="term-text">All payments to be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) mode drawn in favor of/to the account of <strong>"RRL BUILDERS AND DEVELOPERS PVT LTD"</strong></span>
+                <div class="bank-details">
+                    <p><strong>Bank:</strong> Axis Bank</p>
+                    <p><strong>Account No:</strong> 922020009963054</p>
+                    <p><strong>IFSC:</strong> UTIB0001504</p>
+                    <p><strong>Branch:</strong> Kudlu Gate, Bangalore</p>
+                </div>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">3</span>
+                <span class="term-text">The Allottee shall be liable to pay the total sale consideration (more fully described in the cost sheet) and other charges as specified herein together with the applicable government taxes and levies as per the payment plan annexed herewith, time being of the essence.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">4</span>
+                <span class="term-text">The Allottee has applied for booking and allotment of Flat being fully aware of the cost of the Flat, and also of the tax regime of GST. The Applicant also confirms that he/she shall not claim any GST credit and/or claim any reduction in price of the Flat due to application of GST.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">5</span>
+                <span class="term-text">To avoid penal consequences under the Income Tax Act 1961, the Allottee is required to comply with provisions of section 194IA of the Income Tax Act, 1961, by deduction Tax at Source (TDS) at the prevailing rate from installment/payment. The Allottee shall be required to submit TDS Certificate and challan showing proof of deposition of the same within 7 (Seven) days from the date of tax so deposited to the Developer.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">6</span>
+                <span class="term-text">Taxation particulars of Developer: PAN - AADCR1969A | GST - 29AADCR1969A1ZW</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">7</span>
+                <span class="term-text">If the upfront advance is paid by cheque, the confirmation of allotment is conditional upon realization of the cheque and funds being credited to the developer's account within 7 (Seven) days. In the event the cheque is dishonored, penalty charges will apply as per company policy.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">8</span>
+                <span class="term-text">In the event of cancellation and/or termination, the Allottee agrees to forfeit, in the Developer's favor, the application amount paid plus an amount equal to 5% (Five percent) of the Total Sale Consideration and GST amounts paid. The balance amount shall be refunded within 60 days from the resale of the unit.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">9</span>
+                <span class="term-text">Stamp duty and registration charges on actuals and as per prevailing rates shall be payable by the Allottee over and above the Total Sale Consideration.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">10</span>
+                <span class="term-text">In the event any amount by the Allottee is prepaid, the Developer is entitled to retain and adjust the balance/excess amounts received against the next installment due, without paying any interest on such additional amounts.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">11</span>
+                <span class="term-text">For this Project, the schedule of payments is linked to stage-wise completion of the Flat. The payment schedule will also be included as an annexure to the agreement of sale.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">12</span>
+                <span class="term-text">Any delay or default in payment by the Allottee will attract penal interest as per the Rules on the Outstanding amount calculated from the applicable due dates till the date of actual receipt.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">13</span>
+                <span class="term-text">This Letter is neither transferable nor assignable, without the Developer's prior written consent and upon payment of administrative charges as may be specified.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">14</span>
+                <span class="term-text">Pre EMI (Interest Only) will be paid by the builder till the completion of the flat or ready for interior. Rate of interest will be calculated considering 30-year tenure irrespective of client's tenure period.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">15</span>
+                <span class="term-text"><strong>Guidelines for External Vendors:</strong> Should you choose to engage a service provider other than the In-House Team, please be advised that a Security Deposit of Rs.2,00,000 (Two Lakhs) must be maintained. The flat owner remains fully liable for any damages caused by their vendor to the premises.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">16</span>
+                <span class="term-text">Maintenance will be collected for 12 months at Rs. 3 Per sqft per month, payable before registration along with GST 18%. Corpus fund collected for 12 months at Rs. 2.5 Per sqft per month. Car parking will be allotted on sequential basis.</span>
+            </div>
+            
+            <div class="term-item">
+                <span class="term-number">17</span>
+                <span class="term-text">These terms and conditions shall be deemed to be an integral part of the duly executed agreement for sale. Any disputes shall be referred exclusively to the jurisdictional Real Estate Regulatory Authority (RERA Karnataka).</span>
+            </div>
+        </div>
+        
+        <div class="acceptance">
+            <p>I/We, <span class="highlight">Mr./Mrs. {customer_name}</span> have fully read and understood the terms and conditions as set out in this document. I/We undertake to abide by such terms and conditions including any amendment therein from time to time. I/We further declare that the details/information provided are true and correct.</p>
+        </div>
+        
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line">Customer Signature</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line">Co-Applicant Signature</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line">For RRL Builders</div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
+            <p>RERA No: PRM/KA/RERA/1251/308/PR/141025/008167 | CIN: U70109KA2015PTC081706</p>
+            <p>Toll Free: 1800-102-8182 | www.rrlbuilders.in</p>
+        </div>
+    </body>
+    </html>
+    '''
+    return html
+
+
 def generate_welcome_email_html(customer: dict) -> str:
     """Generate the welcome email HTML with black and gold theme"""
     
@@ -3938,7 +4727,10 @@ def get_ordinal_suffix(day):
 @api_router.post("/communication/send-welcome-email/{customer_id}")
 async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_user)):
     """
-    Send Welcome Email with Price Breakup PDF attachment via SendGrid.
+    Send Welcome Email with 3 PDF attachments via SendGrid:
+    1. Booking Form Preview - Shows all submitted form data
+    2. Terms & Conditions - Allotment letter terms
+    3. Price Breakup - Detailed price calculation
     """
     customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
     if not customer:
@@ -3947,8 +4739,10 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
     # Generate welcome email HTML
     welcome_html = generate_welcome_email_html(customer)
     
-    # Generate price breakup HTML (for PDF attachment)
+    # Generate all PDF HTMLs
     price_breakup_html = generate_price_breakup_html(customer)
+    form_preview_html = generate_booking_form_preview_html(customer)
+    terms_conditions_html = generate_terms_and_conditions_html(customer)
     
     # Store the welcome email document
     welcome_doc = GeneratedDocument(
@@ -3974,13 +4768,19 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
     price_doc_dict['generated_at'] = price_doc_dict['generated_at'].isoformat()
     await db.generated_documents.insert_one(price_doc_dict)
     
-    filename = f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf"
+    # File names for attachments
+    customer_name_safe = customer.get('name', 'Customer').replace(' ', '_')
+    filename_form_preview = f"RRL_BookingFormPreview_{customer_name_safe}.pdf"
+    filename_terms = f"RRL_TermsAndConditions_{customer_name_safe}.pdf"
+    filename_price = f"RRL_PriceBreakup_{customer_name_safe}.pdf"
+    
     recipient_email = customer.get('email')
-    subject = f"Welcome to {customer.get('project', 'RRL Builders')} - Booking Confirmation"
+    subject = f"Welcome to {customer.get('project', 'RRL Builders')} - Booking Confirmation & Documents"
     
     # Send via SendGrid if configured
     email_status = "pending"
     sendgrid_response = None
+    attachments_added = []
     
     if SENDGRID_API_KEY:
         try:
@@ -3991,29 +4791,67 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
                 html_content=welcome_html
             )
             
-            # Generate and attach Price Breakup PDF
+            # 1. Generate and attach Booking Form Preview PDF
             try:
-                pdf_bytes = HTML(string=price_breakup_html).write_pdf()
-                encoded_pdf = base64.b64encode(pdf_bytes).decode()
+                form_pdf_bytes = HTML(string=form_preview_html).write_pdf()
+                encoded_form_pdf = base64.b64encode(form_pdf_bytes).decode()
                 
-                attachment = Attachment(
-                    FileContent(encoded_pdf),
-                    FileName(filename),
+                form_attachment = Attachment(
+                    FileContent(encoded_form_pdf),
+                    FileName(filename_form_preview),
                     FileType('application/pdf'),
                     Disposition('attachment')
                 )
-                message.add_attachment(attachment)
-                logger.info(f"Added Price Breakup attachment: {filename}")
+                message.add_attachment(form_attachment)
+                attachments_added.append(filename_form_preview)
+                logger.info(f"Added Booking Form Preview attachment: {filename_form_preview}")
             except Exception as pdf_error:
-                logger.error(f"Error generating PDF attachment: {str(pdf_error)}")
+                logger.error(f"Error generating Form Preview PDF: {str(pdf_error)}")
+            
+            # 2. Generate and attach Terms & Conditions PDF
+            try:
+                terms_pdf_bytes = HTML(string=terms_conditions_html).write_pdf()
+                encoded_terms_pdf = base64.b64encode(terms_pdf_bytes).decode()
+                
+                terms_attachment = Attachment(
+                    FileContent(encoded_terms_pdf),
+                    FileName(filename_terms),
+                    FileType('application/pdf'),
+                    Disposition('attachment')
+                )
+                message.add_attachment(terms_attachment)
+                attachments_added.append(filename_terms)
+                logger.info(f"Added Terms & Conditions attachment: {filename_terms}")
+            except Exception as pdf_error:
+                logger.error(f"Error generating Terms & Conditions PDF: {str(pdf_error)}")
+            
+            # 3. Generate and attach Price Breakup PDF
+            try:
+                price_pdf_bytes = HTML(string=price_breakup_html).write_pdf()
+                encoded_price_pdf = base64.b64encode(price_pdf_bytes).decode()
+                
+                price_attachment = Attachment(
+                    FileContent(encoded_price_pdf),
+                    FileName(filename_price),
+                    FileType('application/pdf'),
+                    Disposition('attachment')
+                )
+                message.add_attachment(price_attachment)
+                attachments_added.append(filename_price)
+                logger.info(f"Added Price Breakup attachment: {filename_price}")
+            except Exception as pdf_error:
+                logger.error(f"Error generating Price Breakup PDF: {str(pdf_error)}")
             
             sg = SendGridAPIClient(SENDGRID_API_KEY)
             response = sg.send(message)
             
             if response.status_code in [200, 201, 202]:
                 email_status = "sent"
-                sendgrid_response = {"status_code": response.status_code, "body": "Email sent successfully with attachment"}
-                logger.info(f"Welcome email sent to {recipient_email} with Price Breakup PDF - Status: {response.status_code}")
+                sendgrid_response = {
+                    "status_code": response.status_code, 
+                    "body": f"Email sent successfully with {len(attachments_added)} attachments"
+                }
+                logger.info(f"Welcome email sent to {recipient_email} with {len(attachments_added)} PDFs - Status: {response.status_code}")
             else:
                 email_status = "failed"
                 sendgrid_response = {"status_code": response.status_code, "error": "Unexpected status code"}
@@ -4025,6 +4863,7 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
             logger.error(f"SendGrid error sending email to {recipient_email}: {str(e)}")
     else:
         email_status = "mocked (no API key)"
+        attachments_added = [filename_form_preview, filename_terms, filename_price]
         logger.warning("SendGrid API key not configured - email not sent")
     
     # Log communication
@@ -4038,7 +4877,10 @@ Subject: {subject}
 
 [Welcome Email HTML Body]
 
-Attachment: {filename}
+Attachments:
+1. {filename_form_preview} (Booking Form Preview)
+2. {filename_terms} (Terms & Conditions)
+3. {filename_price} (Price Breakup)
         """,
         status=email_status,
         sent_by=user['id']
@@ -4055,7 +4897,7 @@ Attachment: {filename}
             {"$set": {"stage": "qualified", "updated_at": datetime.now(timezone.utc).isoformat()}}
         )
     
-    await log_activity(user['id'], user['name'], "send", "welcome_email", customer_id, f"Sent welcome email to {recipient_email} - Status: {email_status}")
+    await log_activity(user['id'], user['name'], "send", "welcome_email", customer_id, f"Sent welcome email to {recipient_email} with 3 PDFs - Status: {email_status}")
     
     return {
         "message": f"Welcome email {email_status}",
@@ -4063,7 +4905,7 @@ Attachment: {filename}
         "price_breakup_doc_id": price_doc.id,
         "email_to": recipient_email,
         "email_status": email_status,
-        "attachment_filename": filename,
+        "attachments": attachments_added,
         "sendgrid_response": sendgrid_response
     }
 
