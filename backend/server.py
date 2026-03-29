@@ -3346,7 +3346,7 @@ def generate_booking_form_preview_html(customer: dict) -> str:
         
         <div class="footer">
             <p>This is a system-generated booking form preview. Please verify all details are correct.</p>
-            <p><strong>RRL Builders and Developers Pvt. Ltd.</strong> | Toll Free: 1800-102-8182 | www.rrlbuilders.in</p>
+            <p><strong>RRL Builders and Developers Pvt. Ltd.</strong> | www.rrlbuilders.in</p>
         </div>
     </body>
     </html>
@@ -3654,7 +3654,7 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
         <div class="footer">
             <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
             <p>RERA No: PRM/KA/RERA/1251/308/PR/141025/008167 | CIN: U70109KA2015PTC081706</p>
-            <p>Toll Free: 1800-102-8182 | www.rrlbuilders.in</p>
+            <p>www.rrlbuilders.in</p>
         </div>
     </body>
     </html>
