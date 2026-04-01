@@ -57,7 +57,8 @@ from documents.templates import (
     generate_booking_form_preview_html, generate_terms_and_conditions_html,
     generate_welcome_email_html, generate_document_email_html,
     generate_sales_agreement_html, generate_allotment_letter_html,
-    generate_payment_schedule_pdf_html, generate_payment_schedule_html
+    generate_payment_schedule_pdf_html, generate_payment_schedule_html,
+    generate_demand_letter_html
 )
 
 ROOT_DIR = Path(__file__).parent
@@ -1456,6 +1457,18 @@ async def generate_document(data: DocumentGenerate, user: dict = Depends(get_cur
         content = generate_noc_bob_html(customer)
     elif data.doc_type == DocumentType.NOC_TATA:
         content = generate_noc_tata_html(customer)
+    elif data.doc_type == DocumentType.DEMAND_LETTER:
+        # Fetch transactions
+        transactions = await db.payment_transactions.find(
+            {"customer_id": data.customer_id}, {"_id": 0}
+        ).sort("transaction_date", 1).to_list(1000)
+        # Fetch current construction stage from settings
+        settings = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+        stage_info = {}
+        if settings and settings.get("current_stage"):
+            stage_key = settings.get("current_stage")
+            stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), {})
+        content = generate_demand_letter_html(customer, transactions, stage_info)
     else:
         # For other document types, use template-based generation
         template = await db.document_templates.find_one({"doc_type": data.doc_type.value}, {"_id": 0})

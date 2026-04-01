@@ -1,0 +1,113 @@
+{
+  "summary": "Demand Letter document generation feature tested successfully. Backend: 14/14 tests passed (100%). Frontend: All features working - dropdown shows Demand Letter option, generation works with success toast, preview displays correct HTML content with all required sections.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dashboard charts",
+        "issues": ["Console warning: Chart width/height -1 - minor recharts sizing issue (pre-existing)"]
+      },
+      {
+        "screen": "Dialog components",
+        "issues": ["Console warning: Missing Description or aria-describedby for DialogContent - accessibility improvement needed (pre-existing)"]
+      }
+    ]
+  },
+  "features_tested": {
+    "1_backend_demand_letter_generation": {
+      "status": "PASS",
+      "details": [
+        "POST /api/documents/generate with doc_type=demand_letter returns 200",
+        "Generated HTML contains DEMAND LETTER title",
+        "Generated HTML contains customer name (uppercase)",
+        "Generated HTML contains property reference (flat, tower, floor)",
+        "Generated HTML contains payment breakdown table with 10 rows",
+        "Generated HTML contains amount in words (Rupees ... Only)",
+        "Generated HTML contains HDFC bank remittance details",
+        "Generated HTML contains closing signature",
+        "Generated HTML contains RRL branding header"
+      ]
+    },
+    "2_backend_financial_calculations": {
+      "status": "PASS",
+      "details": [
+        "Total Basic Cost calculated from customer.total_price",
+        "Demand Raised Till Date = cumulative % of total basic cost",
+        "Current Due = stage % of total basic cost",
+        "Amount Paid calculated from transactions",
+        "Total Outstanding = Demand Raised - Amount Paid",
+        "Net Amount Payable = Total Outstanding - TDS Payable"
+      ]
+    },
+    "3_backend_document_list": {
+      "status": "PASS",
+      "details": [
+        "Generated demand letter appears in GET /api/documents/{customer_id}",
+        "Document has content field for frontend preview"
+      ]
+    },
+    "4_frontend_dropdown_option": {
+      "status": "PASS",
+      "details": [
+        "Generate Document dialog opens correctly",
+        "Document Type dropdown shows 'Demand Letter' option",
+        "Other options also present: Sales Agreement, Allotment Letter, Price Breakup, Cost Breakup, Disbursement Letter, Payment Schedule"
+      ]
+    },
+    "5_frontend_document_generation": {
+      "status": "PASS",
+      "details": [
+        "Selecting Demand Letter and clicking Generate works",
+        "Success toast 'Document generated' appears",
+        "Generated demand letter appears in document list"
+      ]
+    },
+    "6_frontend_document_preview": {
+      "status": "PASS",
+      "details": [
+        "Preview button opens Document Preview dialog",
+        "Preview shows RRL branding header with logo",
+        "Preview shows DEMAND LETTER title in gold bar",
+        "Preview shows customer name and address",
+        "Preview shows property reference",
+        "Preview shows Payment Stage label (On Completion of Podium Slab — 40% Total Basic Cost)",
+        "Preview shows payment breakdown table with all rows",
+        "Preview shows bank details section"
+      ]
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_demand_letter.py",
+    "/app/test_reports/pytest/pytest_demand_letter.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Demand letter template correctly implements all required sections from the DOCX template",
+    "Financial calculations properly use customer data, transactions, and current construction stage",
+    "Frontend DocumentsTab.jsx correctly includes demand_letter in dropdown options",
+    "Backend server.py properly handles DEMAND_LETTER case in document generation endpoint"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_demand_letter.py"
+  ],
+  "success_rate": {
+    "backend": "100% - 14/14 tests passed",
+    "frontend": "100% - All 6 features tested and working"
+  },
+  "test_credentials": {
+    "admin_email": "crm@rrlbuildersanddevelopers.com",
+    "admin_password": "#RRLnew2026",
+    "test_customer_name": "Ramya test lead",
+    "test_customer_id": "6d902613-5106-4294-bc3e-b907f85127f7"
+  },
+  "seed_data_creation": "None - used existing test customer as instructed",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Demand Letter document generation feature fully implemented and tested. Backend generates HTML with RRL branding, customer details, property reference, payment stage, 10-row payment breakdown table, amount in words, and HDFC bank details. Frontend dropdown includes demand_letter option, generation works with success toast, and preview displays correct HTML content. Current construction stage is 'podium' (40% cumulative). Test file at /app/backend/tests/test_demand_letter.py for regression testing.",
+  "mocked_integrations": ["WhatsApp via Twilio - uses whatsapp:// link placeholder"]
+}
