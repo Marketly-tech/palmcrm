@@ -193,7 +193,10 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ### P1 - High Priority
 1. ~~**Data Import from Excel**~~ ✅ COMPLETED
 2. **Test Application with Real Data** - Generate documents, send emails for production customers
-3. **Frontend Refactoring** - Decompose CustomerDetailPage.js (2700+ lines)
+3. **Frontend Refactoring** - Decompose CustomerDetailPage.js (IN PROGRESS)
+   - ✅ NotesTab extracted and integrated
+   - Created: UploadsTab, CommunicationTab, PaymentTrackingCard, TransactionsCard, DocumentsTab, PaymentScheduleTab, ChecklistTab
+   - Remaining: Integrate created components into main page
 
 ### P2 - Medium Priority
 1. WhatsApp integration via Twilio (currently placeholder)
@@ -317,8 +320,8 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ---
 
 ## Known Issues / Technical Debt
-1. ~~`server.py` is >5700 lines~~ - **Phase 2 complete**, modular routers enabled, inline routes still present
-2. `CustomerDetailPage.js` is >2700 lines - Frontend monolith needs decomposition
+1. ~~`server.py` is >5700 lines~~ - **Phase 2 complete**, modular routers enabled
+2. `CustomerDetailPage.js` is 2792 lines - **Phase 3 IN PROGRESS**: NotesTab integrated, 7 more components ready
 3. WhatsApp integration is placeholder (`whatsapp://` link)
-4. PDF HTML templates (massive) still inline in server.py
+4. PDF HTML templates still inline in server.py
 5. ~~No comprehensive pytest test suite~~ - **79 tests now passing**
