@@ -1943,27 +1943,35 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Particulars</TableHead>
                       <TableHead className="text-center">%</TableHead>
+                      <TableHead className="text-center">Cumulative %</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Cumulative</TableHead>
+                      <TableHead className="text-right">Cumulative Amt</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paymentSchedule.items.map((item, index) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-mono text-slate-500">{index + 1}</TableCell>
-                        <TableCell className="font-medium max-w-xs">
-                          <div className="truncate" title={item.installment_name}>
-                            {item.installment_name}
-                          </div>
-                          {item.description && (
-                            <div className="text-xs text-slate-500">{item.description}</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center font-semibold">{item.percentage}%</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
-                        <TableCell className="text-right font-mono text-primary font-semibold">{formatCurrency(item.cumulative)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {paymentSchedule.items.map((item, index) => {
+                      // Calculate cumulative percentage
+                      const cumulativePct = paymentSchedule.items
+                        .slice(0, index + 1)
+                        .reduce((sum, i) => sum + (i.percentage || 0), 0);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-mono text-slate-500">{index + 1}</TableCell>
+                          <TableCell className="font-medium max-w-xs">
+                            <div className="truncate" title={item.installment_name}>
+                              {item.installment_name}
+                            </div>
+                            {item.description && (
+                              <div className="text-xs text-slate-500">{item.description}</div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center font-semibold">{item.percentage}%</TableCell>
+                          <TableCell className="text-center font-semibold text-primary">{cumulativePct}%</TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
+                          <TableCell className="text-right font-mono text-primary font-semibold">{formatCurrency(item.cumulative)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
                 </>

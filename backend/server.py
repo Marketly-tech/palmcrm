@@ -6327,17 +6327,20 @@ def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
     
     # Generate schedule rows
     schedule_rows = ""
-    cumulative = 0
+    cumulative_amount = 0
+    cumulative_pct = 0
     for i, item in enumerate(schedule_items, 1):
-        cumulative += item.get('amount', 0)
+        cumulative_amount += item.get('amount', 0)
+        cumulative_pct += item.get('percentage', 0)
         status_color = "#28a745" if item.get('payment_status') == 'paid' else "#dc3545" if item.get('payment_status') == 'overdue' else "#D4AF37"
         schedule_rows += f'''
         <tr>
             <td style="text-align: center;">{i}</td>
             <td>{item.get('installment_name', '')}</td>
             <td style="text-align: center;">{item.get('percentage', 0)}%</td>
+            <td style="text-align: center;">{cumulative_pct}%</td>
             <td style="text-align: right;">{format_inr(item.get('amount', 0))}</td>
-            <td style="text-align: right; color: #D4AF37; font-weight: bold;">{format_inr(cumulative)}</td>
+            <td style="text-align: right; color: #D4AF37; font-weight: bold;">{format_inr(cumulative_amount)}</td>
             <td style="text-align: center;">{item.get('due_date', '-')}</td>
             <td style="text-align: center; color: {status_color}; font-weight: bold;">{item.get('payment_status', 'pending').upper()}</td>
         </tr>
@@ -6561,10 +6564,11 @@ def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
                 <thead>
                     <tr>
                         <th style="width: 5%;">#</th>
-                        <th style="width: 35%;">Particulars</th>
-                        <th style="width: 8%;">%</th>
-                        <th style="width: 15%;">Amount</th>
-                        <th style="width: 15%;">Cumulative</th>
+                        <th style="width: 28%;">Particulars</th>
+                        <th style="width: 7%;">%</th>
+                        <th style="width: 10%;">Cumulative %</th>
+                        <th style="width: 14%;">Amount</th>
+                        <th style="width: 14%;">Cumulative Amt</th>
                         <th style="width: 12%;">Due Date</th>
                         <th style="width: 10%;">Status</th>
                     </tr>
