@@ -71,6 +71,13 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
   - CustomerDetailPage.js reduced from 3180 → 2380 lines (25% reduction)
   - Components: DocumentsTab, UploadsTab, CommunicationTab, ChecklistTab, PaymentScheduleTab, NotesTab
 
+### Code Quality Improvements (April 2026)
+- **Security:** DOMPurify sanitization on all `document.write` and `dangerouslySetInnerHTML` (XSS prevention)
+- **Security:** Hardcoded credentials removed from all test files → centralized in `conftest_credentials.py` via env vars
+- **Correctness:** React hook dependencies fixed (useCallback/useMemo) in AuthContext, DashboardPage, CustomerDetailPage
+- **Performance:** Context value memoized in AuthContext, navigation filtering memoized in DashboardLayout
+- **Quality:** Console statements removed from all production pages, array index keys replaced with stable IDs
+
 ## Prioritized Backlog
 
 ### P1 - In Progress
