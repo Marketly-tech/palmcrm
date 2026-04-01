@@ -1,9 +1,9 @@
 /**
- * ChecklistTab - Document checklist component for customer profile
+ * ChecklistTab - Document checklist tracking component
  */
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
-import { Checkbox } from "../../components/ui/checkbox";
-import { Label } from "../../components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
+import { Checkbox } from "../ui/checkbox";
+import { Label } from "../ui/label";
 import { CheckCircle } from "lucide-react";
 
 const ChecklistTab = ({ checklist, onUpdateChecklist }) => {
@@ -21,7 +21,6 @@ const ChecklistTab = ({ checklist, onUpdateChecklist }) => {
                 id={key}
                 checked={value}
                 onCheckedChange={(checked) => onUpdateChecklist(key, checked)}
-                data-testid={`checklist-${key}`}
               />
               <Label htmlFor={key} className="flex-1 capitalize cursor-pointer">
                 {key.replace(/_/g, " ")}

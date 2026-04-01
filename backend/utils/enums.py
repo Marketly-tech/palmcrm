@@ -47,9 +47,13 @@ class DocumentType(str, Enum):
     ALLOTMENT_LETTER = "allotment_letter"
     DISBURSEMENT_LETTER = "disbursement_letter"
     PRICE_BREAKUP = "price_breakup"
+    COST_BREAKUP = "cost_breakup"
     WELCOME_LETTER = "welcome_letter"
     DEMAND_LETTER = "demand_letter"
     PAYMENT_SCHEDULE = "payment_schedule"
+    NOC_HDFC = "noc_hdfc"
+    NOC_BOB = "noc_bob"
+    NOC_TATA = "noc_tata"
 
 
 class TransactionStage(str, Enum):

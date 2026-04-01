@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -8,7 +8,6 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Checkbox } from "../components/ui/checkbox";
 import { Textarea } from "../components/ui/textarea";
 import {
   Select,
@@ -46,7 +45,6 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   User,
-  Building2,
   CreditCard,
   FileText,
   MessageSquare,
@@ -54,18 +52,10 @@ import {
   Plus,
   Loader2,
   Mail,
-  Phone,
-  Send,
-  Download,
   Edit,
   Save,
-  Eye,
   Upload,
   Trash2,
-  Calculator,
-  RefreshCw,
-  Paperclip,
-  X,
   MessageCircle,
 } from "lucide-react";
 import { Separator } from "../components/ui/separator";
@@ -77,6 +67,9 @@ import {
   CommunicationTab,
   PaymentTrackingCard,
   TransactionsCard,
+  PaymentScheduleTab,
+  DocumentsTab,
+  ChecklistTab,
   formatCurrency as formatCurrencyUtil,
 } from "../components/customer";
 
@@ -107,23 +100,9 @@ const CustomerDetailPage = () => {
   // Disbursement Calculator
   const [disbursementPercentage, setDisbursementPercentage] = useState(30);
 
-  // Payment Dialog
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [newPayment, setNewPayment] = useState({
-    installment_name: "",
-    milestone: "",
-    amount: "",
-    due_date: "",
-  });
+  // Payment Dialog - now managed in PaymentScheduleTab component
 
-  // Communication Dialog
-  const [commDialogOpen, setCommDialogOpen] = useState(false);
-  const [commType, setCommType] = useState("email");
-  const [commMessage, setCommMessage] = useState("");
-  const [commSubject, setCommSubject] = useState("");
-  const [selectedAttachments, setSelectedAttachments] = useState([]);
-  const [localAttachment, setLocalAttachment] = useState(null);
-  const localFileRef = useRef(null);
+  // Communication Dialog - now managed in CommunicationTab component
   
   // Customer Overdue Info
   const [overdueInfo, setOverdueInfo] = useState(null);
@@ -158,9 +137,7 @@ const CustomerDetailPage = () => {
   const [calcLivePrice, setCalcLivePrice] = useState(null);
   const [calcSaving, setCalcSaving] = useState(false);
 
-  // Document Generation
-  const [docDialogOpen, setDocDialogOpen] = useState(false);
-  const [docType, setDocType] = useState("");
+  // Document Generation - dialog state now managed in DocumentsTab
   
   // Document Preview
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -180,11 +157,7 @@ const CustomerDetailPage = () => {
   const [editedEmailCc, setEditedEmailCc] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   
-  // File Upload
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [uploadDocType, setUploadDocType] = useState("");
-  const [uploadFile, setUploadFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  // File Upload - dialog state now managed in UploadsTab
 
   // Bank NOC Generation
   const [generatingNoc, setGeneratingNoc] = useState(null);
@@ -337,33 +310,6 @@ const CustomerDetailPage = () => {
     }
   };
 
-  const handleAddPayment = async () => {
-    if (!newPayment.installment_name || !newPayment.amount || !newPayment.due_date) {
-      toast.error("Please fill all required fields");
-      return;
-    }
-
-    const items = [
-      ...paymentSchedule.items,
-      {
-        ...newPayment,
-        id: Date.now().toString(),
-        amount: parseFloat(newPayment.amount),
-        payment_status: "pending",
-      },
-    ];
-
-    try {
-      await axios.post(`${API}/payments/schedule`, { customer_id: id, items });
-      setPaymentSchedule({ ...paymentSchedule, items });
-      setPaymentDialogOpen(false);
-      setNewPayment({ installment_name: "", milestone: "", amount: "", due_date: "" });
-      toast.success("Payment schedule updated");
-    } catch (error) {
-      toast.error("Failed to add payment");
-    }
-  };
-
   const handleGeneratePaymentSchedule = async () => {
     try {
       await axios.post(`${API}/calculator/generate-schedule/${id}`);
@@ -490,26 +436,6 @@ const CustomerDetailPage = () => {
       toast.success("Transaction deleted");
     } catch (error) {
       toast.error("Failed to delete transaction");
-    }
-  };
-
-  const handleGenerateDocument = async () => {
-    if (!docType) {
-      toast.error("Please select a document type");
-      return;
-    }
-
-    try {
-      const response = await axios.post(`${API}/documents/generate`, {
-        customer_id: id,
-        doc_type: docType,
-      });
-      setDocuments([...documents, response.data.document]);
-      setDocDialogOpen(false);
-      setDocType("");
-      toast.success("Document generated successfully");
-    } catch (error) {
-      toast.error("Failed to generate document");
     }
   };
 
@@ -694,101 +620,6 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
       fetchCustomerData();
     } catch (error) {
       toast.error("Failed to generate price breakup");
-    }
-  };
-
-  const handleSendCommunication = async () => {
-    if (!commMessage) {
-      toast.error("Please enter a message");
-      return;
-    }
-
-    try {
-      if (commType === "email") {
-        // Build attachment info
-        const attachmentIds = selectedAttachments.join(",");
-        let url = `${API}/communication/email?customer_id=${id}&subject=${encodeURIComponent(commSubject)}&message=${encodeURIComponent(commMessage)}`;
-        
-        if (attachmentIds) {
-          url += `&attachment_ids=${attachmentIds}`;
-        }
-        
-        // If there's a local file, upload it first then send email with attachment
-        if (localAttachment) {
-          const formData = new FormData();
-          formData.append("file", localAttachment);
-          formData.append("doc_type", "email_attachment");
-          
-          const uploadRes = await axios.post(`${API}/customers/${id}/upload-document`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          
-          if (uploadRes.data.doc_id) {
-            url += attachmentIds ? `,${uploadRes.data.doc_id}` : `&attachment_ids=${uploadRes.data.doc_id}`;
-          }
-        }
-        
-        await axios.post(url);
-        toast.success("Email sent successfully!");
-      } else {
-        await axios.post(`${API}/communication/whatsapp?customer_id=${id}&message=${encodeURIComponent(commMessage)}`);
-        toast.success("WhatsApp message sent (MOCKED)");
-      }
-      fetchCustomerData();
-      setCommDialogOpen(false);
-      setCommMessage("");
-      setCommSubject("");
-      setSelectedAttachments([]);
-      setLocalAttachment(null);
-    } catch (error) {
-      toast.error("Failed to send message");
-    }
-  };
-
-  const toggleAttachment = (docId) => {
-    setSelectedAttachments(prev => 
-      prev.includes(docId) 
-        ? prev.filter(id => id !== docId)
-        : [...prev, docId]
-    );
-  };
-
-  const handleLocalFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size should be less than 10MB");
-        return;
-      }
-      setLocalAttachment(file);
-    }
-  };
-
-  const handleFileUpload = async () => {
-    if (!uploadFile || !uploadDocType) {
-      toast.error("Please select a file and document type");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-      formData.append("doc_type", uploadDocType);
-
-      await axios.post(`${API}/customers/${id}/upload-document`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      toast.success("Document uploaded successfully");
-      setUploadDialogOpen(false);
-      setUploadFile(null);
-      setUploadDocType("");
-      fetchCustomerData();
-    } catch (error) {
-      toast.error("Failed to upload document");
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -2200,727 +2031,96 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
 
         {/* Payments Tab */}
         <TabsContent value="payments">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Payment Schedule</CardTitle>
-                <CardDescription>Track all payment milestones</CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleGeneratePaymentSchedule} data-testid="generate-schedule-btn">
-                  Auto-Generate
-                </Button>
-                <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button data-testid="add-payment-btn">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Payment
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add Payment Milestone</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Installment Name *</Label>
-                        <Input
-                          value={newPayment.installment_name}
-                          onChange={(e) => setNewPayment({ ...newPayment, installment_name: e.target.value })}
-                          placeholder="e.g., Booking Amount"
-                        />
-                      </div>
-                      <div>
-                        <Label>Milestone</Label>
-                        <Select
-                          value={newPayment.milestone}
-                          onValueChange={(value) => setNewPayment({ ...newPayment, milestone: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select milestone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="booking">Booking</SelectItem>
-                            <SelectItem value="agreement">Agreement</SelectItem>
-                            <SelectItem value="foundation">Foundation</SelectItem>
-                            <SelectItem value="slab">Slab Completion</SelectItem>
-                            <SelectItem value="handover">Handover</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Amount (₹) *</Label>
-                        <Input
-                          type="number"
-                          value={newPayment.amount}
-                          onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label>Due Date *</Label>
-                        <Input
-                          type="date"
-                          value={newPayment.due_date}
-                          onChange={(e) => setNewPayment({ ...newPayment, due_date: e.target.value })}
-                        />
-                      </div>
-                      <Button onClick={handleAddPayment} className="w-full">
-                        Add Payment
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {paymentSchedule.items.length > 0 ? (
-                <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Particulars</TableHead>
-                      <TableHead className="text-center">%</TableHead>
-                      <TableHead className="text-center">Cumulative %</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Cumulative Amt</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paymentSchedule.items.map((item, index) => {
-                      // Calculate cumulative percentage
-                      const cumulativePct = paymentSchedule.items
-                        .slice(0, index + 1)
-                        .reduce((sum, i) => sum + (i.percentage || 0), 0);
-                      return (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-mono text-slate-500">{index + 1}</TableCell>
-                          <TableCell className="font-medium max-w-xs">
-                            <div className="truncate" title={item.installment_name}>
-                              {item.installment_name}
-                            </div>
-                            {item.description && (
-                              <div className="text-xs text-slate-500">{item.description}</div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center font-semibold">{item.percentage}%</TableCell>
-                          <TableCell className="text-center font-semibold text-primary">{cumulativePct}%</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
-                          <TableCell className="text-right font-mono text-primary font-semibold">{formatCurrency(item.cumulative)}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-                </>
-              ) : (
-                <div className="text-center py-8 text-slate-500">
-                  <CreditCard className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <p>No payment schedule yet</p>
-                  <p className="text-sm mt-1">Click "Auto-Generate" to create from template</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <PaymentScheduleTab
+            paymentSchedule={paymentSchedule}
+            onGenerateSchedule={handleGeneratePaymentSchedule}
+            onAddPayment={async (payment) => {
+              try {
+                const res = await axios.post(`${API}/payments/schedule`, {
+                  customer_id: id,
+                  items: [...paymentSchedule.items, {
+                    id: Date.now().toString(),
+                    ...payment,
+                    amount: parseFloat(payment.amount),
+                    percentage: parseFloat(payment.percentage) || 0,
+                    status: "pending",
+                  }],
+                });
+                setPaymentSchedule(res.data);
+                toast.success("Payment added");
+              } catch (error) {
+                toast.error("Failed to add payment");
+              }
+            }}
+          />
         </TabsContent>
 
         {/* Generated Documents Tab */}
         <TabsContent value="documents">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Generated Documents</CardTitle>
-                <CardDescription>Agreements, letters, and PDFs</CardDescription>
-              </div>
-              <Dialog open={docDialogOpen} onOpenChange={setDocDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button data-testid="generate-doc-btn">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Generate Document
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Generate Document</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Document Type</Label>
-                      <Select value={docType} onValueChange={setDocType}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select document type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sales_agreement">Sales Agreement</SelectItem>
-                          <SelectItem value="allotment_letter">Allotment Letter</SelectItem>
-                          <SelectItem value="price_breakup">Price Breakup</SelectItem>
-                          <SelectItem value="cost_breakup">Cost Breakup</SelectItem>
-                          <SelectItem value="disbursement_letter">Disbursement Letter</SelectItem>
-                          <SelectItem value="payment_schedule">Payment Schedule</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={handleGenerateDocument} className="w-full">
-                      Generate
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              {documents.length > 0 ? (
-                <div className="space-y-4">
-                  {documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <FileText className="w-8 h-8 text-primary" />
-                        <div>
-                          <p className="font-medium capitalize">{doc.doc_type.replace(/_/g, " ")}</p>
-                          <p className="text-sm text-slate-500">
-                            Generated: {new Date(doc.generated_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={getStatusBadge(doc.status)}>{doc.status}</Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePreviewDocument(doc)}
-                          data-testid={`preview-doc-${doc.id}`}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownloadDocument(doc)}
-                          data-testid={`download-doc-${doc.id}`}
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        {!isAccountsRole && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteDocClick(doc, 'generated')}
-                            data-testid={`delete-doc-${doc.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-slate-500">
-                  <FileText className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <p>No documents generated yet</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Disbursement - Bank NOC Documents Subsection */}
-          <Card className="mt-6">
-            <CardHeader>
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-amber-600" />
-                  Disbursement Documents
-                </CardTitle>
-                <CardDescription>Generate Bank NOC (No Objection Certificate) for loan disbursement</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* HDFC Bank NOC */}
-                <div className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <div className="flex flex-col items-center text-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-red-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-800">HDFC Bank</p>
-                      <p className="text-xs text-slate-500">No Objection Certificate</p>
-                    </div>
-                    <Button
-                      onClick={() => handleGenerateNoc("noc_hdfc", "HDFC Bank")}
-                      disabled={generatingNoc === "noc_hdfc"}
-                      className="w-full bg-red-600 hover:bg-red-700"
-                      size="sm"
-                      data-testid="generate-noc-hdfc"
-                    >
-                      {generatingNoc === "noc_hdfc" ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="w-4 h-4 mr-2" />
-                          Generate NOC
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Bank of Baroda NOC */}
-                <div className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <div className="flex flex-col items-center text-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-800">Bank of Baroda</p>
-                      <p className="text-xs text-slate-500">No Objection Certificate</p>
-                    </div>
-                    <Button
-                      onClick={() => handleGenerateNoc("noc_bob", "Bank of Baroda")}
-                      disabled={generatingNoc === "noc_bob"}
-                      className="w-full bg-orange-600 hover:bg-orange-700"
-                      size="sm"
-                      data-testid="generate-noc-bob"
-                    >
-                      {generatingNoc === "noc_bob" ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="w-4 h-4 mr-2" />
-                          Generate NOC
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* TATA Capital NOC */}
-                <div className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <div className="flex flex-col items-center text-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-800">TATA Capital</p>
-                      <p className="text-xs text-slate-500">No Objection Certificate</p>
-                    </div>
-                    <Button
-                      onClick={() => handleGenerateNoc("noc_tata", "TATA Capital")}
-                      disabled={generatingNoc === "noc_tata"}
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                      size="sm"
-                      data-testid="generate-noc-tata"
-                    >
-                      {generatingNoc === "noc_tata" ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="w-4 h-4 mr-2" />
-                          Generate NOC
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* List any generated NOC documents */}
-              {documents.filter(doc => ['noc_hdfc', 'noc_bob', 'noc_tata'].includes(doc.doc_type)).length > 0 && (
-                <div className="mt-6 pt-6 border-t">
-                  <h4 className="text-sm font-medium text-slate-700 mb-3">Generated NOC Documents</h4>
-                  <div className="space-y-3">
-                    {documents.filter(doc => ['noc_hdfc', 'noc_bob', 'noc_tata'].includes(doc.doc_type)).map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg bg-white">
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-6 h-6 text-primary" />
-                          <div>
-                            <p className="font-medium text-sm capitalize">
-                              {doc.doc_type === 'noc_hdfc' && 'HDFC Bank NOC'}
-                              {doc.doc_type === 'noc_bob' && 'Bank of Baroda NOC'}
-                              {doc.doc_type === 'noc_tata' && 'TATA Capital NOC'}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              Generated: {new Date(doc.generated_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePreviewDocument(doc)}
-                            data-testid={`preview-noc-${doc.id}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(doc)}
-                            data-testid={`download-noc-${doc.id}`}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                          {!isAccountsRole && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => handleDeleteDocClick(doc, 'generated')}
-                              data-testid={`delete-noc-${doc.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <DocumentsTab
+            documents={documents}
+            isAccountsRole={isAccountsRole}
+            onGenerateDocument={async (docType) => {
+              try {
+                const res = await axios.post(`${API}/documents/generate`, {
+                  customer_id: id,
+                  doc_type: docType,
+                });
+                setDocuments([...documents, res.data.document]);
+                toast.success("Document generated");
+              } catch (error) {
+                toast.error("Failed to generate document");
+              }
+            }}
+            onPreviewDocument={handlePreviewDocument}
+            onDownloadDocument={handleDownloadDocument}
+            onDeleteDocument={handleDeleteDocClick}
+            onGenerateNoc={handleGenerateNoc}
+            generatingNoc={generatingNoc}
+          />
         </TabsContent>
 
         {/* Uploaded Documents Tab */}
         <TabsContent value="uploads">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Uploaded Documents</CardTitle>
-                <CardDescription>Customer KYC and other uploaded files</CardDescription>
-              </div>
-              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button data-testid="upload-doc-btn">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Document
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Upload Document</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Document Type</Label>
-                      <Select value={uploadDocType} onValueChange={setUploadDocType}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pan_card">PAN Card</SelectItem>
-                          <SelectItem value="aadhaar">Aadhaar Card</SelectItem>
-                          <SelectItem value="passport">Passport</SelectItem>
-                          <SelectItem value="cheque">Cancelled Cheque</SelectItem>
-                          <SelectItem value="photo">Passport Photo</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>File</Label>
-                      <Input
-                        type="file"
-                        onChange={(e) => setUploadFile(e.target.files[0])}
-                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                      />
-                    </div>
-                    <Button onClick={handleFileUpload} className="w-full" disabled={uploading}>
-                      {uploading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        "Upload"
-                      )}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              {uploadedDocs.length > 0 ? (
-                <div className="space-y-4">
-                  {uploadedDocs.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <FileText className="w-8 h-8 text-blue-500" />
-                        <div>
-                          <p className="font-medium capitalize">{doc.doc_type.replace(/_/g, " ")}</p>
-                          <p className="text-sm text-slate-500">{doc.filename}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePreviewUploadedDoc(doc)}
-                          data-testid={`preview-upload-${doc.id}`}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownloadUploadedDoc(doc)}
-                          data-testid={`download-upload-${doc.id}`}
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        {!isAccountsRole && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteDocClick(doc, 'uploaded')}
-                            data-testid={`delete-upload-${doc.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-slate-500">
-                  <Upload className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <p>No documents uploaded yet</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <UploadsTab
+            uploadedDocs={uploadedDocs}
+            isAccountsRole={isAccountsRole}
+            onUpload={async (docType, file) => {
+              const formData = new FormData();
+              formData.append("file", file);
+              formData.append("doc_type", docType);
+              const res = await axios.post(`${API}/customers/${id}/upload-document`, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+              });
+              setUploadedDocs([...uploadedDocs, res.data]);
+              toast.success("Document uploaded");
+            }}
+            onPreview={handlePreviewUploadedDoc}
+            onDownload={handleDownloadUploadedDoc}
+            onDelete={handleDeleteDocClick}
+          />
         </TabsContent>
 
         {/* Communication Tab */}
         <TabsContent value="communication">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Communication History</CardTitle>
-                <CardDescription>Emails and messages</CardDescription>
-              </div>
-              <Dialog open={commDialogOpen} onOpenChange={setCommDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button data-testid="send-message-btn">
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Message
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Send Communication</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="flex gap-2">
-                      <Button
-                        variant={commType === "email" ? "default" : "outline"}
-                        onClick={() => setCommType("email")}
-                        className="flex-1"
-                      >
-                        <Mail className="w-4 h-4 mr-2" />
-                        Email
-                      </Button>
-                      <Button
-                        variant={commType === "whatsapp" ? "default" : "outline"}
-                        onClick={() => setCommType("whatsapp")}
-                        className="flex-1"
-                      >
-                        <Phone className="w-4 h-4 mr-2" />
-                        WhatsApp
-                      </Button>
-                    </div>
-                    {commType === "email" && (
-                      <div>
-                        <Label>Subject</Label>
-                        <Input
-                          value={commSubject}
-                          onChange={(e) => setCommSubject(e.target.value)}
-                          placeholder="Email subject"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <Label>Message</Label>
-                      <Textarea
-                        value={commMessage}
-                        onChange={(e) => setCommMessage(e.target.value)}
-                        placeholder="Type your message..."
-                        rows={4}
-                      />
-                    </div>
-                    
-                    {/* Attachment Section */}
-                    {commType === "email" && (
-                      <div className="space-y-3">
-                        <Label className="flex items-center gap-2">
-                          <Paperclip className="w-4 h-4" />
-                          Attachments
-                        </Label>
-                        
-                        {/* Available Documents */}
-                        {(documents.length > 0 || uploadedDocs.length > 0) && (
-                          <div className="p-3 bg-slate-50 rounded-lg space-y-2">
-                            <p className="text-sm font-medium text-slate-600">Select from available documents:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {documents.map((doc) => (
-                                <Button
-                                  key={doc.id}
-                                  type="button"
-                                  variant={selectedAttachments.includes(doc.id) ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => toggleAttachment(doc.id)}
-                                  className="text-xs"
-                                >
-                                  <FileText className="w-3 h-3 mr-1" />
-                                  {doc.doc_type.replace(/_/g, " ")}
-                                  {selectedAttachments.includes(doc.id) && (
-                                    <CheckCircle className="w-3 h-3 ml-1" />
-                                  )}
-                                </Button>
-                              ))}
-                              {uploadedDocs.map((doc) => (
-                                <Button
-                                  key={doc.id}
-                                  type="button"
-                                  variant={selectedAttachments.includes(doc.id) ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => toggleAttachment(doc.id)}
-                                  className="text-xs"
-                                >
-                                  <FileText className="w-3 h-3 mr-1" />
-                                  {doc.filename || doc.doc_type}
-                                  {selectedAttachments.includes(doc.id) && (
-                                    <CheckCircle className="w-3 h-3 ml-1" />
-                                  )}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Upload from local disk */}
-                        <div className="space-y-2">
-                          <input
-                            type="file"
-                            ref={localFileRef}
-                            className="hidden"
-                            onChange={handleLocalFileSelect}
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          />
-                          {localAttachment ? (
-                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                              <FileText className="w-4 h-4 text-green-600" />
-                              <span className="text-sm truncate flex-1">{localAttachment.name}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setLocalAttachment(null)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => localFileRef.current?.click()}
-                              className="w-full"
-                            >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Upload from Computer
-                            </Button>
-                          )}
-                        </div>
-                        
-                        {selectedAttachments.length > 0 && (
-                          <p className="text-xs text-green-600">
-                            {selectedAttachments.length} document(s) selected for attachment
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                      Emails are sent via SendGrid. WhatsApp is MOCKED.
-                    </p>
-                    <Button onClick={handleSendCommunication} className="w-full">
-                      Send
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              {communications.length > 0 ? (
-                <div className="space-y-4">
-                  {communications.map((comm) => (
-                    <div key={comm.id} className="p-4 border rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        {comm.channel === "email" ? (
-                          <Mail className="w-4 h-4 text-blue-500" />
-                        ) : (
-                          <Phone className="w-4 h-4 text-green-500" />
-                        )}
-                        <span className="font-medium capitalize">{comm.channel}</span>
-                        <span className="text-sm text-slate-500">- {comm.message_type}</span>
-                        <Badge variant="outline" className="ml-auto">{comm.status}</Badge>
-                      </div>
-                      <p className="text-sm text-slate-600 whitespace-pre-wrap line-clamp-3">{comm.content}</p>
-                      <p className="text-xs text-slate-400 mt-2">
-                        {new Date(comm.sent_at).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-slate-500">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <p>No communication history yet</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <CommunicationTab
+            customerId={id}
+            customerPhone={customer?.phone}
+            communications={communications}
+            documents={documents}
+            uploadedDocs={uploadedDocs}
+            onCommunicationSent={() => {
+              axios.get(`${API}/communication/${id}`).then(res => setCommunications(res.data)).catch(() => {});
+            }}
+          />
         </TabsContent>
 
         {/* Checklist Tab */}
         <TabsContent value="checklist">
-          <Card>
-            <CardHeader>
-              <CardTitle>Document Checklist</CardTitle>
-              <CardDescription>Track received documents</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.entries(checklist.items || {}).map(([key, value]) => (
-                  <div key={key} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <Checkbox
-                      id={key}
-                      checked={value}
-                      onCheckedChange={(checked) => handleUpdateChecklist(key, checked)}
-                    />
-                    <Label htmlFor={key} className="flex-1 capitalize cursor-pointer">
-                      {key.replace(/_/g, " ")}
-                    </Label>
-                    {value && <CheckCircle className="w-5 h-5 text-green-500" />}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <ChecklistTab
+            checklist={checklist}
+            onUpdateChecklist={handleUpdateChecklist}
+          />
         </TabsContent>
         
         {/* Notes Tab */}

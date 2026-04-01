@@ -6,46 +6,44 @@ from datetime import datetime, timezone
 
 def number_to_indian_words(num):
     """Convert a number to Indian words format (for legal documents)."""
-    ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
-            "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]
-    tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
-    
     if num == 0:
         return "Zero"
-    
-    def two_digits(n):
-        if n < 20:
+
+    ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+            "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+            "Seventeen", "Eighteen", "Nineteen"]
+    tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+
+    def convert_less_than_thousand(n):
+        if n == 0:
+            return ""
+        elif n < 20:
             return ones[n]
-        return tens[n // 10] + (" " + ones[n % 10] if n % 10 else "")
-    
-    def three_digits(n):
-        if n < 100:
-            return two_digits(n)
-        return ones[n // 100] + " Hundred" + (" and " + two_digits(n % 100) if n % 100 else "")
-    
-    if num >= 10000000:  # Crore
-        crores = num // 10000000
-        remainder = num % 10000000
-        result = three_digits(crores) + " Crore"
-        if remainder:
-            result += " " + number_to_indian_words(remainder)
-        return result
-    elif num >= 100000:  # Lakh
-        lakhs = num // 100000
-        remainder = num % 100000
-        result = two_digits(lakhs) + " Lakh"
-        if remainder:
-            result += " " + number_to_indian_words(remainder)
-        return result
-    elif num >= 1000:  # Thousand
-        thousands = num // 1000
-        remainder = num % 1000
-        result = two_digits(thousands) + " Thousand"
-        if remainder:
-            result += " " + three_digits(remainder)
-        return result
-    else:
-        return three_digits(num)
+        elif n < 100:
+            return tens[n // 10] + (" " + ones[n % 10] if n % 10 != 0 else "")
+        else:
+            return ones[n // 100] + " Hundred" + (" " + convert_less_than_thousand(n % 100) if n % 100 != 0 else "")
+
+    num = int(num)
+    if num < 0:
+        return "Minus " + number_to_indian_words(-num)
+
+    crore = num // 10000000
+    lakh = (num % 10000000) // 100000
+    thousand = (num % 100000) // 1000
+    remainder = num % 1000
+
+    result = ""
+    if crore > 0:
+        result += convert_less_than_thousand(crore) + " Crore "
+    if lakh > 0:
+        result += convert_less_than_thousand(lakh) + " Lakh "
+    if thousand > 0:
+        result += convert_less_than_thousand(thousand) + " Thousand "
+    if remainder > 0:
+        result += convert_less_than_thousand(remainder)
+
+    return result.strip() + " Rupees"
 
 
 def format_indian_currency(amount, decimals=True):

@@ -1,14 +1,15 @@
 /**
- * CommunicationTab - Communication history and messaging component
- * Displays communication history and allows sending emails/WhatsApp messages
+ * CommunicationTab - Communication history + send message dialog with attachment support
  */
 import { useState, useRef } from "react";
+import axios from "axios";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
+import { Textarea } from "../ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -16,71 +17,88 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { 
-  Send, 
-  Mail, 
-  Phone, 
-  MessageSquare, 
-  Paperclip, 
-  FileText, 
-  CheckCircle, 
+import {
+  Send,
+  Mail,
+  Phone,
+  FileText,
   Upload,
-  X 
+  Paperclip,
+  X,
+  CheckCircle,
+  MessageSquare,
 } from "lucide-react";
 
+const API = process.env.REACT_APP_BACKEND_URL + "/api";
+
 const CommunicationTab = ({
+  customerId,
+  customerPhone,
   communications,
   documents,
   uploadedDocs,
-  customerPhone,
-  onSendCommunication,
+  onCommunicationSent,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [commType, setCommType] = useState("email");
-  const [commSubject, setCommSubject] = useState("");
-  const [commMessage, setCommMessage] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
   const [selectedAttachments, setSelectedAttachments] = useState([]);
   const [localAttachment, setLocalAttachment] = useState(null);
   const localFileRef = useRef(null);
 
   const toggleAttachment = (docId) => {
     setSelectedAttachments(prev =>
-      prev.includes(docId)
-        ? prev.filter(id => id !== docId)
-        : [...prev, docId]
+      prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
     );
   };
 
   const handleLocalFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLocalAttachment(file);
+    if (e.target.files[0]) {
+      setLocalAttachment(e.target.files[0]);
     }
   };
 
   const handleSend = async () => {
-    if (commType === "whatsapp") {
-      const message = encodeURIComponent(commMessage);
-      const phone = customerPhone?.replace(/\D/g, "");
-      window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
-      setDialogOpen(false);
-      setCommMessage("");
+    if (!message.trim()) {
+      toast.error("Message is required");
       return;
     }
-
-    await onSendCommunication({
-      type: commType,
-      subject: commSubject,
-      message: commMessage,
-      attachments: selectedAttachments,
-      localAttachment,
-    });
-    
-    setDialogOpen(false);
-    setCommSubject("");
-    setCommMessage("");
-    setSelectedAttachments([]);
-    setLocalAttachment(null);
+    try {
+      if (commType === "email") {
+        const formData = new FormData();
+        formData.append("customer_id", customerId);
+        formData.append("subject", subject);
+        formData.append("message", message);
+        if (selectedAttachments.length > 0) {
+          formData.append("attachment_ids", JSON.stringify(selectedAttachments));
+        }
+        if (localAttachment) {
+          formData.append("local_file", localAttachment);
+        }
+        await axios.post(`${API}/communication/email`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        const phone = customerPhone || "";
+        const encodedMsg = encodeURIComponent(message);
+        window.open(`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodedMsg}`, "_blank");
+        await axios.post(`${API}/communication/whatsapp`, {
+          customer_id: customerId,
+          message,
+        });
+      }
+      toast.success(`${commType === "email" ? "Email" : "WhatsApp message"} sent`);
+      // Reset
+      setSubject("");
+      setMessage("");
+      setSelectedAttachments([]);
+      setLocalAttachment(null);
+      setDialogOpen(false);
+      if (onCommunicationSent) onCommunicationSent();
+    } catch (error) {
+      toast.error(`Failed to send ${commType}`);
+    }
   };
 
   return (
@@ -124,8 +142,8 @@ const CommunicationTab = ({
                 <div>
                   <Label>Subject</Label>
                   <Input
-                    value={commSubject}
-                    onChange={(e) => setCommSubject(e.target.value)}
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
                     placeholder="Email subject"
                   />
                 </div>
@@ -133,13 +151,13 @@ const CommunicationTab = ({
               <div>
                 <Label>Message</Label>
                 <Textarea
-                  value={commMessage}
-                  onChange={(e) => setCommMessage(e.target.value)}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                   placeholder="Type your message..."
                   rows={4}
                 />
               </div>
-              
+
               {/* Attachment Section */}
               {commType === "email" && (
                 <div className="space-y-3">
@@ -147,7 +165,7 @@ const CommunicationTab = ({
                     <Paperclip className="w-4 h-4" />
                     Attachments
                   </Label>
-                  
+
                   {/* Available Documents */}
                   {(documents.length > 0 || uploadedDocs.length > 0) && (
                     <div className="p-3 bg-slate-50 rounded-lg space-y-2">
@@ -188,7 +206,7 @@ const CommunicationTab = ({
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Upload from local disk */}
                   <div className="space-y-2">
                     <input
@@ -224,7 +242,7 @@ const CommunicationTab = ({
                       </Button>
                     )}
                   </div>
-                  
+
                   {selectedAttachments.length > 0 && (
                     <p className="text-xs text-green-600">
                       {selectedAttachments.length} document(s) selected for attachment
@@ -232,7 +250,7 @@ const CommunicationTab = ({
                   )}
                 </div>
               )}
-              
+
               <p className="text-xs text-green-600 bg-green-50 p-2 rounded">
                 Emails are sent via SendGrid. WhatsApp is MOCKED.
               </p>
