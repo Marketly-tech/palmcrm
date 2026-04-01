@@ -115,6 +115,18 @@ const CustomerDetailPage = () => {
   const [localAttachment, setLocalAttachment] = useState(null);
   const localFileRef = useRef(null);
   
+  // Customer Overdue Info
+  const [overdueInfo, setOverdueInfo] = useState(null);
+  
+  // Customer Notes
+  const [notes, setNotes] = useState([]);
+  const [newNote, setNewNote] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+  
+  // Payment Due Date
+  const [editingDueDate, setEditingDueDate] = useState(false);
+  const [paymentDueDate, setPaymentDueDate] = useState("");
+  
   // Document Delete
   const [docDeleteDialogOpen, setDocDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState(null);
@@ -174,7 +186,7 @@ const CustomerDetailPage = () => {
 
   const fetchCustomerData = async () => {
     try {
-      const [customerRes, scheduleRes, checklistRes, docsRes, commsRes, uploadedDocsRes, transactionsRes] = await Promise.all([
+      const [customerRes, scheduleRes, checklistRes, docsRes, commsRes, uploadedDocsRes, transactionsRes, overdueRes, notesRes] = await Promise.all([
         axios.get(`${API}/customers/${id}`),
         axios.get(`${API}/payments/schedule/${id}`),
         axios.get(`${API}/checklist/${id}`),
@@ -182,6 +194,8 @@ const CustomerDetailPage = () => {
         axios.get(`${API}/communication/${id}`),
         axios.get(`${API}/customers/${id}/documents-list`).catch(() => ({ data: [] })),
         axios.get(`${API}/transactions/${id}`).catch(() => ({ data: [] })),
+        axios.get(`${API}/customers/${id}/overdue`).catch(() => ({ data: null })),
+        axios.get(`${API}/customers/${id}/notes`).catch(() => ({ data: [] })),
       ]);
       setCustomer(customerRes.data);
       // Initialize editData with floor_rise_cost from custom_fields
@@ -196,11 +210,53 @@ const CustomerDetailPage = () => {
       setUploadedDocs(uploadedDocsRes.data);
       setCommunications(commsRes.data);
       setTransactions(transactionsRes.data || []);
+      setOverdueInfo(overdueRes.data);
+      setNotes(notesRes.data || []);
+      setPaymentDueDate(customerData.payment_due_date || "");
     } catch (error) {
       toast.error("Failed to fetch customer data");
       navigate("/customers");
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Add a new note
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    setAddingNote(true);
+    try {
+      const res = await axios.post(`${API}/customers/${id}/notes`, { content: newNote });
+      setNotes([res.data, ...notes]);
+      setNewNote("");
+      toast.success("Note added");
+    } catch (error) {
+      toast.error("Failed to add note");
+    } finally {
+      setAddingNote(false);
+    }
+  };
+  
+  // Delete a note
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await axios.delete(`${API}/customers/${id}/notes/${noteId}`);
+      setNotes(notes.filter(n => n.id !== noteId));
+      toast.success("Note deleted");
+    } catch (error) {
+      toast.error("Failed to delete note");
+    }
+  };
+  
+  // Update payment due date
+  const handleUpdateDueDate = async () => {
+    try {
+      await axios.put(`${API}/customers/${id}/payment-due-date`, { payment_due_date: paymentDueDate });
+      setCustomer({ ...customer, payment_due_date: paymentDueDate });
+      setEditingDueDate(false);
+      toast.success("Payment due date updated");
+    } catch (error) {
+      toast.error("Failed to update due date");
     }
   };
 
@@ -1107,6 +1163,10 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
             <CheckCircle className="w-4 h-4 mr-2" />
             Checklist
           </TabsTrigger>
+          <TabsTrigger value="notes" data-testid="tab-notes">
+            <FileText className="w-4 h-4 mr-2" />
+            Notes
+          </TabsTrigger>
         </TabsList>
 
         {/* Details Tab */}
@@ -1584,6 +1644,45 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                         </div>
                       </div>
                       
+                      {/* Stage-based Overdue Amount */}
+                      {overdueInfo?.is_overdue && (
+                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="destructive">OVERDUE</Badge>
+                            <span className="text-sm text-slate-600">as per stage: {overdueInfo.current_stage_name}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <p className="text-slate-600">Expected ({overdueInfo.cumulative_percentage}%)</p>
+                              <p className="font-bold text-slate-900">{formatCurrency(overdueInfo.expected_amount)}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-600">Received</p>
+                              <p className="font-bold text-green-600">{formatCurrency(overdueInfo.total_received)}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-600">Overdue Amount</p>
+                              <p className="font-bold text-2xl text-red-600">{formatCurrency(overdueInfo.overdue_amount)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {overdueInfo && !overdueInfo.is_overdue && overdueInfo.current_stage && (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <span className="text-sm text-green-700">
+                            No overdue payments for current stage: {overdueInfo.current_stage_name}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {overdueInfo && !overdueInfo.current_stage && (
+                        <div className="p-3 bg-slate-50 border rounded-lg text-sm text-slate-500">
+                          No payment stage set by admin. Overdue tracking unavailable.
+                        </div>
+                      )}
+                      
                       {/* Progress Bar */}
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -1595,6 +1694,44 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                             className="h-full bg-green-500 transition-all duration-500"
                             style={{ width: `${Math.min(receivedPercentage, 100)}%` }}
                           />
+                        </div>
+                      </div>
+                      
+                      {/* Payment Due Date Section */}
+                      <div className="pt-4 border-t">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-slate-700">Next Payment Due Date</p>
+                            {editingDueDate ? (
+                              <div className="flex items-center gap-2 mt-1">
+                                <Input
+                                  type="date"
+                                  value={paymentDueDate}
+                                  onChange={(e) => setPaymentDueDate(e.target.value)}
+                                  className="w-40"
+                                  data-testid="payment-due-date-input"
+                                />
+                                <Button size="sm" onClick={handleUpdateDueDate}>
+                                  <Save className="h-3 w-3 mr-1" />
+                                  Save
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingDueDate(false)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <p className="text-lg font-semibold text-primary">
+                                  {customer.payment_due_date 
+                                    ? new Date(customer.payment_due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                                    : "Not set"}
+                                </p>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingDueDate(true)} data-testid="edit-due-date-btn">
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </>
@@ -2413,6 +2550,82 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Notes Tab */}
+        <TabsContent value="notes">
+          <Card>
+            <CardHeader>
+              <CardTitle>Customer Notes</CardTitle>
+              <CardDescription>Keep track of important information and follow-ups</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Add Note Input */}
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Add a note about this customer..."
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  className="flex-1"
+                  rows={2}
+                  data-testid="new-note-input"
+                />
+                <Button 
+                  onClick={handleAddNote} 
+                  disabled={addingNote || !newNote.trim()}
+                  data-testid="add-note-btn"
+                >
+                  {addingNote ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Note
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              <Separator />
+              
+              {/* Notes List */}
+              {notes.length > 0 ? (
+                <div className="space-y-3">
+                  {notes.map((note) => (
+                    <div key={note.id} className="p-4 bg-slate-50 rounded-lg border">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-slate-800 whitespace-pre-wrap">{note.content}</p>
+                          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                            <span>By {note.created_by_name}</span>
+                            <span>•</span>
+                            <span>{new Date(note.created_at).toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                        {!isAccountsRole && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteNote(note.id)}
+                            data-testid={`delete-note-${note.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                  <p>No notes yet</p>
+                  <p className="text-sm mt-1">Add notes to keep track of important information</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

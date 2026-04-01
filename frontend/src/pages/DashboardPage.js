@@ -7,6 +7,14 @@ import { Badge } from "../components/ui/badge";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Button } from "../components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { Label } from "../components/ui/label";
+import {
   Users,
   FileText,
   AlertTriangle,
@@ -17,6 +25,8 @@ import {
   Calendar,
   Bell,
   ChevronRight,
+  Settings,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart,
@@ -30,6 +40,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -42,9 +53,19 @@ const DashboardPage = () => {
   const [paymentsOverview, setPaymentsOverview] = useState(null);
   const [upcomingDueDates, setUpcomingDueDates] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Payment Stage Management
+  const [paymentStages, setPaymentStages] = useState([]);
+  const [currentStage, setCurrentStage] = useState(null);
+  const [stageOverdue, setStageOverdue] = useState(null);
+  const [updatingStage, setUpdatingStage] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    if (hasRole("admin")) {
+      fetchPaymentStages();
+      fetchStageOverdue();
+    }
   }, []);
 
   const fetchDashboardData = async () => {
@@ -63,6 +84,46 @@ const DashboardPage = () => {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const fetchPaymentStages = async () => {
+    try {
+      const [stagesRes, currentRes] = await Promise.all([
+        axios.get(`${API}/settings/payment-stages`),
+        axios.get(`${API}/settings/current-stage`),
+      ]);
+      setPaymentStages(stagesRes.data);
+      setCurrentStage(currentRes.data);
+    } catch (error) {
+      console.error("Failed to fetch payment stages:", error);
+    }
+  };
+  
+  const fetchStageOverdue = async () => {
+    try {
+      const res = await axios.get(`${API}/dashboard/overdue-by-stage`);
+      setStageOverdue(res.data);
+    } catch (error) {
+      console.error("Failed to fetch stage overdue:", error);
+    }
+  };
+  
+  const handleStageChange = async (newStage) => {
+    setUpdatingStage(true);
+    try {
+      await axios.post(`${API}/settings/current-stage`, { current_stage: newStage });
+      toast.success("Payment stage updated successfully");
+      // Refresh data
+      await Promise.all([
+        fetchPaymentStages(),
+        fetchStageOverdue(),
+        fetchDashboardData(),
+      ]);
+    } catch (error) {
+      toast.error("Failed to update payment stage");
+    } finally {
+      setUpdatingStage(false);
     }
   };
 
@@ -201,8 +262,8 @@ const DashboardPage = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Overdue Payments</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{stats?.overdue_payments || 0}</p>
+                <p className="text-sm text-muted-foreground">Stage Overdue Count</p>
+                <p className="text-3xl font-bold text-red-600 mt-1">{stageOverdue?.overdue_count || stats?.stage_overdue_count || 0}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
                 <AlertTriangle className="h-6 w-6 text-red-600" />
@@ -211,6 +272,76 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Payment Stage Selector (Admin only) */}
+      {hasRole("admin") && (
+        <Card className="border-primary/50 bg-gradient-to-r from-slate-50 to-primary/5">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Settings className="h-5 w-5 text-primary" />
+                <CardTitle className="font-heading">Current Payment Stage</CardTitle>
+              </div>
+              {currentStage?.updated_by && (
+                <p className="text-xs text-muted-foreground">
+                  Last updated by {currentStage.updated_by}
+                </p>
+              )}
+            </div>
+            <CardDescription>
+              Set the current construction stage to calculate overdue payments. Customers who haven't paid up to this stage will be marked as overdue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+              <div className="flex-1 space-y-2">
+                <Label>Select Current Stage</Label>
+                <Select 
+                  value={currentStage?.current_stage || ""} 
+                  onValueChange={handleStageChange}
+                  disabled={updatingStage}
+                >
+                  <SelectTrigger className="w-full md:w-96" data-testid="stage-selector">
+                    {updatingStage ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Updating...
+                      </span>
+                    ) : (
+                      <SelectValue placeholder="Select payment stage" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentStages.map((stage) => (
+                      <SelectItem key={stage.key} value={stage.key}>
+                        {stage.name} ({stage.cumulative}% cumulative)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {stageOverdue?.current_stage && (
+                <div className="flex gap-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-red-600">{stageOverdue.overdue_count}</p>
+                    <p className="text-xs text-red-600">Overdue Customers</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-red-600">{formatCurrency(stageOverdue.total_overdue_amount)}</p>
+                    <p className="text-xs text-red-600">Total Overdue Amount</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            {!currentStage?.current_stage && (
+              <p className="text-sm text-amber-600 mt-2 flex items-center gap-1">
+                <AlertTriangle className="h-4 w-4" />
+                No stage selected. Select a stage to track overdue payments.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Revenue & Pending (Admin only) */}
       {hasRole("admin") && (

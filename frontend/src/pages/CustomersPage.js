@@ -447,6 +447,7 @@ const CustomersPage = () => {
                 <SelectItem value="all">All Agreements</SelectItem>
                 <SelectItem value="upcoming_due">Upcoming Due (Next 5 Days)</SelectItem>
                 <SelectItem value="pending_agreement">Pending Agreement</SelectItem>
+                <SelectItem value="overdue">Overdue (By Stage)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -478,6 +479,9 @@ const CustomersPage = () => {
                   <TableHead>Flat No.</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Phone</TableHead>
+                  {agreementFilter === "overdue" && (
+                    <TableHead className="text-right text-red-600">Overdue Amount</TableHead>
+                  )}
                   <TableHead>Agreement</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -509,6 +513,11 @@ const CustomersPage = () => {
                       </span>
                     </TableCell>
                     <TableCell>{customer.phone}</TableCell>
+                    {agreementFilter === "overdue" && (
+                      <TableCell className="text-right font-mono font-semibold text-red-600">
+                        {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(customer._overdue_amount || 0)}
+                      </TableCell>
+                    )}
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={customer.agreement_status || 'draft'}

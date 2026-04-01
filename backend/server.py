@@ -530,6 +530,39 @@ class DashboardStats(BaseModel):
     pending_percentage: float
     monthly_revenue: List[Dict[str, Any]]
     payment_status_breakdown: Dict[str, int]
+    # New fields for stage-based overdue tracking
+    current_stage: Optional[str] = None
+    current_stage_name: Optional[str] = None
+    stage_overdue_count: int = 0
+    stage_overdue_amount: float = 0
+    overdue_customers: List[Dict[str, Any]] = []
+
+# ==================== PAYMENT STAGE SETTINGS ====================
+class PaymentStageSettings(BaseModel):
+    current_stage: str  # milestone key like "podium", "2nd_floor", etc.
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_by: Optional[str] = None
+
+class CustomerNote(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_by: str
+    created_by_name: str
+
+# Payment stages available for admin selection (from Podium Slab to Possession)
+PAYMENT_STAGES = [
+    {"key": "podium", "name": "On Completion of Podium Slab", "percentage": 40, "cumulative": 40},
+    {"key": "2nd_floor", "name": "Upon Completion of 2nd Floor Roof Slab", "percentage": 5, "cumulative": 45},
+    {"key": "6th_floor", "name": "Upon Completion of 6th Floor Roof Slab", "percentage": 5, "cumulative": 50},
+    {"key": "10th_floor", "name": "Upon Completion of 10th Floor Roof Slab", "percentage": 5, "cumulative": 55},
+    {"key": "14th_floor", "name": "Upon Completion of 14th Floor Roof Slab", "percentage": 5, "cumulative": 60},
+    {"key": "18th_floor", "name": "Upon Completion of 18th Floor Roof Slab", "percentage": 5, "cumulative": 65},
+    {"key": "22nd_floor", "name": "Upon Completion of 22nd Floor Roof Slab", "percentage": 5, "cumulative": 70},
+    {"key": "top_roof", "name": "Upon Completion of Top Roof Slab", "percentage": 10, "cumulative": 80},
+    {"key": "flooring", "name": "Upon Completion of Flooring of Particular Property", "percentage": 10, "cumulative": 90},
+    {"key": "handover", "name": "Upon Handover / Possession / Registration", "percentage": 10, "cumulative": 100},
+]
 
 # ==================== HELPER FUNCTIONS ====================
 def hash_password(password: str) -> str:
@@ -789,6 +822,7 @@ async def get_customers(
         query["agreement_status"] = agreement_status
     
     # Apply agreement filters
+    filter_overdue = False
     if agreement_filter:
         today = datetime.now(timezone.utc).date()
         
@@ -802,8 +836,11 @@ async def get_customers(
         elif agreement_filter == "agreement_due":
             # Customers whose agreement needs signing (sent but not signed)
             query["agreement_status"] = "sent"
+        elif agreement_filter == "overdue":
+            # Customers who are overdue based on current stage
+            filter_overdue = True
     
-    customers = await db.customers.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit * 2 if agreement_filter == "upcoming_due" else limit)
+    customers = await db.customers.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit * 2 if agreement_filter in ["upcoming_due", "overdue"] else limit)
     
     # Post-filter for upcoming_due
     if agreement_filter == "upcoming_due":
@@ -836,7 +873,51 @@ async def get_customers(
         filtered_customers.sort(key=lambda x: x.get('_days_until_due', 999))
         customers = filtered_customers[:limit]
     
-    total = await db.customers.count_documents(query) if agreement_filter != "upcoming_due" else len(customers)
+    # Post-filter for overdue customers based on current stage
+    if filter_overdue:
+        settings = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+        if settings and settings.get("current_stage"):
+            stage_key = settings.get("current_stage")
+            stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+            if stage_info:
+                cumulative_percentage = stage_info["cumulative"]
+                
+                # Get all transactions
+                all_transactions = await db.payment_transactions.find({}, {"_id": 0}).to_list(100000)
+                txn_by_customer = {}
+                for txn in all_transactions:
+                    cid = txn.get("customer_id")
+                    if cid not in txn_by_customer:
+                        txn_by_customer[cid] = []
+                    txn_by_customer[cid].append(txn)
+                
+                overdue_customers = []
+                for cust in customers:
+                    cust_id = cust.get("id")
+                    cust_total_price = cust.get("total_price", 0) or 0
+                    cust_booking_amount = cust.get("booking_amount", 0) or 0
+                    
+                    expected_amount = (cust_total_price * cumulative_percentage) / 100
+                    
+                    cust_txns = txn_by_customer.get(cust_id, [])
+                    txn_total = sum(t.get("amount", 0) or 0 for t in cust_txns)
+                    total_received = cust_booking_amount + txn_total
+                    
+                    if txn_total > 0 and txn_total >= cust_booking_amount:
+                        total_received = txn_total
+                    
+                    overdue_amt = expected_amount - total_received
+                    if overdue_amt > 0:
+                        cust['_overdue_amount'] = round(overdue_amt, 2)
+                        overdue_customers.append(cust)
+                
+                # Sort by overdue amount (highest first)
+                overdue_customers.sort(key=lambda x: x.get('_overdue_amount', 0), reverse=True)
+                customers = overdue_customers[:limit]
+        else:
+            customers = []  # No stage set, no overdue customers
+    
+    total = await db.customers.count_documents(query) if agreement_filter not in ["upcoming_due", "overdue"] else len(customers)
     
     return {"customers": customers, "total": total}
 
@@ -5384,6 +5465,59 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
         # For now, distribute evenly (can be enhanced with actual date-based calculation)
         monthly_revenue.append({"month": month_name, "revenue": total_revenue / 6 if total_revenue > 0 else 0})
     
+    # === STAGE-BASED OVERDUE CALCULATION ===
+    current_stage = None
+    current_stage_name = None
+    stage_overdue_count = 0
+    stage_overdue_amount = 0
+    overdue_customers_list = []
+    
+    settings = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    if settings and settings.get("current_stage"):
+        stage_key = settings.get("current_stage")
+        stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+        if stage_info:
+            current_stage = stage_key
+            current_stage_name = stage_info["name"]
+            cumulative_percentage = stage_info["cumulative"]
+            
+            # Get all customers with full data for overdue calculation
+            all_customers = await db.customers.find({}, {"_id": 0}).to_list(10000)
+            all_transactions = await db.payment_transactions.find({}, {"_id": 0}).to_list(100000)
+            
+            # Group transactions by customer
+            txn_by_customer = {}
+            for txn in all_transactions:
+                cid = txn.get("customer_id")
+                if cid not in txn_by_customer:
+                    txn_by_customer[cid] = []
+                txn_by_customer[cid].append(txn)
+            
+            for cust in all_customers:
+                cust_id = cust.get("id")
+                cust_total_price = cust.get("total_price", 0) or 0
+                cust_booking_amount = cust.get("booking_amount", 0) or 0
+                
+                expected_amount = (cust_total_price * cumulative_percentage) / 100
+                
+                cust_txns = txn_by_customer.get(cust_id, [])
+                txn_total = sum(t.get("amount", 0) or 0 for t in cust_txns)
+                total_received = cust_booking_amount + txn_total
+                
+                if txn_total > 0 and txn_total >= cust_booking_amount:
+                    total_received = txn_total
+                
+                overdue_amt = expected_amount - total_received
+                if overdue_amt > 0:
+                    stage_overdue_count += 1
+                    stage_overdue_amount += overdue_amt
+                    overdue_customers_list.append({
+                        "customer_id": cust_id,
+                        "customer_name": cust.get("name"),
+                        "unit_number": cust.get("unit_number"),
+                        "overdue_amount": round(overdue_amt, 2)
+                    })
+    
     return DashboardStats(
         total_customers=total_customers,
         pending_agreements=pending_agreements,
@@ -5395,7 +5529,12 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
         total_balance=total_balance if user['role'] == 'admin' else 0,
         pending_percentage=pending_percentage if user['role'] == 'admin' else 0,
         monthly_revenue=monthly_revenue if user['role'] == 'admin' else [],
-        payment_status_breakdown=payment_status_counts
+        payment_status_breakdown=payment_status_counts,
+        current_stage=current_stage if user['role'] == 'admin' else None,
+        current_stage_name=current_stage_name if user['role'] == 'admin' else None,
+        stage_overdue_count=stage_overdue_count if user['role'] == 'admin' else 0,
+        stage_overdue_amount=round(stage_overdue_amount, 2) if user['role'] == 'admin' else 0,
+        overdue_customers=overdue_customers_list[:10] if user['role'] == 'admin' else []
     )
 
 @api_router.get("/dashboard/recent-activities")
@@ -5457,6 +5596,279 @@ async def get_upcoming_due_dates(user: dict = Depends(get_current_user)):
     upcoming.sort(key=lambda x: x['days_until_due'])
     
     return upcoming
+
+# ==================== PAYMENT STAGE MANAGEMENT ====================
+@api_router.get("/settings/payment-stages")
+async def get_payment_stages(user: dict = Depends(get_current_user)):
+    """Get available payment stages for admin selection"""
+    return PAYMENT_STAGES
+
+@api_router.get("/settings/current-stage")
+async def get_current_stage(user: dict = Depends(get_current_user)):
+    """Get the current payment stage set by admin"""
+    settings = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    if not settings:
+        return {"current_stage": None, "current_stage_name": None, "cumulative_percentage": 0}
+    
+    stage_key = settings.get("current_stage")
+    stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+    
+    return {
+        "current_stage": stage_key,
+        "current_stage_name": stage_info["name"] if stage_info else None,
+        "cumulative_percentage": stage_info["cumulative"] if stage_info else 0,
+        "updated_at": settings.get("updated_at"),
+        "updated_by": settings.get("updated_by_name")
+    }
+
+@api_router.post("/settings/current-stage")
+async def set_current_stage(data: dict, user: dict = Depends(check_role([UserRole.ADMIN]))):
+    """Set the current payment stage (Admin only)"""
+    stage_key = data.get("current_stage")
+    
+    if not stage_key:
+        raise HTTPException(status_code=400, detail="current_stage is required")
+    
+    # Validate stage key
+    stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+    if not stage_info:
+        raise HTTPException(status_code=400, detail="Invalid stage key")
+    
+    await db.settings.update_one(
+        {"type": "payment_stage"},
+        {
+            "$set": {
+                "type": "payment_stage",
+                "current_stage": stage_key,
+                "updated_at": datetime.now(timezone.utc),
+                "updated_by": user["id"],
+                "updated_by_name": user.get("name", "Admin")
+            }
+        },
+        upsert=True
+    )
+    
+    await log_activity(user['id'], user['name'], "update", "settings", "payment_stage", f"Set current payment stage to: {stage_info['name']}")
+    
+    return {"message": "Payment stage updated", "current_stage": stage_key, "stage_name": stage_info["name"]}
+
+@api_router.get("/dashboard/overdue-by-stage")
+async def get_overdue_by_stage(user: dict = Depends(get_current_user)):
+    """
+    Get customers who are overdue based on the current payment stage.
+    Overdue = Cumulative amount for current stage - Total payment received
+    """
+    # Get current stage setting
+    settings = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    if not settings or not settings.get("current_stage"):
+        return {
+            "current_stage": None,
+            "overdue_count": 0,
+            "total_overdue_amount": 0,
+            "overdue_customers": []
+        }
+    
+    stage_key = settings.get("current_stage")
+    stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+    if not stage_info:
+        return {
+            "current_stage": stage_key,
+            "overdue_count": 0,
+            "total_overdue_amount": 0,
+            "overdue_customers": []
+        }
+    
+    cumulative_percentage = stage_info["cumulative"]
+    
+    # Get all customers
+    customers = await db.customers.find({}, {"_id": 0}).to_list(10000)
+    
+    # Get all transactions
+    all_transactions = await db.payment_transactions.find({}, {"_id": 0}).to_list(100000)
+    txn_by_customer = {}
+    for txn in all_transactions:
+        cid = txn.get("customer_id")
+        if cid not in txn_by_customer:
+            txn_by_customer[cid] = []
+        txn_by_customer[cid].append(txn)
+    
+    overdue_customers = []
+    total_overdue_amount = 0
+    
+    for customer in customers:
+        customer_id = customer.get("id")
+        total_price = customer.get("total_price", 0) or 0
+        booking_amount = customer.get("booking_amount", 0) or 0
+        
+        # Calculate expected amount for current stage
+        expected_amount = (total_price * cumulative_percentage) / 100
+        
+        # Calculate total received
+        customer_txns = txn_by_customer.get(customer_id, [])
+        txn_total = sum(t.get("amount", 0) or 0 for t in customer_txns)
+        total_received = booking_amount + txn_total
+        
+        # If already counted booking amount in transactions, don't double count
+        if txn_total > 0 and txn_total >= booking_amount:
+            total_received = txn_total
+        
+        # Calculate overdue
+        overdue_amount = expected_amount - total_received
+        
+        if overdue_amount > 0:
+            overdue_customers.append({
+                "customer_id": customer_id,
+                "customer_name": customer.get("name"),
+                "project": customer.get("project"),
+                "unit_number": customer.get("unit_number"),
+                "tower": customer.get("tower"),
+                "total_price": total_price,
+                "expected_amount": round(expected_amount, 2),
+                "total_received": round(total_received, 2),
+                "overdue_amount": round(overdue_amount, 2),
+                "phone": customer.get("phone"),
+                "email": customer.get("email"),
+            })
+            total_overdue_amount += overdue_amount
+    
+    # Sort by overdue amount (highest first)
+    overdue_customers.sort(key=lambda x: x["overdue_amount"], reverse=True)
+    
+    return {
+        "current_stage": stage_key,
+        "current_stage_name": stage_info["name"],
+        "cumulative_percentage": cumulative_percentage,
+        "overdue_count": len(overdue_customers),
+        "total_overdue_amount": round(total_overdue_amount, 2),
+        "overdue_customers": overdue_customers
+    }
+
+# ==================== CUSTOMER NOTES ====================
+@api_router.get("/customers/{customer_id}/notes")
+async def get_customer_notes(customer_id: str, user: dict = Depends(get_current_user)):
+    """Get all notes for a customer"""
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0, "notes": 1})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return customer.get("notes", [])
+
+@api_router.post("/customers/{customer_id}/notes")
+async def add_customer_note(customer_id: str, data: dict, user: dict = Depends(get_current_user)):
+    """Add a note to a customer"""
+    content = data.get("content", "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Note content is required")
+    
+    note = {
+        "id": str(uuid.uuid4()),
+        "content": content,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": user["id"],
+        "created_by_name": user.get("name", "Unknown")
+    }
+    
+    result = await db.customers.update_one(
+        {"id": customer_id},
+        {"$push": {"notes": note}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    await log_activity(user['id'], user['name'], "create", "note", customer_id, f"Added note to customer")
+    
+    return note
+
+@api_router.delete("/customers/{customer_id}/notes/{note_id}")
+async def delete_customer_note(customer_id: str, note_id: str, user: dict = Depends(get_current_user)):
+    """Delete a note from a customer"""
+    result = await db.customers.update_one(
+        {"id": customer_id},
+        {"$pull": {"notes": {"id": note_id}}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    await log_activity(user['id'], user['name'], "delete", "note", customer_id, f"Deleted note from customer")
+    
+    return {"message": "Note deleted"}
+
+# ==================== CUSTOMER PAYMENT DUE DATE ====================
+@api_router.put("/customers/{customer_id}/payment-due-date")
+async def update_payment_due_date(customer_id: str, data: dict, user: dict = Depends(get_current_user)):
+    """Update payment due date for a customer"""
+    due_date = data.get("payment_due_date")
+    
+    result = await db.customers.update_one(
+        {"id": customer_id},
+        {"$set": {"payment_due_date": due_date, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    await log_activity(user['id'], user['name'], "update", "payment_due_date", customer_id, f"Updated payment due date to {due_date}")
+    
+    return {"message": "Payment due date updated", "payment_due_date": due_date}
+
+# ==================== CUSTOMER OVERDUE CALCULATION ====================
+@api_router.get("/customers/{customer_id}/overdue")
+async def get_customer_overdue(customer_id: str, user: dict = Depends(get_current_user)):
+    """Get overdue amount for a specific customer based on current stage"""
+    # Get current stage setting
+    settings = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    if not settings or not settings.get("current_stage"):
+        return {"overdue_amount": 0, "current_stage": None, "message": "No payment stage set by admin"}
+    
+    stage_key = settings.get("current_stage")
+    stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+    if not stage_info:
+        return {"overdue_amount": 0, "current_stage": stage_key}
+    
+    cumulative_percentage = stage_info["cumulative"]
+    
+    # Get customer
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    total_price = customer.get("total_price", 0) or 0
+    booking_amount = customer.get("booking_amount", 0) or 0
+    
+    # Calculate expected amount for current stage
+    expected_amount = (total_price * cumulative_percentage) / 100
+    
+    # Get transactions
+    transactions = await db.payment_transactions.find({"customer_id": customer_id}, {"_id": 0}).to_list(1000)
+    txn_total = sum(t.get("amount", 0) or 0 for t in transactions)
+    total_received = booking_amount + txn_total
+    
+    # Avoid double counting
+    if txn_total > 0 and txn_total >= booking_amount:
+        total_received = txn_total
+    
+    overdue_amount = max(0, expected_amount - total_received)
+    
+    return {
+        "customer_id": customer_id,
+        "current_stage": stage_key,
+        "current_stage_name": stage_info["name"],
+        "cumulative_percentage": cumulative_percentage,
+        "expected_amount": round(expected_amount, 2),
+        "total_received": round(total_received, 2),
+        "overdue_amount": round(overdue_amount, 2),
+        "is_overdue": overdue_amount > 0
+    }
+
+# ==================== OVERDUE CUSTOMERS LIST (for filtering) ====================
+@api_router.get("/customers/overdue/list")
+async def get_overdue_customers_list(user: dict = Depends(get_current_user)):
+    """Get list of customer IDs who are overdue (for filtering)"""
+    overdue_data = await get_overdue_by_stage(user)
+    return {
+        "customer_ids": [c["customer_id"] for c in overdue_data.get("overdue_customers", [])]
+    }
 
 # ==================== ACTIVITY LOGS ====================
 @api_router.get("/activity-logs")
