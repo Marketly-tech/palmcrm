@@ -3802,6 +3802,21 @@ async def startup_event():
         await db.users.insert_one(doc)
         logger.info("RRL CRM Admin user created: crm@rrlbuildersanddevelopers.com")
     
+    # Create Accounts role user if not exists
+    accounts_user = await db.users.find_one({"email": "accounts@rrlbuilders.com"})
+    if not accounts_user:
+        accounts_user_obj = User(
+            email="accounts@rrlbuilders.com",
+            name="Accounts User",
+            role=UserRole.ACCOUNTS,
+            phone=None
+        )
+        doc = accounts_user_obj.model_dump()
+        doc['password_hash'] = hash_password("accounts123")
+        doc['created_at'] = doc['created_at'].isoformat()
+        await db.users.insert_one(doc)
+        logger.info("Accounts user created: accounts@rrlbuilders.com")
+    
     # Seed customer data if database is empty
     customer_count = await db.customers.count_documents({})
     if customer_count == 0:
