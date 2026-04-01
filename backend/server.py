@@ -1963,8 +1963,9 @@ def generate_sales_agreement_template():
             <thead>
                 <tr>
                     <th style="width: 5%;">#</th>
-                    <th style="width: 55%;">Milestone / Particulars</th>
-                    <th style="width: 12%;">%</th>
+                    <th style="width: 45%;">Milestone / Particulars</th>
+                    <th style="width: 10%;">%</th>
+                    <th style="width: 12%;">Cumulative %</th>
                     <th style="width: 28%;">Amount (Rs.)</th>
                 </tr>
             </thead>
@@ -1974,6 +1975,7 @@ def generate_sales_agreement_template():
             <tfoot>
                 <tr style="background: #1A1A1A;">
                     <td colspan="2" style="color: #D4AF37; font-weight: bold;">TOTAL</td>
+                    <td style="color: #D4AF37; font-weight: bold;">100%</td>
                     <td style="color: #D4AF37; font-weight: bold;">100%</td>
                     <td class="amount" style="color: #D4AF37; font-weight: bold;">{total_price_formatted}</td>
                 </tr>
@@ -4506,6 +4508,7 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
     payment_schedule_rows = ""
     total = customer.get('total_price', 0) or 0
     booking_amount = customer.get('booking_amount', 0) or 0
+    cumulative_pct = 0  # Track cumulative percentage
     
     # Use schedule_items from Payment Schedule tab (the 13-point milestone schedule)
     if schedule_items and len(schedule_items) > 0:
@@ -4513,6 +4516,7 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             milestone_name = item.get('installment_name', '') or item.get('milestone', '')
             percentage = item.get('percentage', 0) or 0
             amount = item.get('amount', 0) or 0
+            cumulative_pct += percentage  # Add to cumulative
             
             # If amount is 0 but we have percentage and total, calculate
             if amount == 0 and percentage > 0 and total > 0:
@@ -4523,6 +4527,7 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
                 <td style="text-align: center;">{i}</td>
                 <td>{milestone_name}</td>
                 <td style="text-align: center;">{percentage}%</td>
+                <td style="text-align: center;">{cumulative_pct}%</td>
                 <td class="amount">{fmt(amount)}</td>
             </tr>
             '''
@@ -4543,13 +4548,16 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             ("Upon Completion of Flooring of Particular Property", 10),
             ("Upon Handover / Possession / Registration", 10),
         ]
+        cumulative_pct = 0
         for i, (name, pct) in enumerate(default_milestones, 1):
+            cumulative_pct += pct
             amount = total * pct / 100 if total > 0 else 0
             payment_schedule_rows += f'''
             <tr>
                 <td style="text-align: center;">{i}</td>
                 <td>{name}</td>
                 <td style="text-align: center;">{pct}%</td>
+                <td style="text-align: center;">{cumulative_pct}%</td>
                 <td class="amount">{fmt(amount)}</td>
             </tr>
             '''
