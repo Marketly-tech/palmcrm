@@ -27,6 +27,7 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 
 ### 5. Document Generation
 - Editable templates: Allotment Letters, Sales Agreements, Price Breakup, **Cost Breakup** ✅
+- **Bank NOC Documents:** HDFC, Bank of Baroda, TATA Capital ✅
 - Downloadable as PDFs ✅
 
 ### 6. Deletion Functionality
@@ -70,6 +71,23 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ---
 
 ## What's Been Implemented
+
+### April 1, 2026 (Session 6) - Bank NOC Document Integration
+- ✅ **Bank NOC (No Objection Certificate) Documents:**
+  - Added 3 new NOC types to `DocumentType` enum: `NOC_HDFC`, `NOC_BOB`, `NOC_TATA`
+  - Created HTML generators for HDFC, Bank of Baroda, and TATA Capital NOCs
+  - Integrated with `/api/documents/generate` endpoint
+  - Documents contain customer details, property info, loan amounts, and terms
+
+- ✅ **Frontend - Disbursement Documents Subsection:**
+  - New "Disbursement Documents" card in Documents tab
+  - 3 color-coded bank buttons: HDFC (red), BOB (orange), TATA Capital (blue)
+  - "Generate NOC" buttons with loading states
+  - "Generated NOC Documents" section shows generated NOCs with preview/download/delete options
+
+- ✅ **Testing:**
+  - Created `/app/backend/tests/test_noc_documents.py` with 8 comprehensive tests
+  - All backend and frontend tests passing (100% success rate)
 
 ### April 1, 2026 (Session 5) - Payment Stage Management + Cumulative % Column
 - ✅ **Cumulative % Column Feature:**
@@ -186,6 +204,7 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ## Prioritized Backlog
 
 ### P0 - Critical
+- ✅ **Bank NOC Document Integration** - COMPLETED (April 1, 2026)
 - ✅ **Cumulative % Column** - COMPLETED (April 1, 2026)
 - ✅ **Payment Stage Management** - COMPLETED (April 1, 2026)
 - ✅ **Customer Notes & Due Date** - COMPLETED (April 1, 2026)
