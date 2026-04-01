@@ -70,6 +70,16 @@ import {
 } from "lucide-react";
 import { Separator } from "../components/ui/separator";
 
+// Import refactored customer components
+import {
+  NotesTab,
+  UploadsTab,
+  CommunicationTab,
+  PaymentTrackingCard,
+  TransactionsCard,
+  formatCurrency as formatCurrencyUtil,
+} from "../components/customer";
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
@@ -120,8 +130,6 @@ const CustomerDetailPage = () => {
   
   // Customer Notes
   const [notes, setNotes] = useState([]);
-  const [newNote, setNewNote] = useState("");
-  const [addingNote, setAddingNote] = useState(false);
   
   // Payment Due Date
   const [editingDueDate, setEditingDueDate] = useState(false);
@@ -218,33 +226,6 @@ const CustomerDetailPage = () => {
       navigate("/customers");
     } finally {
       setLoading(false);
-    }
-  };
-  
-  // Add a new note
-  const handleAddNote = async () => {
-    if (!newNote.trim()) return;
-    setAddingNote(true);
-    try {
-      const res = await axios.post(`${API}/customers/${id}/notes`, { content: newNote });
-      setNotes([res.data, ...notes]);
-      setNewNote("");
-      toast.success("Note added");
-    } catch (error) {
-      toast.error("Failed to add note");
-    } finally {
-      setAddingNote(false);
-    }
-  };
-  
-  // Delete a note
-  const handleDeleteNote = async (noteId) => {
-    try {
-      await axios.delete(`${API}/customers/${id}/notes/${noteId}`);
-      setNotes(notes.filter(n => n.id !== noteId));
-      toast.success("Note deleted");
-    } catch (error) {
-      toast.error("Failed to delete note");
     }
   };
   
@@ -2556,78 +2537,29 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
         
         {/* Notes Tab */}
         <TabsContent value="notes">
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer Notes</CardTitle>
-              <CardDescription>Keep track of important information and follow-ups</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add Note Input */}
-              <div className="flex gap-2">
-                <Textarea
-                  placeholder="Add a note about this customer..."
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  className="flex-1"
-                  rows={2}
-                  data-testid="new-note-input"
-                />
-                <Button 
-                  onClick={handleAddNote} 
-                  disabled={addingNote || !newNote.trim()}
-                  data-testid="add-note-btn"
-                >
-                  {addingNote ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Note
-                    </>
-                  )}
-                </Button>
-              </div>
-              
-              <Separator />
-              
-              {/* Notes List */}
-              {notes.length > 0 ? (
-                <div className="space-y-3">
-                  {notes.map((note) => (
-                    <div key={note.id} className="p-4 bg-slate-50 rounded-lg border">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="text-slate-800 whitespace-pre-wrap">{note.content}</p>
-                          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                            <span>By {note.created_by_name}</span>
-                            <span>•</span>
-                            <span>{new Date(note.created_at).toLocaleString('en-IN')}</span>
-                          </div>
-                        </div>
-                        {!isAccountsRole && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteNote(note.id)}
-                            data-testid={`delete-note-${note.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-slate-500">
-                  <FileText className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                  <p>No notes yet</p>
-                  <p className="text-sm mt-1">Add notes to keep track of important information</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <NotesTab
+            notes={notes}
+            onAddNote={async (content) => {
+              try {
+                const res = await axios.post(`${API}/customers/${id}/notes`, { content });
+                setNotes([res.data, ...notes]);
+                toast.success("Note added");
+              } catch (error) {
+                toast.error("Failed to add note");
+                throw error;
+              }
+            }}
+            onDeleteNote={async (noteId) => {
+              try {
+                await axios.delete(`${API}/customers/${id}/notes/${noteId}`);
+                setNotes(notes.filter(n => n.id !== noteId));
+                toast.success("Note deleted");
+              } catch (error) {
+                toast.error("Failed to delete note");
+              }
+            }}
+            isAccountsRole={isAccountsRole}
+          />
         </TabsContent>
       </Tabs>
 
