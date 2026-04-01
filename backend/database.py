@@ -13,10 +13,14 @@ db = client[settings.DB_NAME]
 async def connect_to_mongo():
     """Initialize MongoDB connection (for explicit startup if needed)."""
     global client, db
-    if client is None:
-        client = AsyncIOMotorClient(settings.MONGO_URL)
-        db = client[settings.DB_NAME]
-    print(f"Connected to MongoDB: {settings.DB_NAME}")
+    try:
+        if client is None:
+            client = AsyncIOMotorClient(settings.MONGO_URL)
+            db = client[settings.DB_NAME]
+        print(f"Connected to MongoDB: {settings.DB_NAME}")
+    except Exception as e:
+        print(f"Failed to connect to MongoDB: {e}")
+        raise
     return db
 
 

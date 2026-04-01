@@ -5,13 +5,14 @@ Tests for HDFC, Bank of Baroda, and TATA Capital NOC document generation
 import pytest
 import requests
 import os
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, ACCOUNTS_EMAIL, ACCOUNTS_PASSWORD, TEST_CUSTOMER_ID, API_URL, TEST_BASE_URL
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
-TEST_CUSTOMER_ID = "6d902613-5106-4294-bc3e-b907f85127f7"
+ADMIN_EMAIL = ADMIN_EMAIL
+ADMIN_PASSWORD = ADMIN_PASSWORD
+TEST_CUSTOMER_ID = TEST_CUSTOMER_ID
 
 
 @pytest.fixture(scope="module")

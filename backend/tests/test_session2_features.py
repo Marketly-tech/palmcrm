@@ -7,6 +7,7 @@ Test Session 2 Features for RRL Builders CRM:
 import pytest
 import requests
 import os
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, ACCOUNTS_EMAIL, ACCOUNTS_PASSWORD, TEST_CUSTOMER_ID, API_URL, TEST_BASE_URL
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -18,7 +19,7 @@ class TestAuth:
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@rrlbuilders.com",
-            "password": "admin123"
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200, f"Login failed: {response.text}"
         return response.json()["access_token"]
@@ -77,7 +78,7 @@ class TestPublicBookingForm:
         # Login first
         login_response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@rrlbuilders.com",
-            "password": "admin123"
+            "password": ADMIN_PASSWORD
         })
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
@@ -128,7 +129,7 @@ class TestDeleteCustomer:
         """Get admin auth headers"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@rrlbuilders.com",
-            "password": "admin123"
+            "password": ADMIN_PASSWORD
         })
         return {"Authorization": f"Bearer {response.json()['access_token']}"}
     
@@ -232,7 +233,7 @@ class TestCleanup:
         # Login
         login_response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@rrlbuilders.com",
-            "password": "admin123"
+            "password": ADMIN_PASSWORD
         })
         headers = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
         

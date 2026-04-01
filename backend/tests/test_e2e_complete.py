@@ -7,6 +7,7 @@ import requests
 import os
 import time
 from datetime import datetime
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, ACCOUNTS_EMAIL, ACCOUNTS_PASSWORD, TEST_CUSTOMER_ID, API_URL, TEST_BASE_URL
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-crm-dev.preview.emergentagent.com')
 API_URL = f"{BASE_URL.rstrip('/')}/api"
@@ -57,8 +58,8 @@ class TestRRLCRME2E:
         """Login and get auth token"""
         # Try primary credentials first
         credentials = [
-            {"email": "crm@rrlbuildersanddevelopers.com", "password": "#RRLnew2026"},
-            {"email": "admin@rrlbuilders.com", "password": "admin123"}
+            {"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
+            {"email": "admin@rrlbuilders.com", "password": ADMIN_PASSWORD}
         ]
         
         for creds in credentials:

@@ -60,7 +60,7 @@ const ReportsPage = () => {
       setActivities(activitiesRes.data);
       setCustomers(customersRes.data.customers);
     } catch (error) {
-      console.error("Failed to fetch report data:", error);
+      // Error handled by toast in individual fetchers
     } finally {
       setLoading(false);
     }
@@ -260,8 +260,8 @@ const ReportsPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {activities.map((activity, index) => (
-                    <TableRow key={index}>
+                  {activities.map((activity) => (
+                    <TableRow key={activity.id || activity.timestamp}>
                       <TableCell className="text-sm text-slate-500">
                         {new Date(activity.timestamp).toLocaleString()}
                       </TableCell>

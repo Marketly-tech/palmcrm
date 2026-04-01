@@ -9,16 +9,17 @@ Tests that the Cumulative % column is correctly implemented in:
 import pytest
 import requests
 import os
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, ACCOUNTS_EMAIL, ACCOUNTS_PASSWORD, TEST_CUSTOMER_ID, API_URL, TEST_BASE_URL
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test customer: Ramya test lead
-TEST_CUSTOMER_ID = "6d902613-5106-4294-bc3e-b907f85127f7"
+TEST_CUSTOMER_ID = TEST_CUSTOMER_ID
 TEST_CUSTOMER_NAME = "Ramya test lead"
 
 # Admin credentials
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
+ADMIN_EMAIL = ADMIN_EMAIL
+ADMIN_PASSWORD = ADMIN_PASSWORD
 
 
 @pytest.fixture(scope="module")

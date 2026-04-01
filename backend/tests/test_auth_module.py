@@ -5,6 +5,7 @@ Tests the auth routes module created during refactoring.
 import pytest
 import requests
 import os
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, ACCOUNTS_EMAIL, ACCOUNTS_PASSWORD, TEST_CUSTOMER_ID, API_URL, TEST_BASE_URL
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-crm-dev.preview.emergentagent.com')
 API_URL = f"{BASE_URL.rstrip('/')}/api"
@@ -22,8 +23,8 @@ class TestAuthModule:
     def admin_token(self, session):
         """Get admin JWT token."""
         response = session.post(f"{API_URL}/auth/login", json={
-            "email": "crm@rrlbuildersanddevelopers.com",
-            "password": "#RRLnew2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         return response.json()["access_token"]
@@ -31,8 +32,8 @@ class TestAuthModule:
     def test_login_valid_credentials(self, session):
         """Test login with valid admin credentials."""
         response = session.post(f"{API_URL}/auth/login", json={
-            "email": "crm@rrlbuildersanddevelopers.com",
-            "password": "#RRLnew2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         data = response.json()
@@ -54,13 +55,13 @@ class TestAuthModule:
         })
         assert response.status_code == 200
         data = response.json()
-        assert data["email"] == "crm@rrlbuildersanddevelopers.com"
+        assert data["email"] == ADMIN_EMAIL
         assert data["role"] == "admin"
     
     def test_verify_email_exists(self, session):
         """Test email verification for password reset."""
         response = session.post(f"{API_URL}/auth/verify-email", json={
-            "email": "crm@rrlbuildersanddevelopers.com"
+            "email": ADMIN_EMAIL
         })
         assert response.status_code == 200
         assert response.json()["exists"] == True

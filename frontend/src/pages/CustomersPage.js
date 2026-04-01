@@ -119,7 +119,7 @@ const CustomersPage = () => {
       const response = await axios.get(`${API}/projects`);
       setProjects(response.data);
     } catch (error) {
-      console.error("Failed to fetch projects:", error);
+      // Silent fail - projects list optional
     }
   };
 

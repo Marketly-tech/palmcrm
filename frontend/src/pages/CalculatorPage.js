@@ -86,7 +86,7 @@ const CalculatorPage = () => {
       const response = await axios.get(`${API}/calculator/payment-schedule-template?total_amount=${totalAmount || 0}`);
       setScheduleTemplate(response.data);
     } catch (error) {
-      console.error("Failed to fetch schedule template:", error);
+      // Silent fail
     }
   };
 
@@ -352,7 +352,7 @@ const CalculatorPage = () => {
                   </TableHeader>
                   <TableBody>
                     {scheduleTemplate.map((item, index) => (
-                      <TableRow key={index}>
+                      <TableRow key={item.id || item.installment_name || index}>
                         <TableCell className="font-mono">{index + 1}</TableCell>
                         <TableCell>{item.installment_name}</TableCell>
                         <TableCell className="text-center">{item.percentage}%</TableCell>

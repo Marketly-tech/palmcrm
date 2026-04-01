@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -60,15 +60,7 @@ const DashboardPage = () => {
   const [stageOverdue, setStageOverdue] = useState(null);
   const [updatingStage, setUpdatingStage] = useState(false);
 
-  useEffect(() => {
-    fetchDashboardData();
-    if (hasRole("admin")) {
-      fetchPaymentStages();
-      fetchStageOverdue();
-    }
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const [statsRes, activitiesRes, paymentsRes, dueDatesRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`),
@@ -81,13 +73,13 @@ const DashboardPage = () => {
       setPaymentsOverview(paymentsRes.data);
       setUpcomingDueDates(dueDatesRes.data || []);
     } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
+      // Dashboard data fetch failed - shown empty state
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   
-  const fetchPaymentStages = async () => {
+  const fetchPaymentStages = useCallback(async () => {
     try {
       const [stagesRes, currentRes] = await Promise.all([
         axios.get(`${API}/settings/payment-stages`),
@@ -96,18 +88,26 @@ const DashboardPage = () => {
       setPaymentStages(stagesRes.data);
       setCurrentStage(currentRes.data);
     } catch (error) {
-      console.error("Failed to fetch payment stages:", error);
+      // Silent fail - dashboard still works without stages
     }
-  };
+  }, []);
   
-  const fetchStageOverdue = async () => {
+  const fetchStageOverdue = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/dashboard/overdue-by-stage`);
       setStageOverdue(res.data);
     } catch (error) {
-      console.error("Failed to fetch stage overdue:", error);
+      // Silent fail
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+    if (hasRole("admin")) {
+      fetchPaymentStages();
+      fetchStageOverdue();
+    }
+  }, [fetchDashboardData, fetchPaymentStages, fetchStageOverdue, hasRole]);
   
   const handleStageChange = async (newStage) => {
     setUpdatingStage(true);
@@ -182,7 +182,6 @@ const DashboardPage = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
       alert('Export failed. Please try again.');
     }
   };
@@ -540,7 +539,7 @@ const DashboardPage = () => {
               {paymentsOverview?.overdue?.length > 0 ? (
                 <div className="space-y-3">
                   {paymentsOverview.overdue.slice(0, 5).map((item, index) => (
-                    <div key={index} className="p-3 bg-red-50 rounded-lg">
+                    <div key={item.customer_id ? `${item.customer_id}-${item.installment_name}` : index} className="p-3 bg-red-50 rounded-lg">
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium text-slate-900">{item.customer_name}</p>
@@ -574,7 +573,7 @@ const DashboardPage = () => {
               {paymentsOverview?.upcoming?.length > 0 ? (
                 <div className="space-y-3">
                   {paymentsOverview.upcoming.slice(0, 5).map((item, index) => (
-                    <div key={index} className="p-3 bg-amber-50 rounded-lg">
+                    <div key={item.customer_id ? `${item.customer_id}-${item.installment_name}` : index} className="p-3 bg-amber-50 rounded-lg">
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium text-slate-900">{item.customer_name}</p>
@@ -610,15 +609,15 @@ const DashboardPage = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {upcomingDueDates.map((item, index) => {
+              {upcomingDueDates.map((item) => {
                 const countdownDays = getCountdownDays(item.due_date);
                 const badge = getCountdownBadge(countdownDays);
                 return (
                   <div
-                    key={index}
+                    key={item.customer_id}
                     className="p-4 bg-white rounded-lg border border-orange-200 hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => navigate(`/customers/${item.customer_id}`)}
-                    data-testid={`due-date-card-${index}`}
+                    data-testid={`due-date-card-${item.customer_id}`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -657,8 +656,8 @@ const DashboardPage = () => {
           <ScrollArea className="h-64">
             {activities.length > 0 ? (
               <div className="space-y-3">
-                {activities.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-lg">
+                {activities.map((activity) => (
+                  <div key={activity.id || activity.created_at} className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-lg">
                     <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
                       <Activity className="h-4 w-4 text-slate-500" />
                     </div>

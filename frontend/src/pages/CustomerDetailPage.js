@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import DOMPurify from "dompurify";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
@@ -175,11 +176,7 @@ const CustomerDetailPage = () => {
     notes: ""
   });
 
-  useEffect(() => {
-    fetchCustomerData();
-  }, [id]);
-
-  const fetchCustomerData = async () => {
+  const fetchCustomerData = useCallback(async () => {
     try {
       const [customerRes, scheduleRes, checklistRes, docsRes, commsRes, uploadedDocsRes, transactionsRes, overdueRes, notesRes] = await Promise.all([
         axios.get(`${API}/customers/${id}`),
@@ -223,7 +220,11 @@ const CustomerDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    fetchCustomerData();
+  }, [id, fetchCustomerData]);
   
   // Update payment due date
   const handleUpdateDueDate = async () => {
@@ -452,10 +453,11 @@ const CustomerDetailPage = () => {
   const handleDownloadDocument = async (doc) => {
     try {
       const response = await axios.get(`${API}/documents/html/${doc.id}`);
-      // Open in new window for printing/saving as PDF
       const printWindow = window.open("", "_blank");
       if (printWindow) {
-        printWindow.document.write(response.data.content);
+        const sanitized = DOMPurify.sanitize(response.data.content, { WHOLE_DOCUMENT: true, ADD_TAGS: ['style', 'link'], ADD_ATTR: ['target'] });
+        printWindow.document.open();
+        printWindow.document.write(sanitized);
         printWindow.document.close();
       }
     } catch (error) {
@@ -608,11 +610,12 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
       const response = await axios.post(`${API}/documents/generate-pdf/${id}`);
       toast.success("Price breakup generated");
       
-      // Open in new window
       if (response.data.html_content) {
         const printWindow = window.open("", "_blank");
         if (printWindow) {
-          printWindow.document.write(response.data.html_content);
+          const sanitized = DOMPurify.sanitize(response.data.html_content, { WHOLE_DOCUMENT: true, ADD_TAGS: ['style', 'link'], ADD_ATTR: ['target'] });
+          printWindow.document.open();
+          printWindow.document.write(sanitized);
           printWindow.document.close();
         }
       }
@@ -651,14 +654,14 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
       const dataUrl = `data:${content_type};base64,${content_base64}`;
       
       if (content_type.startsWith("image/")) {
-        // For images, show in dialog
-        setPreviewContent(`<img src="${dataUrl}" style="max-width: 100%; height: auto;" alt="${filename}" />`);
+        setPreviewContent(DOMPurify.sanitize(`<img src="${dataUrl}" style="max-width: 100%; height: auto;" alt="${DOMPurify.sanitize(filename)}" />`));
         setPreviewDialogOpen(true);
       } else if (content_type === "application/pdf") {
-        // For PDFs, open in new tab
         const pdfWindow = window.open("", "_blank");
         if (pdfWindow) {
-          pdfWindow.document.write(`<iframe src="${dataUrl}" style="width:100%;height:100%;border:none;"></iframe>`);
+          pdfWindow.document.open();
+          pdfWindow.document.write(DOMPurify.sanitize(`<iframe src="${dataUrl}" style="width:100%;height:100%;border:none;"></iframe>`, { ADD_TAGS: ['iframe'], ADD_ATTR: ['src', 'style'] }));
+          pdfWindow.document.close();
         }
       } else {
         // For other types, trigger download
@@ -2159,7 +2162,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
           </DialogHeader>
           <div
             className="mt-4"
-            dangerouslySetInnerHTML={{ __html: previewContent || "" }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewContent || "", { ADD_TAGS: ['style', 'link', 'img'], ADD_ATTR: ['target', 'src', 'alt'] }) }}
           />
         </DialogContent>
       </Dialog>
@@ -2315,22 +2318,22 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                   </TabsList>
                   
                   <TabsContent value="preview" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                    <div dangerouslySetInnerHTML={{ __html: emailComposerData.email_html || "" }} />
+                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.email_html || "") }} />
                   </TabsContent>
                   
                   <TabsContent value="attachment1" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                    <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html || "" }} />
+                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.attachment_html || "") }} />
                   </TabsContent>
                   
                   {emailComposerData.attachment_html_2 && (
                     <TabsContent value="attachment2" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                      <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html_2 || "" }} />
+                      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.attachment_html_2 || "") }} />
                     </TabsContent>
                   )}
                   
                   {emailComposerData.attachment_html_3 && (
                     <TabsContent value="attachment3" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                      <div dangerouslySetInnerHTML={{ __html: emailComposerData.attachment_html_3 || "" }} />
+                      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.attachment_html_3 || "") }} />
                     </TabsContent>
                   )}
                 </Tabs>

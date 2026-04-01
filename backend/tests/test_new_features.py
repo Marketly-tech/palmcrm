@@ -8,12 +8,13 @@ import pytest
 import requests
 import os
 from datetime import datetime, timedelta
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, ACCOUNTS_EMAIL, ACCOUNTS_PASSWORD, TEST_CUSTOMER_ID, API_URL, TEST_BASE_URL
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
 TEST_EMAIL = "admin@rrlbuilders.com"
-TEST_PASSWORD = "admin123"
+TEST_PASSWORD = ADMIN_PASSWORD
 
 
 class TestAuth:

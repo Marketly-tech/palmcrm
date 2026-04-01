@@ -5,6 +5,7 @@ Tests the dashboard routes module created during refactoring.
 import pytest
 import requests
 import os
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, ACCOUNTS_EMAIL, ACCOUNTS_PASSWORD, TEST_CUSTOMER_ID, API_URL, TEST_BASE_URL
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-crm-dev.preview.emergentagent.com')
 API_URL = f"{BASE_URL.rstrip('/')}/api"
@@ -22,8 +23,8 @@ class TestDashboardModule:
     def admin_token(self, session):
         """Get admin JWT token."""
         response = session.post(f"{API_URL}/auth/login", json={
-            "email": "crm@rrlbuildersanddevelopers.com",
-            "password": "#RRLnew2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         return response.json()["access_token"]
@@ -32,8 +33,8 @@ class TestDashboardModule:
     def accounts_token(self, session):
         """Get accounts role JWT token."""
         response = session.post(f"{API_URL}/auth/login", json={
-            "email": "accounts@rrlbuilders.com",
-            "password": "accounts123"
+            "email": ACCOUNTS_EMAIL,
+            "password": ACCOUNTS_PASSWORD
         })
         if response.status_code == 200:
             return response.json()["access_token"]

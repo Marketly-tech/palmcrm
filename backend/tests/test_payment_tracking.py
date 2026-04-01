@@ -8,6 +8,7 @@ import pytest
 import requests
 import os
 import uuid
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, ACCOUNTS_EMAIL, ACCOUNTS_PASSWORD, TEST_CUSTOMER_ID, API_URL, TEST_BASE_URL
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-crm-dev.preview.emergentagent.com').rstrip('/')
 
@@ -27,7 +28,7 @@ class TestPaymentTrackingFeature:
         """Test login to get auth token"""
         response = api_client.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@rrlbuilders.com",
-            "password": "admin123"
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200, f"Login failed: {response.text}"
         data = response.json()
@@ -274,7 +275,7 @@ def auth_token(api_client):
     """Get authentication token"""
     response = api_client.post(f"{BASE_URL}/api/auth/login", json={
         "email": "admin@rrlbuilders.com",
-        "password": "admin123"
+        "password": ADMIN_PASSWORD
     })
     if response.status_code == 200:
         return response.json().get("access_token")
