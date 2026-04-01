@@ -46,6 +46,15 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - Total Flat Value card ✅
 - Total Balance card ✅
 - Dynamic revenue calculation from transactions ✅
+- **Payment Stage Management (Admin)** ✅
+  - Stage selector from Podium Slab to Handover
+  - Overdue count and total overdue amount display
+  - Stage-based overdue calculation
+
+### 10. Customer Notes & Due Date ✅
+- Notes section in customer profile for user comments
+- Editable "Next Payment Due Date" field
+- Payment overdue display based on admin's declared stage
 
 ---
 
@@ -62,18 +71,40 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 
 ## What's Been Implemented
 
-### April 1, 2026 (Session 5) - Cumulative % Column + Frontend Refactoring Start
-- ✅ **Cumulative % Column Feature COMPLETE:**
-  - Added "Cumulative %" column to Payment Schedule table in frontend
-  - Column shows accumulating percentages: 10%, 20%, 30%... up to 100%
-  - Updated `generate_payment_schedule_html` in server.py (lines 6328-6347)
-  - Sales Agreement PDF already had Cumulative % column (verified working)
-  - All 7 pytest tests for this feature passing
-- ✅ **Frontend Component Extraction Started:**
-  - Created `PaymentScheduleTab.jsx` component
-  - Created `DocumentsTab.jsx` component
-  - Updated index.js to export new components
-  - Components ready for integration into CustomerDetailPage.js
+### April 1, 2026 (Session 5) - Payment Stage Management + Cumulative % Column
+- ✅ **Cumulative % Column Feature:**
+  - Added to Payment Schedule table in frontend
+  - Added to Payment Schedule PDF and Sales Agreement PDF
+  - Shows accumulating percentages: 10%, 20%, 30%... up to 100%
+
+- ✅ **Payment Stage Management (Major Feature):**
+  - Admin dashboard stage selector (Podium Slab → Handover)
+  - 10 stages with cumulative percentages (40% to 100%)
+  - Overdue calculation: Expected (stage %) - Received payments
+  - Dashboard shows overdue count and total overdue amount
+  - Backend: `/api/settings/payment-stages`, `/api/settings/current-stage`
+  - Backend: `/api/dashboard/overdue-by-stage`
+
+- ✅ **Customer List Overdue Filter:**
+  - "Overdue (By Stage)" filter option under Agreement Filter
+  - Shows Overdue Amount column when filter active
+  - Sorted by overdue amount (highest first)
+
+- ✅ **Customer Profile Enhancements:**
+  - Payment Tracking shows individual overdue (Expected, Received, Overdue Amount)
+  - OVERDUE badge with stage name display
+  - Editable "Next Payment Due Date" field
+  - New "Notes" tab for user comments
+  - Notes CRUD: add, view, delete with timestamps
+
+- ✅ **Backend APIs Added:**
+  - `/api/customers/{id}/overdue` - Individual overdue calculation
+  - `/api/customers/{id}/notes` - Notes management
+  - `/api/customers/{id}/payment-due-date` - Due date update
+
+- ✅ **Testing:**
+  - 21 new pytest tests for payment stages
+  - Total: 79 tests passing (58 + 21 new)
 
 ### March 29, 2026 (Session 4) - Backend Refactoring Phase 2 + Testing
 - ✅ **Backend Refactoring - Phase 2 COMPLETE:**
@@ -156,14 +187,13 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 
 ### P0 - Critical
 - ✅ **Cumulative % Column** - COMPLETED (April 1, 2026)
-  - Added to frontend Payment Schedule tab
-  - Added to Payment Schedule PDF
-  - Added to Sales Agreement PDF
+- ✅ **Payment Stage Management** - COMPLETED (April 1, 2026)
+- ✅ **Customer Notes & Due Date** - COMPLETED (April 1, 2026)
 
 ### P1 - High Priority
 1. ~~**Data Import from Excel**~~ ✅ COMPLETED
-2. **Test Application with Real Data** - Generate documents, send emails for a few customers
-3. **Frontend Refactoring** - Decompose CustomerDetailPage.js (IN PROGRESS)
+2. **Test Application with Real Data** - Generate documents, send emails for production customers
+3. **Frontend Refactoring** - Decompose CustomerDetailPage.js (2700+ lines)
 
 ### P2 - Medium Priority
 1. WhatsApp integration via Twilio (currently placeholder)
@@ -287,8 +317,8 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ---
 
 ## Known Issues / Technical Debt
-1. ~~`server.py` is >5700 lines~~ - **Phase 2 complete**, modular routers enabled, inline routes still present (can be removed later)
-2. `CustomerDetailPage.js` is >2600 lines - **Phase 3 started** - PaymentScheduleTab and DocumentsTab extracted, need to integrate
+1. ~~`server.py` is >5700 lines~~ - **Phase 2 complete**, modular routers enabled, inline routes still present
+2. `CustomerDetailPage.js` is >2700 lines - Frontend monolith needs decomposition
 3. WhatsApp integration is placeholder (`whatsapp://` link)
-4. PDF HTML templates (massive) still inline in server.py - **Phase 4** for template extraction
-5. ~~No comprehensive pytest test suite~~ - **58 tests now passing** (51 + 7 new for Cumulative %)
+4. PDF HTML templates (massive) still inline in server.py
+5. ~~No comprehensive pytest test suite~~ - **79 tests now passing**
