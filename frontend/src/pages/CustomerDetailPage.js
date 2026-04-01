@@ -390,9 +390,13 @@ const CustomerDetailPage = () => {
         toast.success("Transaction added successfully");
       }
 
-      // Refresh transactions
-      const response = await axios.get(`${API}/transactions/${id}`);
-      setTransactions(response.data || []);
+      // Refresh transactions and overdue info
+      const [transactionsRes, overdueRes] = await Promise.all([
+        axios.get(`${API}/transactions/${id}`),
+        axios.get(`${API}/customers/${id}/overdue`).catch(() => ({ data: null }))
+      ]);
+      setTransactions(transactionsRes.data || []);
+      setOverdueInfo(overdueRes.data);
 
       // Reset form
       setTransactionDialogOpen(false);
@@ -430,7 +434,15 @@ const CustomerDetailPage = () => {
     
     try {
       await axios.delete(`${API}/transactions/${id}/${transactionId}`);
-      setTransactions(transactions.filter(t => t.id !== transactionId));
+      
+      // Refresh transactions and overdue info
+      const [transactionsRes, overdueRes] = await Promise.all([
+        axios.get(`${API}/transactions/${id}`),
+        axios.get(`${API}/customers/${id}/overdue`).catch(() => ({ data: null }))
+      ]);
+      setTransactions(transactionsRes.data || []);
+      setOverdueInfo(overdueRes.data);
+      
       toast.success("Transaction deleted");
     } catch (error) {
       toast.error("Failed to delete transaction");
@@ -1629,8 +1641,8 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                       {overdueInfo?.is_overdue && (
                         <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="destructive">OVERDUE</Badge>
-                            <span className="text-sm text-slate-600">as per stage: {overdueInfo.current_stage_name}</span>
+                            <Badge variant="destructive">PAYMENT OVERDUE</Badge>
+                            <span className="text-sm text-slate-600">as per disbursement slab: {overdueInfo.current_stage_name}</span>
                           </div>
                           <div className="grid grid-cols-3 gap-4 text-sm">
                             <div>
@@ -1638,7 +1650,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                               <p className="font-bold text-slate-900">{formatCurrency(overdueInfo.expected_amount)}</p>
                             </div>
                             <div>
-                              <p className="text-slate-600">Received</p>
+                              <p className="text-slate-600">Total Received</p>
                               <p className="font-bold text-green-600">{formatCurrency(overdueInfo.total_received)}</p>
                             </div>
                             <div>
@@ -1653,14 +1665,14 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                         <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
                           <CheckCircle className="h-5 w-5 text-green-600" />
                           <span className="text-sm text-green-700">
-                            No overdue payments for current stage: {overdueInfo.current_stage_name}
+                            Payments up to date for current disbursement slab: {overdueInfo.current_stage_name}
                           </span>
                         </div>
                       )}
                       
                       {overdueInfo && !overdueInfo.current_stage && (
                         <div className="p-3 bg-slate-50 border rounded-lg text-sm text-slate-500">
-                          No payment stage set by admin. Overdue tracking unavailable.
+                          No disbursement slab set by admin. Overdue tracking unavailable.
                         </div>
                       )}
                       

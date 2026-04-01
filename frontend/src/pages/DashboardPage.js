@@ -280,7 +280,7 @@ const DashboardPage = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Settings className="h-5 w-5 text-primary" />
-                <CardTitle className="font-heading">Current Payment Stage</CardTitle>
+                <CardTitle className="font-heading">Current Disbursement Slab</CardTitle>
               </div>
               {currentStage?.updated_by && (
                 <p className="text-xs text-muted-foreground">
@@ -289,13 +289,13 @@ const DashboardPage = () => {
               )}
             </div>
             <CardDescription>
-              Set the current construction stage to calculate overdue payments. Customers who haven't paid up to this stage will be marked as overdue.
+              Set the current disbursement slab to calculate overdue payments. Customers who haven't paid up to this slab will be marked as overdue.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
               <div className="flex-1 space-y-2">
-                <Label>Select Current Stage</Label>
+                <Label>Select Disbursement Slab</Label>
                 <Select 
                   value={currentStage?.current_stage || ""} 
                   onValueChange={handleStageChange}
@@ -308,7 +308,7 @@ const DashboardPage = () => {
                         Updating...
                       </span>
                     ) : (
-                      <SelectValue placeholder="Select payment stage" />
+                      <SelectValue placeholder="Select disbursement slab" />
                     )}
                   </SelectTrigger>
                   <SelectContent>
