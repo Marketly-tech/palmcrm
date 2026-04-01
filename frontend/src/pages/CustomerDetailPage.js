@@ -2134,6 +2134,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                           <SelectItem value="sales_agreement">Sales Agreement</SelectItem>
                           <SelectItem value="allotment_letter">Allotment Letter</SelectItem>
                           <SelectItem value="price_breakup">Price Breakup</SelectItem>
+                          <SelectItem value="cost_breakup">Cost Breakup</SelectItem>
                           <SelectItem value="disbursement_letter">Disbursement Letter</SelectItem>
                           <SelectItem value="payment_schedule">Payment Schedule</SelectItem>
                         </SelectContent>

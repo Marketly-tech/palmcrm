@@ -26,7 +26,7 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - Track payment schedules ✅
 
 ### 5. Document Generation
-- Editable templates: Allotment Letters, Sales Agreements, Price Breakup
+- Editable templates: Allotment Letters, Sales Agreements, Price Breakup, **Cost Breakup** ✅
 - Downloadable as PDFs ✅
 
 ### 6. Deletion Functionality
