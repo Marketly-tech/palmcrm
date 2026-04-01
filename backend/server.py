@@ -308,6 +308,14 @@ class CustomerBase(BaseModel):
     first_disbursement_amount: float = 0
     first_disbursement_date: Optional[str] = None
     
+    # Bank Account Details (Customer's bank for disbursement/refund)
+    bank_name: Optional[str] = None  # HDFC, BOB, TATA, Others
+    bank_name_other: Optional[str] = None  # If bank_name is "Others"
+    bank_account_number: Optional[str] = None
+    bank_ifsc_code: Optional[str] = None
+    bank_branch: Optional[str] = None
+    bank_account_holder: Optional[str] = None
+    
     # Status
     stage: str = "pending_approval"  # pending_approval, qualified, agreement_pending, agreement_done, registration_done
     agreement_status: str = "draft"
