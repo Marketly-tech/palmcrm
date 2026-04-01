@@ -186,6 +186,9 @@ const CustomerDetailPage = () => {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
+  // Bank NOC Generation
+  const [generatingNoc, setGeneratingNoc] = useState(null);
+
   // Payment Transactions
   const [transactions, setTransactions] = useState([]);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
@@ -531,6 +534,23 @@ const CustomerDetailPage = () => {
       }
     } catch (error) {
       toast.error("Failed to download document");
+    }
+  };
+
+  // Bank NOC Generation Handler
+  const handleGenerateNoc = async (nocType, bankName) => {
+    setGeneratingNoc(nocType);
+    try {
+      const response = await axios.post(`${API}/documents/generate`, {
+        customer_id: id,
+        doc_type: nocType,
+      });
+      setDocuments([...documents, response.data.document]);
+      toast.success(`${bankName} NOC generated successfully`);
+    } catch (error) {
+      toast.error(`Failed to generate ${bankName} NOC`);
+    } finally {
+      setGeneratingNoc(null);
     }
   };
 
@@ -2398,6 +2418,173 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                 <div className="text-center py-8 text-slate-500">
                   <FileText className="w-12 h-12 mx-auto mb-4 text-slate-300" />
                   <p>No documents generated yet</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Disbursement - Bank NOC Documents Subsection */}
+          <Card className="mt-6">
+            <CardHeader>
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-amber-600" />
+                  Disbursement Documents
+                </CardTitle>
+                <CardDescription>Generate Bank NOC (No Objection Certificate) for loan disbursement</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* HDFC Bank NOC */}
+                <div className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-800">HDFC Bank</p>
+                      <p className="text-xs text-slate-500">No Objection Certificate</p>
+                    </div>
+                    <Button
+                      onClick={() => handleGenerateNoc("noc_hdfc", "HDFC Bank")}
+                      disabled={generatingNoc === "noc_hdfc"}
+                      className="w-full bg-red-600 hover:bg-red-700"
+                      size="sm"
+                      data-testid="generate-noc-hdfc"
+                    >
+                      {generatingNoc === "noc_hdfc" ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Generate NOC
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Bank of Baroda NOC */}
+                <div className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-800">Bank of Baroda</p>
+                      <p className="text-xs text-slate-500">No Objection Certificate</p>
+                    </div>
+                    <Button
+                      onClick={() => handleGenerateNoc("noc_bob", "Bank of Baroda")}
+                      disabled={generatingNoc === "noc_bob"}
+                      className="w-full bg-orange-600 hover:bg-orange-700"
+                      size="sm"
+                      data-testid="generate-noc-bob"
+                    >
+                      {generatingNoc === "noc_bob" ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Generate NOC
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* TATA Capital NOC */}
+                <div className="p-4 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-800">TATA Capital</p>
+                      <p className="text-xs text-slate-500">No Objection Certificate</p>
+                    </div>
+                    <Button
+                      onClick={() => handleGenerateNoc("noc_tata", "TATA Capital")}
+                      disabled={generatingNoc === "noc_tata"}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      size="sm"
+                      data-testid="generate-noc-tata"
+                    >
+                      {generatingNoc === "noc_tata" ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Generate NOC
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* List any generated NOC documents */}
+              {documents.filter(doc => ['noc_hdfc', 'noc_bob', 'noc_tata'].includes(doc.doc_type)).length > 0 && (
+                <div className="mt-6 pt-6 border-t">
+                  <h4 className="text-sm font-medium text-slate-700 mb-3">Generated NOC Documents</h4>
+                  <div className="space-y-3">
+                    {documents.filter(doc => ['noc_hdfc', 'noc_bob', 'noc_tata'].includes(doc.doc_type)).map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg bg-white">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-6 h-6 text-primary" />
+                          <div>
+                            <p className="font-medium text-sm capitalize">
+                              {doc.doc_type === 'noc_hdfc' && 'HDFC Bank NOC'}
+                              {doc.doc_type === 'noc_bob' && 'Bank of Baroda NOC'}
+                              {doc.doc_type === 'noc_tata' && 'TATA Capital NOC'}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Generated: {new Date(doc.generated_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePreviewDocument(doc)}
+                            data-testid={`preview-noc-${doc.id}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadDocument(doc)}
+                            data-testid={`download-noc-${doc.id}`}
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                          {!isAccountsRole && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDeleteDocClick(doc, 'generated')}
+                              data-testid={`delete-noc-${doc.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>

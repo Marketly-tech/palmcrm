@@ -1439,6 +1439,12 @@ async def generate_document(data: DocumentGenerate, user: dict = Depends(get_cur
             {"customer_id": data.customer_id}, {"_id": 0}
         ).sort("transaction_date", 1).to_list(1000)
         content = generate_payment_schedule_pdf_html(customer, transactions)
+    elif data.doc_type == DocumentType.NOC_HDFC:
+        content = generate_noc_hdfc_html(customer)
+    elif data.doc_type == DocumentType.NOC_BOB:
+        content = generate_noc_bob_html(customer)
+    elif data.doc_type == DocumentType.NOC_TATA:
+        content = generate_noc_tata_html(customer)
     else:
         # For other document types, use template-based generation
         template = await db.document_templates.find_one({"doc_type": data.doc_type.value}, {"_id": 0})
