@@ -51,7 +51,7 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - Customer CRUD with detailed profiles
 - Payment schedule management with cumulative percentages
 - Transaction logging with stage tracking
-- Document generation (Sales Agreement, Allotment Letter, Price Breakup, Cost Breakup, Disbursement Letter, Payment Schedule)
+- Document generation (Sales Agreement, Allotment Letter, Price Breakup, Cost Breakup, Disbursement Letter, Payment Schedule, Demand Letter)
 - Bank NOC generation (HDFC, Bank of Baroda, TATA Capital)
 - Document upload/download/preview
 - Communication (Email via SendGrid, WhatsApp MOCKED)
