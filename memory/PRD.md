@@ -85,7 +85,10 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - **Root cause:** booking payments are already recorded as individual transactions; adding booking_amount separately = 2x inflation
 - **Fixed in:** Frontend (CustomerDetailPage.js, PaymentTrackingCard.jsx, utils.js), Backend (server.py overdue calculations, dashboard/routes.py revenue)
 - **Impact:** Payment Tracking cards, Dashboard revenue, Overdue calculations all now use transactions as single source of truth
-- **Verified:** Kuldeep Khandelwal now shows ₹10,12,588 (correct) instead of ₹20,25,176 (doubled). Dashboard total_revenue=₹8,08,51,646 matches exact transaction sum
+- **Auto-generation:** Added `auto_generate_booking_transaction` helper that creates a booking-stage transaction when a customer has `booking_amount` not covered by existing transactions
+- **Migration:** One-time startup migration created booking transactions for 5 customers whose booking_amount wasn't recorded as transactions
+- **Sales Agreement:** Updated template to render actual transaction records (booking + agreement stages) instead of hardcoded booking_amount field
+- **Verified:** Kuldeep Khandelwal shows ₹10,12,588 (correct). REDDIMASI MOHAN BABU shows ₹38,05,200 (includes auto-generated booking txn). Dashboard total_revenue matches exact transaction sum
 
 ### Code Quality Improvements (April 2026)
 - **Security:** DOMPurify sanitization on all `document.write` and `dangerouslySetInnerHTML` (XSS prevention)
