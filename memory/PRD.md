@@ -71,6 +71,15 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
   - CustomerDetailPage.js reduced from 3180 → 2380 lines (25% reduction)
   - Components: DocumentsTab, UploadsTab, CommunicationTab, ChecklistTab, PaymentScheduleTab, NotesTab
 
+### Booking ID Import & Display (April 2026)
+- Imported booking_number, agreement_date, and notes from Excel (PA_CB_16-MARCH-2026.xlsm) for 33 customers
+- 4 remaining CRM customers auto-assigned sequential booking numbers
+- Replaced customer_id display with booking_number (e.g., "RRL PAB035") across customer list and detail pages
+- Search now supports booking_number
+- Restored SOVARAJ PRUSTY's booking details (₹2,00,000 / 2026-02-28)
+- Removed "Total Received" and "Balance" from Booking Details card (belong in Payment Tracking only)
+- Protected booking details from accidental overwrite (frontend strips, backend blocks)
+
 ### Code Quality Improvements (April 2026)
 - **Security:** DOMPurify sanitization on all `document.write` and `dangerouslySetInnerHTML` (XSS prevention)
 - **Security:** Hardcoded credentials removed from all test files → centralized in `conftest_credentials.py` via env vars
