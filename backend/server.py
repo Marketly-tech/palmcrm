@@ -961,6 +961,14 @@ async def update_customer(customer_id: str, updates: Dict[str, Any], user: dict 
         if not set(updates.keys()).issubset(allowed_fields):
             raise HTTPException(status_code=403, detail="Accounts role can only update agreement status")
     
+    # PROTECT: Never allow overwriting one-time booking details via general update
+    protected_booking_fields = {
+        'booking_amount', 'booking_date', 'transaction_date',
+        'transaction_bank', 'transaction_details'
+    }
+    for field in protected_booking_fields:
+        updates.pop(field, None)
+    
     updates['updated_at'] = datetime.now(timezone.utc).isoformat()
     result = await db.customers.update_one({"id": customer_id}, {"$set": updates})
     if result.modified_count == 0:

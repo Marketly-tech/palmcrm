@@ -276,9 +276,6 @@ const CustomerDetailPage = () => {
           gst_amount: liveCalc.gst,
           total_price: liveCalc.total,
           uds: liveCalc.uds,
-          balance_amount: Math.round(liveCalc.total - (customer.total_received || 0)),
-          payment_received_percentage: liveCalc.total > 0 ? Math.round(((customer.total_received || 0) / liveCalc.total) * 10000) / 100 : 0,
-          payment_pending_percentage: liveCalc.total > 0 ? Math.round((1 - (customer.total_received || 0) / liveCalc.total) * 10000) / 100 : 100,
           custom_fields: {
             ...(customer.custom_fields || {}),
             floor_rise_cost: editData.floor_rise_cost || 0,
@@ -286,6 +283,15 @@ const CustomerDetailPage = () => {
           }
         };
       }
+      
+      // PROTECT: Never overwrite one-time booking details or computed payment fields
+      const protectedFields = [
+        'booking_amount', 'booking_date', 'transaction_date', 'transaction_bank',
+        'transaction_details', 'total_received', 'balance_amount',
+        'payment_received_percentage', 'payment_pending_percentage',
+        'id', 'created_at', '_id'
+      ];
+      protectedFields.forEach(f => delete dataToSave[f]);
       
       await axios.put(`${API}/customers/${id}`, dataToSave);
       fetchCustomerData(); // Refresh to get updated data
@@ -1398,14 +1404,6 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                   <div>
                     <Label>Booking Amount</Label>
                     <p className="text-slate-700 mt-1">{formatCurrency(customer.booking_amount)}</p>
-                  </div>
-                  <div>
-                    <Label>Total Received</Label>
-                    <p className="text-green-600 font-semibold mt-1">{formatCurrency(customer.total_received)}</p>
-                  </div>
-                  <div>
-                    <Label>Balance</Label>
-                    <p className="text-red-600 font-semibold mt-1">{formatCurrency(customer.balance_amount)}</p>
                   </div>
                   <div>
                     <Label>Booking Date</Label>
