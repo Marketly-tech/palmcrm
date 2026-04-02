@@ -1014,9 +1014,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
             <p className="text-sm text-slate-500">Received</p>
             <p className="font-semibold text-green-600">
               {(() => {
-                const transactionTotal = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
-                const bookingAmount = customer.booking_amount || 0;
-                const totalReceived = transactionTotal + bookingAmount;
+                const totalReceived = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
                 const totalPrice = customer.total_price || 0;
                 const receivedPercentage = totalPrice > 0 ? (totalReceived / totalPrice) * 100 : 0;
                 return `${receivedPercentage.toFixed(1)}%`;
@@ -1650,10 +1648,9 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
               </CardHeader>
               <CardContent className="space-y-4">
                 {(() => {
-                  // Calculate received from transactions + booking amount
-                  const transactionTotal = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
-                  const bookingAmount = customer.booking_amount || 0;
-                  const totalReceived = transactionTotal + bookingAmount;
+                  // Total received = sum of all transactions only
+                  // booking_amount is already recorded as transaction entries
+                  const totalReceived = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
                   const totalPrice = customer.total_price || 0;
                   const balanceAmount = totalPrice - totalReceived;
                   const receivedPercentage = totalPrice > 0 ? (totalReceived / totalPrice) * 100 : 0;
@@ -1667,7 +1664,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
                           <p className="text-2xl font-bold text-green-600">{formatCurrency(totalReceived)}</p>
                           <p className="text-lg font-semibold text-green-600">{receivedPercentage.toFixed(1)}%</p>
                           <p className="text-xs text-slate-500 mt-1">
-                            (Booking: {formatCurrency(bookingAmount)} + Transactions: {formatCurrency(transactionTotal)})
+                            (From {transactions.length} transaction{transactions.length !== 1 ? 's' : ''})
                           </p>
                         </div>
                         <div className="text-center p-4 bg-red-50 rounded-lg">

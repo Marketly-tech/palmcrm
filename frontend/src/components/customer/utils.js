@@ -75,11 +75,11 @@ export const formatPhone = (phone) => {
 };
 
 /**
- * Calculate total received from transactions and booking amount
+ * Calculate total received from transactions only.
+ * booking_amount is already included as transaction entries, so we don't add it separately.
  */
-export const calculateTotalReceived = (transactions, bookingAmount = 0) => {
-  const transactionTotal = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
-  return transactionTotal + bookingAmount;
+export const calculateTotalReceived = (transactions) => {
+  return transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
 };
 
 /**

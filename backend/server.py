@@ -928,10 +928,8 @@ async def get_customers(
                     
                     cust_txns = txn_by_customer.get(cust_id, [])
                     txn_total = sum(t.get("amount", 0) or 0 for t in cust_txns)
-                    total_received = cust_booking_amount + txn_total
-                    
-                    if txn_total > 0 and txn_total >= cust_booking_amount:
-                        total_received = txn_total
+                    # Total received = transactions only (booking_amount is already in transactions)
+                    total_received = txn_total
                     
                     overdue_amt = expected_amount - total_received
                     if overdue_amt > 0:
@@ -2648,11 +2646,8 @@ async def get_overdue_by_stage(user: dict = Depends(get_current_user)):
         # Calculate total received
         customer_txns = txn_by_customer.get(customer_id, [])
         txn_total = sum(t.get("amount", 0) or 0 for t in customer_txns)
-        total_received = booking_amount + txn_total
-        
-        # If already counted booking amount in transactions, don't double count
-        if txn_total > 0 and txn_total >= booking_amount:
-            total_received = txn_total
+        # Total received = transactions only (booking_amount is already recorded as transactions)
+        total_received = txn_total
         
         # Calculate overdue
         overdue_amount = expected_amount - total_received
@@ -2784,11 +2779,8 @@ async def get_customer_overdue(customer_id: str, user: dict = Depends(get_curren
     # Get transactions
     transactions = await db.payment_transactions.find({"customer_id": customer_id}, {"_id": 0}).to_list(1000)
     txn_total = sum(t.get("amount", 0) or 0 for t in transactions)
-    total_received = booking_amount + txn_total
-    
-    # Avoid double counting
-    if txn_total > 0 and txn_total >= booking_amount:
-        total_received = txn_total
+    # Total received = transactions only (booking_amount is already recorded as transactions)
+    total_received = txn_total
     
     overdue_amount = max(0, expected_amount - total_received)
     

@@ -12,7 +12,6 @@ import { formatCurrency } from "./utils";
 
 const PaymentTrackingCard = ({
   transactions,
-  bookingAmount,
   totalPrice,
   overdueInfo,
   paymentDueDate,
@@ -21,9 +20,9 @@ const PaymentTrackingCard = ({
   const [editingDueDate, setEditingDueDate] = useState(false);
   const [dueDateValue, setDueDateValue] = useState(paymentDueDate || "");
 
-  // Calculate totals
-  const transactionTotal = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
-  const totalReceived = transactionTotal + (bookingAmount || 0);
+  // Calculate totals - total received comes from transactions only
+  // booking_amount is already recorded as transaction entries, no double-counting
+  const totalReceived = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
   const balanceAmount = (totalPrice || 0) - totalReceived;
   const receivedPercentage = totalPrice > 0 ? (totalReceived / totalPrice) * 100 : 0;
   const pendingPercentage = totalPrice > 0 ? (balanceAmount / totalPrice) * 100 : 100;
@@ -47,7 +46,7 @@ const PaymentTrackingCard = ({
             <p className="text-2xl font-bold text-green-600">{formatCurrency(totalReceived)}</p>
             <p className="text-lg font-semibold text-green-600">{receivedPercentage.toFixed(1)}%</p>
             <p className="text-xs text-slate-500 mt-1">
-              (Booking: {formatCurrency(bookingAmount || 0)} + Transactions: {formatCurrency(transactionTotal)})
+              (From {transactions.length} transaction{transactions.length !== 1 ? 's' : ''})
             </p>
           </div>
           <div className="text-center p-4 bg-red-50 rounded-lg">

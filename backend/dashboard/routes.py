@@ -31,16 +31,12 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     transactions = await db.payment_transactions.find({}, {"_id": 0, "amount": 1}).to_list(100000)
     total_revenue = sum(t.get('amount', 0) or 0 for t in transactions)
     
-    # Get total flat value and balance from customers
-    customers = await db.customers.find({}, {"_id": 0, "total_price": 1, "booking_amount": 1}).to_list(10000)
+    # Get total flat value from customers
+    customers = await db.customers.find({}, {"_id": 0, "total_price": 1}).to_list(10000)
     total_flat_value = sum(c.get('total_price', 0) or 0 for c in customers)
     
-    # Add booking amounts that might not be in transactions yet
-    total_booking_amounts = sum(c.get('booking_amount', 0) or 0 for c in customers)
-    
-    # Check if booking amounts are already included in transactions
-    if total_revenue < total_booking_amounts:
-        total_revenue = total_booking_amounts + total_revenue
+    # Total revenue = sum of all transactions (booking amounts are already included as transactions)
+    # No need to add booking_amount separately
     
     # Total balance = total flat value - total revenue collected
     total_balance = total_flat_value - total_revenue
