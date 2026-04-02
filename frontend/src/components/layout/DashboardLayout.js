@@ -29,7 +29,6 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "sales", "support"] },
   { name: "Leads", href: "/leads", icon: UserPlus, roles: ["admin", "manager", "sales"] },
   { name: "Customers", href: "/customers", icon: Users, roles: ["admin", "manager", "accounts", "sales", "support"] },
-  { name: "Payments", href: "/payments", icon: CreditCard, roles: ["admin", "manager", "accounts"] },
   { name: "Documents", href: "/documents", icon: FileText, roles: ["admin", "manager", "accounts"] },
   { name: "Payment Tracking", href: "/calculator", icon: CreditCard, roles: ["admin", "manager", "accounts"] },
   { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "manager"] },

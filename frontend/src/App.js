@@ -6,7 +6,6 @@ import DashboardLayout from "./components/layout/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import CustomersPage from "./pages/CustomersPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
-import PaymentsPage from "./pages/PaymentsPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import CalculatorPage from "./pages/CalculatorPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -51,7 +50,6 @@ function App() {
                     <Route path="/leads" element={<LeadsPage />} />
                     <Route path="/customers" element={<CustomersPage />} />
                     <Route path="/customers/:id" element={<CustomerDetailPage />} />
-                    <Route path="/payments" element={<PaymentsPage />} />
                     <Route path="/documents" element={<DocumentsPage />} />
                     <Route path="/calculator" element={<CalculatorPage />} />
                     <Route path="/reports" element={<ReportsPage />} />

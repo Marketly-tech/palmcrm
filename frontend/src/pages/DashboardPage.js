@@ -256,91 +256,7 @@ const DashboardPage = () => {
             </div>
           </CardContent>
         </Card>
-
-        <Card className="hover:shadow-md transition-shadow border-red-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Stage Overdue Count</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{stageOverdue?.overdue_count || stats?.stage_overdue_count || 0}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-      
-      {/* Payment Stage Selector (Admin only) */}
-      {hasRole("admin") && (
-        <Card className="border-primary/50 bg-gradient-to-r from-slate-50 to-primary/5">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-primary" />
-                <CardTitle className="font-heading">Current Disbursement Slab</CardTitle>
-              </div>
-              {currentStage?.updated_by && (
-                <p className="text-xs text-muted-foreground">
-                  Last updated by {currentStage.updated_by}
-                </p>
-              )}
-            </div>
-            <CardDescription>
-              Set the current disbursement slab to calculate overdue payments. Customers who haven't paid up to this slab will be marked as overdue.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
-              <div className="flex-1 space-y-2">
-                <Label>Select Disbursement Slab</Label>
-                <Select 
-                  value={currentStage?.current_stage || ""} 
-                  onValueChange={handleStageChange}
-                  disabled={updatingStage}
-                >
-                  <SelectTrigger className="w-full md:w-96" data-testid="stage-selector">
-                    {updatingStage ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Updating...
-                      </span>
-                    ) : (
-                      <SelectValue placeholder="Select disbursement slab" />
-                    )}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentStages.map((stage) => (
-                      <SelectItem key={stage.key} value={stage.key}>
-                        {stage.name} ({stage.cumulative}% cumulative)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {stageOverdue?.current_stage && (
-                <div className="flex gap-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-red-600">{stageOverdue.overdue_count}</p>
-                    <p className="text-xs text-red-600">Overdue Customers</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(stageOverdue.total_overdue_amount)}</p>
-                    <p className="text-xs text-red-600">Total Overdue Amount</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            {!currentStage?.current_stage && (
-              <p className="text-sm text-amber-600 mt-2 flex items-center gap-1">
-                <AlertTriangle className="h-4 w-4" />
-                No stage selected. Select a stage to track overdue payments.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Revenue & Pending (Admin only) */}
       {hasRole("admin") && (
@@ -524,43 +440,8 @@ const DashboardPage = () => {
         </Card>
       </div>
 
-      {/* Overdue & Upcoming Payments */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Overdue Payments */}
-        <Card className="border-red-200">
-          <CardHeader>
-            <CardTitle className="font-heading flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
-              Overdue Payments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-64">
-              {paymentsOverview?.overdue?.length > 0 ? (
-                <div className="space-y-3">
-                  {paymentsOverview.overdue.slice(0, 5).map((item, index) => (
-                    <div key={item.customer_id ? `${item.customer_id}-${item.installment_name}` : index} className="p-3 bg-red-50 rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium text-slate-900">{item.customer_name}</p>
-                          <p className="text-sm text-slate-500">
-                            {item.installment_name} - {item.unit_number}
-                          </p>
-                        </div>
-                        <p className="font-semibold text-red-600">{formatCurrency(item.amount)}</p>
-                      </div>
-                      <p className="text-xs text-red-500 mt-1">Due: {item.due_date}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">No overdue payments</p>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Upcoming Payments */}
+      {/* Upcoming Payments */}
+      <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="font-heading flex items-center gap-2">

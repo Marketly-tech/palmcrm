@@ -980,6 +980,25 @@ async def update_customer(customer_id: str, updates: Dict[str, Any], user: dict 
     await log_activity(user['id'], user['name'], "update", "customer", customer_id, "Updated customer")
     return {"message": "Customer updated"}
 
+@api_router.put("/customers/{customer_id}/booking-details")
+async def update_booking_details(customer_id: str, updates: Dict[str, Any], user: dict = Depends(check_role([UserRole.ADMIN]))):
+    """Admin-only endpoint to update booking details (finance_type, finance_bank, booking_amount, booking_date)."""
+    allowed = {'finance_type', 'finance_bank', 'booking_amount', 'booking_date'}
+    filtered = {k: v for k, v in updates.items() if k in allowed}
+    if not filtered:
+        raise HTTPException(status_code=400, detail="No valid booking fields provided")
+    
+    if 'booking_amount' in filtered:
+        filtered['booking_amount'] = float(filtered['booking_amount']) if filtered['booking_amount'] else 0
+    
+    filtered['updated_at'] = datetime.now(timezone.utc).isoformat()
+    result = await db.customers.update_one({"id": customer_id}, {"$set": filtered})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    await log_activity(user['id'], user['name'], "update", "customer", customer_id, f"Updated booking details: {list(filtered.keys())}")
+    return {"message": "Booking details updated"}
+
 @api_router.delete("/customers/{customer_id}")
 async def delete_customer(customer_id: str, user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER]))):
     result = await db.customers.delete_one({"id": customer_id})

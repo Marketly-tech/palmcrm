@@ -89,6 +89,12 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - **Booking Amount Restoration:** Updated all 37 customers' `booking_amount` to match their first transaction (actual initial token payment). For example, Kuldeep Khandelwal: ₹10,12,588 → ₹50,000
 - **Sales Agreement:** Updated template to render actual transaction records (booking + agreement stages) instead of hardcoded booking_amount field
 
+### UI Cleanup & Booking Details Edit (April 2026)
+- Admin can now edit Booking Details (finance_type, finance_bank, booking_amount, booking_date) via dedicated PUT `/api/customers/{id}/booking-details` endpoint (admin-only, 403 for other roles)
+- Removed: Disbursement Documents section from Documents tab
+- Removed: Payments tab from sidebar navigation and App.js routes
+- Removed: Overdue Payments (Stage Overdue Count card, Disbursement Slab selector, Overdue Payments list) from main dashboard
+
 ### Code Quality Improvements (April 2026)
 - **Security:** DOMPurify sanitization on all `document.write` and `dangerouslySetInnerHTML` (XSS prevention)
 - **Security:** Hardcoded credentials removed from all test files → centralized in `conftest_credentials.py` via env vars

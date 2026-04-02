@@ -58,6 +58,7 @@ import {
   Upload,
   Trash2,
   MessageCircle,
+  Pencil,
 } from "lucide-react";
 import { Separator } from "../components/ui/separator";
 
@@ -100,6 +101,13 @@ const CustomerDetailPage = () => {
   
   // Disbursement Calculator
   const [disbursementPercentage, setDisbursementPercentage] = useState(30);
+
+  // Booking Details Edit
+  const [editingBooking, setEditingBooking] = useState(false);
+  const [savingBooking, setSavingBooking] = useState(false);
+  const [bookingForm, setBookingForm] = useState({
+    finance_type: '', finance_bank: '', booking_amount: '', booking_date: ''
+  });
 
   // Payment Dialog - now managed in PaymentScheduleTab component
 
@@ -195,6 +203,13 @@ const CustomerDetailPage = () => {
       setEditData({
         ...customerData,
         floor_rise_cost: customerData.custom_fields?.floor_rise_cost || 0,
+      });
+      // Initialize booking form
+      setBookingForm({
+        finance_type: customerData.finance_type || 'self',
+        finance_bank: customerData.finance_bank || '',
+        booking_amount: customerData.booking_amount || '',
+        booking_date: customerData.booking_date || '',
       });
       setPaymentSchedule(scheduleRes.data);
       setChecklist(checklistRes.data);
@@ -302,6 +317,25 @@ const CustomerDetailPage = () => {
       toast.error("Failed to update customer");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveBookingDetails = async () => {
+    setSavingBooking(true);
+    try {
+      await axios.put(`${API}/customers/${id}/booking-details`, {
+        finance_type: bookingForm.finance_type,
+        finance_bank: bookingForm.finance_bank,
+        booking_amount: parseFloat(bookingForm.booking_amount) || 0,
+        booking_date: bookingForm.booking_date,
+      });
+      fetchCustomerData();
+      setEditingBooking(false);
+      toast.success("Booking details updated");
+    } catch (error) {
+      toast.error("Failed to update booking details");
+    } finally {
+      setSavingBooking(false);
     }
   };
 
@@ -1386,48 +1420,92 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Booking Details</CardTitle>
+                {user?.role === "admin" && !editingBooking && (
+                  <Button variant="outline" size="sm" onClick={() => setEditingBooking(true)} data-testid="edit-booking-btn">
+                    <Pencil className="w-4 h-4 mr-1" /> Edit
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Finance Type</Label>
-                    <p className="text-slate-700 mt-1 capitalize">{customer.finance_type || "Self"}</p>
-                  </div>
-                  <div>
-                    <Label>Bank</Label>
-                    <p className="text-slate-700 mt-1">{customer.finance_bank || "-"}</p>
-                  </div>
-                  <div>
-                    <Label>Booking Amount</Label>
-                    <p className="text-slate-700 mt-1">{formatCurrency(customer.booking_amount)}</p>
-                  </div>
-                  <div>
-                    <Label>Booking Date</Label>
-                    <p className="text-slate-700 mt-1">{customer.booking_date || "-"}</p>
-                  </div>
-                </div>
-                {(customer.transaction_details || customer.transaction_date || customer.transaction_bank) && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="font-medium text-slate-700 mb-3">Transaction Details</p>
+                {editingBooking ? (
+                  <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label>Transaction Date</Label>
-                        <p className="text-slate-700 mt-1">{customer.transaction_date || "-"}</p>
+                        <Label htmlFor="edit-finance-type">Finance Type</Label>
+                        <Select value={bookingForm.finance_type} onValueChange={(v) => setBookingForm(prev => ({...prev, finance_type: v}))}>
+                          <SelectTrigger id="edit-finance-type" data-testid="edit-finance-type">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="self">Self</SelectItem>
+                            <SelectItem value="loan">Loan</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
-                        <Label>Transaction Bank</Label>
-                        <p className="text-slate-700 mt-1">{customer.transaction_bank || "-"}</p>
+                        <Label htmlFor="edit-finance-bank">Bank</Label>
+                        <Input id="edit-finance-bank" data-testid="edit-finance-bank" value={bookingForm.finance_bank} onChange={(e) => setBookingForm(prev => ({...prev, finance_bank: e.target.value}))} />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-booking-amount">Booking Amount</Label>
+                        <Input id="edit-booking-amount" data-testid="edit-booking-amount" type="number" value={bookingForm.booking_amount} onChange={(e) => setBookingForm(prev => ({...prev, booking_amount: e.target.value}))} />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-booking-date">Booking Date</Label>
+                        <Input id="edit-booking-date" data-testid="edit-booking-date" type="date" value={bookingForm.booking_date} onChange={(e) => setBookingForm(prev => ({...prev, booking_date: e.target.value}))} />
                       </div>
                     </div>
-                    {customer.transaction_details && (
-                      <div className="mt-2">
-                        <Label>Transaction Reference</Label>
-                        <p className="text-slate-700 mt-1">{customer.transaction_details}</p>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" size="sm" onClick={() => setEditingBooking(false)} data-testid="cancel-booking-edit">Cancel</Button>
+                      <Button size="sm" onClick={handleSaveBookingDetails} disabled={savingBooking} data-testid="save-booking-btn">
+                        {savingBooking ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Finance Type</Label>
+                        <p className="text-slate-700 mt-1 capitalize">{customer.finance_type || "Self"}</p>
+                      </div>
+                      <div>
+                        <Label>Bank</Label>
+                        <p className="text-slate-700 mt-1">{customer.finance_bank || "-"}</p>
+                      </div>
+                      <div>
+                        <Label>Booking Amount</Label>
+                        <p className="text-slate-700 mt-1">{formatCurrency(customer.booking_amount)}</p>
+                      </div>
+                      <div>
+                        <Label>Booking Date</Label>
+                        <p className="text-slate-700 mt-1">{customer.booking_date || "-"}</p>
+                      </div>
+                    </div>
+                    {(customer.transaction_details || customer.transaction_date || customer.transaction_bank) && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="font-medium text-slate-700 mb-3">Transaction Details</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label>Transaction Date</Label>
+                            <p className="text-slate-700 mt-1">{customer.transaction_date || "-"}</p>
+                          </div>
+                          <div>
+                            <Label>Transaction Bank</Label>
+                            <p className="text-slate-700 mt-1">{customer.transaction_bank || "-"}</p>
+                          </div>
+                        </div>
+                        {customer.transaction_details && (
+                          <div className="mt-2">
+                            <Label>Transaction Reference</Label>
+                            <p className="text-slate-700 mt-1">{customer.transaction_details}</p>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
                 {customer.remarks && (
                   <div className="mt-4 pt-4 border-t">
