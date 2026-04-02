@@ -1,0 +1,105 @@
+{
+  "iteration": 20,
+  "test_date": "2026-04-02",
+  "test_type": "Backend API + Frontend UI Testing",
+  "feature_tested": "Auto-generate booking transaction records from customer booking_amount",
+  "summary": "All features working correctly. Payment tracking uses transactions only (no double-counting). Migration ran successfully for 36 customers. Dashboard revenue calculated from transactions.",
+  "test_results": {
+    "backend_api": {
+      "kuldeep_transactions": {
+        "status": "PASS",
+        "detail": "GET /api/transactions/0b7a0402-f548-450c-ad62-7dea3366de45 returns 4 transactions totaling ₹10,12,588"
+      },
+      "kuldeep_overdue": {
+        "status": "PASS",
+        "detail": "GET /api/customers/0b7a0402-f548-450c-ad62-7dea3366de45/overdue returns total_received=1012588 (from transactions only)"
+      },
+      "reddimasi_transactions": {
+        "status": "PASS",
+        "detail": "GET /api/transactions/3e06a428-a8df-4314-9366-7709d9e786f7 returns 8 transactions totaling ₹38,05,200"
+      },
+      "reddimasi_overdue": {
+        "status": "PASS",
+        "detail": "GET /api/customers/3e06a428-a8df-4314-9366-7709d9e786f7/overdue returns total_received=3805200 (from transactions only)"
+      },
+      "dashboard_stats": {
+        "status": "PASS",
+        "detail": "GET /api/dashboard/stats returns total_revenue=84431138 (sum of 148 transactions)"
+      },
+      "auto_generate_on_create": {
+        "status": "PASS",
+        "detail": "POST /api/customers with booking_amount auto-creates a booking transaction"
+      },
+      "migration_no_duplicates": {
+        "status": "PASS",
+        "detail": "No duplicate auto-generated booking transactions found"
+      },
+      "overdue_by_stage": {
+        "status": "PASS",
+        "detail": "GET /api/dashboard/overdue-by-stage returns correct overdue calculations"
+      },
+      "sales_agreement_generation": {
+        "status": "PASS",
+        "detail": "POST /api/documents/generate for sales_agreement includes transaction rows"
+      }
+    },
+    "frontend_ui": {
+      "kuldeep_payment_tracking": {
+        "status": "PASS",
+        "detail": "Payment Tracking shows Received=₹10,12,588 (10.0%), label shows '(From 4 transactions)'. No double-counting."
+      },
+      "reddimasi_payment_tracking": {
+        "status": "PASS",
+        "detail": "Payment Tracking shows Received=₹38,05,200 (36.1%), label shows '(From 8 transactions)'. No double-counting."
+      },
+      "dashboard_revenue": {
+        "status": "PASS",
+        "detail": "Dashboard shows Total Revenue Collected=₹8,44,31,138 (correct sum of transactions)"
+      },
+      "overdue_display": {
+        "status": "PASS",
+        "detail": "Overdue amounts displayed correctly based on current stage (Podium Slab 40%)"
+      }
+    }
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_booking_transactions.py",
+    "/app/test_reports/pytest/pytest_booking_txn_v2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Migration flag stored in settings collection prevents re-runs (idempotent)",
+    "auto_generate_booking_transaction helper checks both legacy 'transaction_type' and new 'transaction_stage' fields",
+    "Dashboard revenue calculated from payment_transactions collection only",
+    "Overdue calculations use txn_total only (no booking_amount addition)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin": "crm@rrlbuildersanddevelopers.com / #RRLnew2026",
+    "test_customer": "Ramya test lead (ID: 6d902613-5106-4294-bc3e-b907f85127f7)"
+  },
+  "seed_data_creation": "Migration auto-generated 36 booking transactions for existing customers",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Payment tracking feature complete. 148 total transactions in DB. Dashboard revenue = ₹8,44,31,138. Migration flag 'migration_booking_txn_done' in settings collection. All payment calculations use transactions only - no double-counting of booking_amount.",
+  "data_verification": {
+    "total_transactions": 148,
+    "total_revenue": 84431138,
+    "migration_count": 36,
+    "kuldeep_received": 1012588,
+    "reddimasi_received": 3805200
+  }
+}

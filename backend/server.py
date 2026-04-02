@@ -821,6 +821,9 @@ async def create_customer(customer_data: CustomerCreate, user: dict = Depends(ge
     
     await log_activity(user['id'], user['name'], "create", "customer", customer.id, f"Created customer {customer.name}")
     
+    # Auto-generate booking transaction if booking_amount is set
+    await auto_generate_booking_transaction(customer.id, doc, created_by=user['id'])
+    
     return {**doc, "_id": None}
 
 @api_router.get("/customers")
@@ -1117,6 +1120,68 @@ async def get_payments_overview(user: dict = Depends(get_current_user)):
     return {"pending": pending, "overdue": overdue, "upcoming": upcoming}
 
 # ==================== PAYMENT TRANSACTIONS ====================
+
+async def auto_generate_booking_transaction(customer_id: str, customer: dict, created_by: str = "system"):
+    """
+    Auto-generate a booking transaction if the customer has a booking_amount
+    that isn't already covered by existing booking-stage transactions.
+    This ensures total_received (from transactions) always includes the booking payment.
+    """
+    booking_amount = customer.get("booking_amount", 0) or 0
+    if booking_amount <= 0:
+        return
+
+    # Check existing booking-stage transactions (check both legacy 'transaction_type' and new 'transaction_stage' fields)
+    existing_txns = await db.payment_transactions.find(
+        {"customer_id": customer_id, "$or": [
+            {"transaction_stage": "booking"},
+            {"transaction_type": "booking"}
+        ]},
+        {"_id": 0, "amount": 1}
+    ).to_list(1000)
+    existing_booking_sum = sum(t.get("amount", 0) or 0 for t in existing_txns)
+
+    if existing_booking_sum >= booking_amount:
+        return  # Already covered
+
+    # Create transaction for the shortfall
+    shortfall = booking_amount - existing_booking_sum
+    booking_date = customer.get("booking_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    txn_bank = customer.get("transaction_bank", "") or ""
+    txn_ref = customer.get("transaction_details", "") or ""
+    unit = customer.get("unit_number", "") or ""
+    name = customer.get("name", "") or ""
+
+    new_txn = PaymentTransaction(
+        customer_id=customer_id,
+        transaction_stage=TransactionStage.BOOKING,
+        transaction_date=booking_date,
+        bank_name=txn_bank,
+        transaction_number=txn_ref,
+        amount=shortfall,
+        notes=f"Auto-generated from booking amount. Flat: {unit}, Client: {name}".strip(),
+    )
+    await db.payment_transactions.insert_one(new_txn.model_dump())
+
+    # Recalculate customer's total_received from all transactions
+    all_txns = await db.payment_transactions.find(
+        {"customer_id": customer_id}, {"_id": 0, "amount": 1}
+    ).to_list(1000)
+    total_received = sum(t.get("amount", 0) or 0 for t in all_txns)
+    total_price = customer.get("total_price", 0) or 0
+    balance_amount = total_price - total_received
+
+    await db.customers.update_one(
+        {"id": customer_id},
+        {"$set": {
+            "total_received": total_received,
+            "balance_amount": balance_amount,
+            "payment_received_percentage": round((total_received / total_price) * 100, 2) if total_price > 0 else 0,
+            "payment_pending_percentage": round((balance_amount / total_price) * 100, 2) if total_price > 0 else 100
+        }}
+    )
+    logger.info(f"Auto-generated booking transaction of {shortfall} for customer {customer_id} ({name})")
+
 @api_router.get("/transactions/{customer_id}")
 async def get_transactions(customer_id: str, user: dict = Depends(get_current_user)):
     """Get all transactions for a customer"""
@@ -2336,6 +2401,9 @@ async def google_form_webhook(data: GoogleFormWebhook, background_tasks: Backgro
     
     await log_activity("system", "System", "create", "customer", customer.id, f"Customer created via Google Form: {customer.name}")
     
+    # Auto-generate booking transaction if booking_amount is set
+    await auto_generate_booking_transaction(customer.id, doc, created_by="system")
+    
     return {"message": "Customer created successfully", "customer_id": customer.customer_id}
 
 # ==================== DASHBOARD ====================
@@ -2353,17 +2421,11 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     transactions = await db.payment_transactions.find({}, {"_id": 0, "amount": 1}).to_list(100000)
     total_revenue = sum(t.get('amount', 0) or 0 for t in transactions)
     
-    # Get total flat value and balance from customers
-    customers = await db.customers.find({}, {"_id": 0, "total_price": 1, "booking_amount": 1}).to_list(10000)
+    # Get total flat value from customers
+    customers = await db.customers.find({}, {"_id": 0, "total_price": 1}).to_list(10000)
     total_flat_value = sum(c.get('total_price', 0) or 0 for c in customers)
     
-    # Add booking amounts that might not be in transactions yet
-    total_booking_amounts = sum(c.get('booking_amount', 0) or 0 for c in customers)
-    
-    # Check if booking amounts are already included in transactions
-    # If total_revenue is much less than booking amounts, add them
-    if total_revenue < total_booking_amounts:
-        total_revenue = total_booking_amounts + total_revenue
+    # Total revenue = sum of all transactions (booking amounts are already included as transactions)
     
     # Total balance = total flat value - total revenue collected
     total_balance = total_flat_value - total_revenue
@@ -2442,10 +2504,8 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
                 
                 cust_txns = txn_by_customer.get(cust_id, [])
                 txn_total = sum(t.get("amount", 0) or 0 for t in cust_txns)
-                total_received = cust_booking_amount + txn_total
-                
-                if txn_total > 0 and txn_total >= cust_booking_amount:
-                    total_received = txn_total
+                # Total received = transactions only (booking_amount is already recorded as transactions)
+                total_received = txn_total
                 
                 overdue_amt = expected_amount - total_received
                 if overdue_amt > 0:
@@ -3850,6 +3910,35 @@ async def startup_event():
     await db.customers.create_index("customer_id", unique=True)
     await db.customers.create_index("email")
     await db.users.create_index("email", unique=True)
+    
+    # One-time migration: Auto-generate booking transactions for existing customers
+    migration_flag = await db.settings.find_one({"type": "migration_booking_txn_done"})
+    if not migration_flag:
+        logger.info("Running one-time migration: auto-generate booking transactions...")
+        all_customers = await db.customers.find(
+            {"booking_amount": {"$gt": 0}}, {"_id": 0}
+        ).to_list(10000)
+        migrated = 0
+        for cust in all_customers:
+            cid = cust.get("id")
+            ba = cust.get("booking_amount", 0) or 0
+            if ba <= 0 or not cid:
+                continue
+            # Check if booking transactions already cover the amount (both legacy and new field names)
+            existing = await db.payment_transactions.find(
+                {"customer_id": cid, "$or": [
+                    {"transaction_stage": "booking"},
+                    {"transaction_type": "booking"}
+                ]}, {"_id": 0, "amount": 1}
+            ).to_list(1000)
+            existing_sum = sum(t.get("amount", 0) or 0 for t in existing)
+            if existing_sum >= ba:
+                continue
+            # Generate the missing booking transaction
+            await auto_generate_booking_transaction(cid, cust, created_by="system-migration")
+            migrated += 1
+        logger.info(f"Migration complete: auto-generated booking transactions for {migrated} customers")
+        await db.settings.insert_one({"type": "migration_booking_txn_done", "migrated_count": migrated, "run_at": datetime.now(timezone.utc).isoformat()})
 
 
 @app.on_event("shutdown")

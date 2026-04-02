@@ -3505,53 +3505,59 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
             </tr>
             '''
     
-    # ==================== TRANSACTION DETAILS (Booking + Agreement Payments Only) ====================
+    # ==================== TRANSACTION DETAILS (Booking + Agreement Payments) ====================
     transaction_rows = ""
     total_received_amount = 0
     row_num = 1
     
-    # First add booking amount if exists
-    if booking_amount > 0:
-        total_received_amount += booking_amount
-        booking_date = customer.get('booking_date', '')
-        txn_bank = customer.get('transaction_bank', '') or ''
-        txn_ref = customer.get('transaction_details', '') or ''
-        bank_ref = f"{txn_bank} - {txn_ref}" if txn_bank or txn_ref else "Booking Payment"
-        
-        transaction_rows += f'''
-        <tr>
-            <td style="text-align: center;">{row_num}</td>
-            <td>{booking_date}</td>
-            <td>Booking</td>
-            <td>{bank_ref}</td>
-            <td class="amount">{fmt(booking_amount)}</td>
-        </tr>
-        '''
-        row_num += 1
-    
-    # Add ONLY Agreement stage transactions from Payment Tracking
+    # Build transaction rows from actual transaction records
     if transactions and len(transactions) > 0:
         for txn in transactions:
-            stage = (txn.get('transaction_stage', '') or '').lower()
-            # Only include agreement stage transactions
-            if stage in ['agreement', 'agreement_amount', 'post_agreement']:
+            # Check both legacy 'transaction_type' and new 'transaction_stage' fields
+            stage = (txn.get('transaction_stage', '') or txn.get('transaction_type', '') or '').lower()
+            # Include booking and agreement stage transactions
+            if stage in ['booking', 'booking_amount', 'agreement', 'agreement_amount', 'post_agreement']:
                 amount = txn.get('amount', 0) or 0
                 total_received_amount += amount
-                stage_display = 'Agreement'
+                stage_display = 'Booking' if 'booking' in stage else 'Agreement'
                 txn_date = txn.get('transaction_date', '')
-                bank = txn.get('bank_name', '')
-                txn_no = txn.get('transaction_number', '')
+                bank = txn.get('bank_name', '') or ''
+                txn_no = txn.get('transaction_number', '') or ''
+                bank_ref = f"{bank} - {txn_no}" if bank or txn_no else stage_display + " Payment"
                 
                 transaction_rows += f'''
                 <tr>
                     <td style="text-align: center;">{row_num}</td>
                     <td>{txn_date}</td>
                     <td>{stage_display}</td>
-                    <td>{bank} - {txn_no}</td>
+                    <td>{bank_ref}</td>
                     <td class="amount">{fmt(amount)}</td>
                 </tr>
                 '''
                 row_num += 1
+    
+    # Fallback: if no booking transactions found but customer has booking_amount, add it
+    if booking_amount > 0 and not any(
+        (txn.get('transaction_stage', '') or txn.get('transaction_type', '') or '').lower() in ['booking', 'booking_amount']
+        for txn in (transactions or [])
+    ):
+        total_received_amount += booking_amount
+        booking_date_val = customer.get('booking_date', '')
+        txn_bank = customer.get('transaction_bank', '') or ''
+        txn_ref = customer.get('transaction_details', '') or ''
+        bank_ref = f"{txn_bank} - {txn_ref}" if txn_bank or txn_ref else "Booking Payment"
+        
+        transaction_rows = f'''
+        <tr>
+            <td style="text-align: center;">1</td>
+            <td>{booking_date_val}</td>
+            <td>Booking</td>
+            <td>{bank_ref}</td>
+            <td class="amount">{fmt(booking_amount)}</td>
+        </tr>
+        ''' + transaction_rows
+        # Re-number remaining rows
+        row_num += 1
     
     # If no transactions and no booking amount
     if not transaction_rows:
