@@ -80,6 +80,13 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - Removed "Total Received" and "Balance" from Booking Details card (belong in Payment Tracking only)
 - Protected booking details from accidental overwrite (frontend strips, backend blocks)
 
+### Payment Tracking Double-Counting Fix (April 2026)
+- **Bug:** booking_amount (from customer profile) was being added ON TOP of transaction totals, doubling the "Received" amount
+- **Root cause:** booking payments are already recorded as individual transactions; adding booking_amount separately = 2x inflation
+- **Fixed in:** Frontend (CustomerDetailPage.js, PaymentTrackingCard.jsx, utils.js), Backend (server.py overdue calculations, dashboard/routes.py revenue)
+- **Impact:** Payment Tracking cards, Dashboard revenue, Overdue calculations all now use transactions as single source of truth
+- **Verified:** Kuldeep Khandelwal now shows ₹10,12,588 (correct) instead of ₹20,25,176 (doubled). Dashboard total_revenue=₹8,08,51,646 matches exact transaction sum
+
 ### Code Quality Improvements (April 2026)
 - **Security:** DOMPurify sanitization on all `document.write` and `dangerouslySetInnerHTML` (XSS prevention)
 - **Security:** Hardcoded credentials removed from all test files → centralized in `conftest_credentials.py` via env vars

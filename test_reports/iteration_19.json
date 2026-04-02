@@ -1,0 +1,49 @@
+{
+  "iteration": 19,
+  "test_date": "2026-04-02",
+  "test_type": "self-test (curl + screenshot + DB verification)",
+  "feature_tested": "Payment Tracking Double-Counting Bug Fix",
+  "test_results": {
+    "backend_api": {
+      "kuldeep_overdue_endpoint": {
+        "status": "PASS",
+        "detail": "GET /api/customers/0b7a0402-f548-450c-ad62-7dea3366de45/overdue returns total_received=1012588 (correct, from transactions only). Previously would have shown 2025176 (doubled)."
+      },
+      "dashboard_stats": {
+        "status": "PASS",
+        "detail": "GET /api/dashboard/stats returns total_revenue=80851646 which exactly matches SUM of all payment_transactions. No booking_amount inflation."
+      },
+      "overdue_by_stage": {
+        "status": "PASS",
+        "detail": "GET /api/dashboard/overdue-by-stage returns correct overdue_count=24 and total_overdue_amount=62492794.1"
+      },
+      "document_generation": {
+        "status": "PASS",
+        "detail": "POST /api/documents/generate for allotment_letter returns 200 with valid HTML."
+      },
+      "transaction_data_integrity": {
+        "status": "PASS",
+        "detail": "All 142 payment_transactions intact. Sum = 80,851,646."
+      }
+    },
+    "frontend_ui": {
+      "payment_tracking_card": {
+        "status": "PASS",
+        "detail": "Kuldeep Khandelwal Payment Tracking shows Received=₹10,12,588 (10.0%), label shows '(From 4 transactions)'. No double-counting."
+      },
+      "dashboard_display": {
+        "status": "PASS",
+        "detail": "Dashboard shows Total Revenue Collected=₹8,08,51,646 (correct)."
+      }
+    }
+  },
+  "files_changed": [
+    "/app/frontend/src/components/customer/utils.js",
+    "/app/frontend/src/components/customer/PaymentTrackingCard.jsx",
+    "/app/frontend/src/pages/CustomerDetailPage.js",
+    "/app/backend/server.py",
+    "/app/backend/dashboard/routes.py"
+  ],
+  "overall_status": "ALL PASS",
+  "retest_needed": false
+}
