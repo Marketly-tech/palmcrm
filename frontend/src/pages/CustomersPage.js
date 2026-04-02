@@ -500,7 +500,7 @@ const CustomersPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer ID</TableHead>
+                  <TableHead>Booking ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Project</TableHead>
                   <TableHead>Flat No.</TableHead>
@@ -521,7 +521,7 @@ const CustomersPage = () => {
                     onClick={() => navigate(`/customers/${customer.id}`)}
                     data-testid={`customer-row-${customer.id}`}
                   >
-                    <TableCell className="font-mono text-sm">{customer.customer_id}</TableCell>
+                    <TableCell className="font-mono text-sm">{customer.booking_number || customer.customer_id}</TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{customer.name}</p>
@@ -610,7 +610,7 @@ const CustomersPage = () => {
             <AlertDialogDescription>
               {customerToDelete && (
                 <>
-                  You are about to delete <strong>{customerToDelete.name}</strong> ({customerToDelete.customer_id}).
+                  You are about to delete <strong>{customerToDelete.name}</strong> ({customerToDelete.booking_number || customerToDelete.customer_id}).
                   <br /><br />
                   This action will permanently delete:
                   <ul className="list-disc list-inside mt-2 text-sm">

@@ -882,7 +882,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
           </Button>
           <div>
             <h1 className="font-heading text-2xl font-bold text-slate-900">{customer.name}</h1>
-            <p className="text-slate-500 font-mono">{customer.customer_id}</p>
+            <p className="text-slate-500 font-mono">{customer.booking_number || customer.customer_id}</p>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">

@@ -288,6 +288,7 @@ class CustomerBase(BaseModel):
     project: str
     tower: str
     unit_number: str
+    booking_number: Optional[str] = None  # Unique booking ID (e.g., RRL PAB035)
     floor: int = 0
     bhk_type: str = ""
     saleable_area: float = 0
@@ -839,6 +840,7 @@ async def get_customers(
             {"email": {"$regex": search, "$options": "i"}},
             {"phone": {"$regex": search, "$options": "i"}},
             {"customer_id": {"$regex": search, "$options": "i"}},
+            {"booking_number": {"$regex": search, "$options": "i"}},
             {"unit_number": {"$regex": search, "$options": "i"}}
         ]
     if project:
