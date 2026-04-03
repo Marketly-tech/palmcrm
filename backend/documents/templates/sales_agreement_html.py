@@ -2,6 +2,7 @@
 from datetime import datetime
 from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
 from documents.templates.common import format_inr
+from documents.templates.sales_agreement_template import generate_sales_agreement_template
 
 def generate_sales_agreement_html(customer: dict, schedule_items: list, transactions: list = None) -> str:
     """Generate Sales Agreement HTML with customer data filled in"""

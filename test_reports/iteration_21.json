@@ -1,0 +1,99 @@
+{
+  "iteration": 21,
+  "test_date": "2026-04-03",
+  "test_type": "Backend API + Frontend UI Testing",
+  "feature_tested": "Major refactoring verification - CustomerDetailPage.js split into components, backend document template imports fixed",
+  "summary": "All features working correctly after refactoring. CustomerDetailPage.js reduced from 2457 to 1333 lines. All 8 tabs render correctly. All 9 document types generate successfully. Transaction CRUD working.",
+  "test_results": {
+    "backend_api": {
+      "health_check": {"status": "PASS", "detail": "API healthy"},
+      "authentication": {"status": "PASS", "detail": "Login/logout working"},
+      "customer_detail_apis": {
+        "status": "PASS",
+        "detail": "All 8 customer detail endpoints return 200 (customer, schedule, checklist, documents, communications, transactions, overdue, notes)"
+      },
+      "document_generation": {
+        "status": "PASS",
+        "detail": "All 9 document types generate successfully: demand_letter, allotment_letter, price_breakup, cost_breakup, payment_schedule, sales_agreement, noc_hdfc, noc_bob, noc_tata"
+      },
+      "transaction_crud": {
+        "status": "PASS",
+        "detail": "Create, Read, Update, Delete transactions all working"
+      },
+      "dashboard_stats": {
+        "status": "PASS",
+        "detail": "Dashboard stats and overdue-by-stage endpoints working"
+      }
+    },
+    "frontend_ui": {
+      "login_flow": {"status": "PASS", "detail": "Login with admin credentials successful"},
+      "customer_detail_page": {
+        "status": "PASS",
+        "detail": "Page loads correctly with all 8 tabs: Details, Payment Tracking, Payment Schedule, Documents, Uploads, Communication, Checklist, Notes"
+      },
+      "details_tab": {
+        "status": "PASS",
+        "detail": "Personal Information, Property & Pricing, Booking Details, Bank Details sections all render"
+      },
+      "payment_tracking_tab": {
+        "status": "PASS",
+        "detail": "Payment Tracking card, Disbursement Calculator, Transaction Records table all render"
+      },
+      "documents_tab": {
+        "status": "PASS",
+        "detail": "Generated documents list and Generate Document button working"
+      },
+      "transaction_add": {
+        "status": "PASS",
+        "detail": "Add Transaction dialog opens, form fills correctly, transaction saves with success toast"
+      },
+      "dashboard": {
+        "status": "PASS",
+        "detail": "Dashboard loads with Total Customers (37), Total Revenue (₹9,30,98,965), charts render"
+      }
+    }
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Dashboard charts", "issue": "Console warning about chart width/height being -1 (cosmetic only)"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard", "issues": ["Minor: Chart width/height warning in console - does not affect functionality"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_refactoring_iteration21.py",
+    "/app/test_reports/pytest/pytest_refactoring_iteration21.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CustomerDetailPage.js successfully refactored from 2457 to 1333 lines",
+    "DetailsTab.jsx (660 lines), PaymentTrackingTab.jsx (420 lines), EmailComposerDialog.jsx (203 lines) extracted correctly",
+    "Backend document template imports fixed - all templates now import correctly from split modules",
+    "All data-testid attributes preserved for testing",
+    "Component props passed correctly between parent and child components"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_refactoring_iteration21.py"
+  ],
+  "success_rate": {
+    "backend": "100% (27/27 tests passed)",
+    "frontend": "100% (all tabs and features working)"
+  },
+  "test_credentials": {
+    "admin": "crm@rrlbuildersanddevelopers.com / #RRLnew2026",
+    "test_customer": "Ramya test lead (ID: 6d902613-5106-4294-bc3e-b907f85127f7)"
+  },
+  "seed_data_creation": "Created test transaction during CRUD testing (cleaned up)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Refactoring complete and verified. CustomerDetailPage.js now uses extracted components: DetailsTab, PaymentTrackingTab, EmailComposerDialog. All document generation working. 37 customers in DB, ₹9.3Cr total revenue. WhatsApp integration is MOCKED (uses whatsapp:// link).",
+  "mocked_apis": {
+    "WhatsApp": "Uses whatsapp:// link - not a real API integration"
+  }
+}

@@ -1,5 +1,9 @@
 """Allotment Letter document template."""
+from datetime import datetime
+from utils import format_indian_currency
+from utils.enums import DocumentType
 from documents.templates.common import format_inr
+from documents.templates.default_template import get_default_template
 
 def generate_allotment_letter_html(customer: dict) -> str:
     """Generate Allotment Letter HTML with customer data filled in"""

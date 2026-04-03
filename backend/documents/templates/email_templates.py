@@ -1,4 +1,5 @@
 """Email HTML templates (Welcome, Document)."""
+from datetime import datetime
 from documents.templates.common import format_inr
 
 def generate_welcome_email_html(customer: dict) -> str:

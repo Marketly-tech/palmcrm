@@ -10,10 +10,15 @@ export { default as DocumentsTab } from './DocumentsTab';
 export { default as NotesTab } from './NotesTab';
 export { default as UploadsTab } from './UploadsTab';
 export { default as CommunicationTab } from './CommunicationTab';
+export { default as DetailsTab } from './DetailsTab';
+export { default as PaymentTrackingTab } from './PaymentTrackingTab';
 
 // Card components
 export { default as PaymentTrackingCard } from './PaymentTrackingCard';
 export { default as TransactionsCard } from './TransactionsCard';
+
+// Dialog components
+export { default as EmailComposerDialog } from './EmailComposerDialog';
 
 // Utility functions
 export * from './utils';

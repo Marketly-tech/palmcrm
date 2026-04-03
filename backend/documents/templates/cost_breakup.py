@@ -1,4 +1,5 @@
 """Cost Breakup document template."""
+from datetime import datetime
 from documents.templates.common import format_inr
 
 def generate_cost_breakup_html(customer: dict) -> str:

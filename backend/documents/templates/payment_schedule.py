@@ -1,4 +1,5 @@
 """Payment Schedule document templates."""
+from datetime import datetime
 from documents.templates.common import format_inr
 
 def generate_payment_schedule_pdf_html(customer: dict, transactions: list = None) -> str:

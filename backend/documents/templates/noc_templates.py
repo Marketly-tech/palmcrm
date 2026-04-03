@@ -1,4 +1,5 @@
 """Bank NOC document templates (HDFC, BOB, TATA Capital)."""
+from datetime import datetime
 from documents.templates.common import format_inr
 
 def generate_noc_hdfc_html(customer: dict) -> str:

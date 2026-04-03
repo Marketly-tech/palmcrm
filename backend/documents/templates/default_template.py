@@ -1,5 +1,6 @@
 """Default document templates by type."""
 from utils.enums import DocumentType
+from documents.templates.sales_agreement_template import generate_sales_agreement_template
 
 def get_default_template(doc_type: DocumentType) -> str:
     templates = {

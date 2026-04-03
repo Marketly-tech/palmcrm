@@ -1,6 +1,6 @@
 """Demand Letter document template."""
 from datetime import datetime
-from utils import format_indian_currency, get_ordinal_suffix
+from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
 from documents.templates.common import format_inr
 
 def generate_demand_letter_html(customer: dict, transactions: list = None, stage_info: dict = None) -> str:
