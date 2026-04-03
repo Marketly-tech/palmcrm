@@ -448,10 +448,10 @@ const CustomerDetailPage = () => {
   const handleEditTransaction = (txn) => {
     setEditingTransaction(txn);
     setNewTransaction({
-      transaction_stage: txn.transaction_stage,
+      transaction_stage: txn.transaction_stage || txn.transaction_type || "",
       transaction_date: txn.transaction_date,
-      bank_name: txn.bank_name,
-      transaction_number: txn.transaction_number,
+      bank_name: txn.bank_name || "",
+      transaction_number: txn.transaction_number || "",
       amount: txn.amount?.toString() || "",
       notes: txn.notes || ""
     });

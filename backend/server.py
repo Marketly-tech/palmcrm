@@ -1207,6 +1207,10 @@ async def get_transactions(customer_id: str, user: dict = Depends(get_current_us
     transactions = await db.payment_transactions.find(
         {"customer_id": customer_id}, {"_id": 0}
     ).sort("transaction_date", -1).to_list(1000)
+    # Normalize: ensure transaction_stage is present (fallback from transaction_type)
+    for t in transactions:
+        if not t.get("transaction_stage") and t.get("transaction_type"):
+            t["transaction_stage"] = t["transaction_type"]
     return transactions
 
 @api_router.post("/transactions/{customer_id}")
