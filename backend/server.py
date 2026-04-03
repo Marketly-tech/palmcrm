@@ -912,8 +912,11 @@ async def get_customers(
             if stage_info:
                 cumulative_percentage = stage_info["cumulative"]
                 
-                # Get all transactions
-                all_transactions = await db.payment_transactions.find({}, {"_id": 0}).to_list(100000)
+                # Get transactions only for current page customers
+                page_cust_ids = [c.get("id") for c in customers if c.get("id")]
+                all_transactions = await db.payment_transactions.find(
+                    {"customer_id": {"$in": page_cust_ids}}, {"_id": 0, "customer_id": 1, "amount": 1}
+                ).to_list(10000)
                 txn_by_customer = {}
                 for txn in all_transactions:
                     cid = txn.get("customer_id")
@@ -1100,7 +1103,7 @@ async def get_payments_overview(user: dict = Depends(get_current_user)):
     today = datetime.now(timezone.utc).date()
     week_end = today + timedelta(days=7)
     
-    schedules = await db.payment_schedules.find({}, {"_id": 0}).to_list(1000)
+    schedules = await db.payment_schedules.find({}, {"_id": 0, "customer_id": 1, "items": 1}).to_list(1000)
     
     # Fix N+1 query: Fetch all relevant customers in one query
     customer_ids = list(set(s.get('customer_id') for s in schedules if s.get('customer_id')))

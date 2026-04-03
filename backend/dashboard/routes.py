@@ -27,13 +27,17 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     today = datetime.now(timezone.utc).date()
     week_end = today + timedelta(days=7)
     
-    # === REVENUE CALCULATION FROM INDIVIDUAL TRANSACTION RECORDS ===
-    transactions = await db.payment_transactions.find({}, {"_id": 0, "amount": 1}).to_list(100000)
-    total_revenue = sum(t.get('amount', 0) or 0 for t in transactions)
+    # === REVENUE CALCULATION USING AGGREGATION ===
+    revenue_pipeline = await db.payment_transactions.aggregate([
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]).to_list(1)
+    total_revenue = revenue_pipeline[0]["total"] if revenue_pipeline else 0
     
-    # Get total flat value from customers
-    customers = await db.customers.find({}, {"_id": 0, "total_price": 1}).to_list(10000)
-    total_flat_value = sum(c.get('total_price', 0) or 0 for c in customers)
+    # Get total flat value using aggregation
+    flat_value_pipeline = await db.customers.aggregate([
+        {"$group": {"_id": None, "total": {"$sum": "$total_price"}}}
+    ]).to_list(1)
+    total_flat_value = flat_value_pipeline[0]["total"] if flat_value_pipeline else 0
     
     # Total revenue = sum of all transactions (booking amounts are already included as transactions)
     # No need to add booking_amount separately
@@ -45,7 +49,7 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     total_pending = total_balance
     
     # === PAYMENT SCHEDULE ANALYSIS (for due dates) ===
-    schedules = await db.payment_schedules.find({}, {"_id": 0}).to_list(1000)
+    schedules = await db.payment_schedules.find({}, {"_id": 0, "items": 1, "customer_id": 1}).to_list(1000)
     
     payments_due_this_week = 0
     overdue_payments = 0
