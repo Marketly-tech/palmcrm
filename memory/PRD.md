@@ -103,6 +103,14 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - Removed: Payments tab from sidebar navigation and App.js routes
 - Removed: Overdue Payments (Stage Overdue Count card, Disbursement Slab selector, Overdue Payments list) from main dashboard
 
+### Code Quality Fixes Round 2 (April 2026)
+- Moved hardcoded test credentials from `test_booking_transactions.py` and `test_booking_id_import.py` to centralized `conftest_credentials.py` using env vars
+- Replaced 6 empty catch blocks with `console.error()` logging across DashboardPage, ReportsPage, CustomersPage, BookingFormPage, CalculatorPage
+- Verified React Hook dependencies are correct (state setters are stable refs, `API` is constant — linter warnings are false positives)
+- Verified XSS mitigations already in place: all `document.write` and `dangerouslySetInnerHTML` use DOMPurify sanitization
+- Optimized unbounded DB queries with aggregation pipelines and field projections (dashboard/routes.py, server.py)
+- Fixed `.env` quoting for values containing `#` (TEST_ADMIN_PASSWORD, TEST_CUSTOMER_NAME)
+
 ### Code Quality Improvements (April 2026)
 - **Security:** DOMPurify sanitization on all `document.write` and `dangerouslySetInnerHTML` (XSS prevention)
 - **Security:** Hardcoded credentials removed from all test files → centralized in `conftest_credentials.py` via env vars

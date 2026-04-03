@@ -332,7 +332,7 @@ const BookingFormPage = () => {
       try {
         await Promise.all(uploadPromises);
       } catch (uploadError) {
-        // Continue with success even if uploads fail
+        console.error("Document upload failed:", uploadError);
       }
       
       setSubmissionResult(response.data);

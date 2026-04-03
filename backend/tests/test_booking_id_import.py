@@ -8,13 +8,12 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-crm-dev.preview.emergentagent.com').rstrip('/')
 
-# Test credentials
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
+# Import credentials from centralized config
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_CUSTOMER_ID
 
 # Test customer IDs
 SOVARAJ_PRUSTY_ID = "c514f446-bb16-43b2-bd37-faf767006024"
-RAMYA_TEST_ID = "6d902613-5106-4294-bc3e-b907f85127f7"
+RAMYA_TEST_ID = TEST_CUSTOMER_ID
 
 
 @pytest.fixture(scope="module")

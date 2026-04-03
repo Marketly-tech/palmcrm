@@ -73,7 +73,7 @@ const DashboardPage = () => {
       setPaymentsOverview(paymentsRes.data);
       setUpcomingDueDates(dueDatesRes.data || []);
     } catch (error) {
-      // Dashboard data fetch failed - shown empty state
+      console.error("Dashboard data fetch failed:", error);
     } finally {
       setLoading(false);
     }
@@ -88,7 +88,7 @@ const DashboardPage = () => {
       setPaymentStages(stagesRes.data);
       setCurrentStage(currentRes.data);
     } catch (error) {
-      // Silent fail - dashboard still works without stages
+      console.error("Failed to fetch payment stages:", error);
     }
   }, []);
   
@@ -97,7 +97,7 @@ const DashboardPage = () => {
       const res = await axios.get(`${API}/dashboard/overdue-by-stage`);
       setStageOverdue(res.data);
     } catch (error) {
-      // Silent fail
+      console.error("Failed to fetch overdue data:", error);
     }
   }, []);
 

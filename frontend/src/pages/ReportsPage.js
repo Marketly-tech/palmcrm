@@ -60,7 +60,7 @@ const ReportsPage = () => {
       setActivities(activitiesRes.data);
       setCustomers(customersRes.data.customers);
     } catch (error) {
-      // Error handled by toast in individual fetchers
+      console.error("Reports data fetch failed:", error);
     } finally {
       setLoading(false);
     }

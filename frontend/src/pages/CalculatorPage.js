@@ -86,7 +86,7 @@ const CalculatorPage = () => {
       const response = await axios.get(`${API}/calculator/payment-schedule-template?total_amount=${totalAmount || 0}`);
       setScheduleTemplate(response.data);
     } catch (error) {
-      // Silent fail
+      console.error("Failed to fetch schedule template:", error);
     }
   };
 
