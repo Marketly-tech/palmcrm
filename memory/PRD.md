@@ -89,6 +89,14 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - **Booking Amount Restoration:** Updated all 37 customers' `booking_amount` to match their first transaction (actual initial token payment). For example, Kuldeep Khandelwal: ₹10,12,588 → ₹50,000
 - **Sales Agreement:** Updated template to render actual transaction records (booking + agreement stages) instead of hardcoded booking_amount field
 
+### Receipt Import from Excel (April 2026)
+- Imported 12 new transactions from Receipt-Palm Altezze.xlsm across 34 matched flats
+- Skipped 116 duplicate transactions (matched by amount+date or receipt number)
+- Updated 8 customers' booking_amount to match their first receipt (actual token payment)
+- Transaction stages: booking (first receipt), agreement (<₹20L), scheduled_disbursement (≥₹20L)
+- 2 flats skipped (1103: DIVYANSH GOEL, 803: PRABHAT KUMAR JHA — not in DB)
+- Flat 701 correctly mapped to MUTYALA JAGADEESH (not Ramya test lead)
+
 ### UI Cleanup & Booking Details Edit (April 2026)
 - Admin can now edit Booking Details (finance_type, finance_bank, booking_amount, booking_date) via dedicated PUT `/api/customers/{id}/booking-details` endpoint (admin-only, 403 for other roles)
 - Removed: Disbursement Documents section from Documents tab
