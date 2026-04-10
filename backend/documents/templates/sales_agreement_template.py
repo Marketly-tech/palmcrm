@@ -817,6 +817,7 @@ def generate_sales_agreement_template():
                     <p><strong>VENDORS</strong></p>
                     <div class="signature-line">
                         <p>For RRL Builders & Developers Pvt. Ltd.</p>
+                        <p>Represented by its Managing Director Mr. Ram R</p>
                         <p>Authorized Signatory</p>
                     </div>
                 </div>

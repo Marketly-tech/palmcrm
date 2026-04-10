@@ -12,6 +12,7 @@ import SettingsPage from "./pages/SettingsPage";
 import ReportsPage from "./pages/ReportsPage";
 import LeadsPage from "./pages/LeadsPage";
 import BookingFormPage from "./pages/BookingFormPage";
+import EmailLogsPage from "./pages/EmailLogsPage";
 import "./App.css";
 
 const ProtectedRoute = ({ children }) => {
@@ -53,6 +54,7 @@ function App() {
                     <Route path="/documents" element={<DocumentsPage />} />
                     <Route path="/calculator" element={<CalculatorPage />} />
                     <Route path="/reports" element={<ReportsPage />} />
+                    <Route path="/email-logs" element={<EmailLogsPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Routes>
                 </DashboardLayout>

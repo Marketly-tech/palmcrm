@@ -265,7 +265,7 @@ const CommunicationTab = ({
         {communications.length > 0 ? (
           <div className="space-y-4">
             {communications.map((comm) => (
-              <div key={comm.id} className="p-4 border rounded-lg">
+              <div key={comm.id} className="p-4 border rounded-lg hover:border-slate-300 transition-colors">
                 <div className="flex items-center gap-2 mb-2">
                   {comm.channel === "email" ? (
                     <Mail className="w-4 h-4 text-blue-500" />
@@ -274,7 +274,17 @@ const CommunicationTab = ({
                   )}
                   <span className="font-medium capitalize">{comm.channel}</span>
                   <span className="text-sm text-slate-500">- {comm.message_type}</span>
-                  <Badge variant="outline" className="ml-auto">{comm.status}</Badge>
+                  <Badge
+                    variant="outline"
+                    className={`ml-auto ${
+                      comm.status === "sent" ? "bg-green-50 text-green-700 border-green-300" :
+                      comm.status === "failed" || comm.status === "error" ? "bg-red-50 text-red-700 border-red-300" :
+                      comm.status?.includes("simulated") || comm.status?.includes("mocked") ? "bg-yellow-50 text-yellow-700 border-yellow-300" :
+                      "bg-slate-50 text-slate-700 border-slate-300"
+                    }`}
+                  >
+                    {comm.status}
+                  </Badge>
                 </div>
                 <p className="text-sm text-slate-600 whitespace-pre-wrap line-clamp-3">{comm.content}</p>
                 <p className="text-xs text-slate-400 mt-2">
@@ -289,6 +299,9 @@ const CommunicationTab = ({
             <p>No communication history yet</p>
           </div>
         )}
+        <p className="text-xs text-slate-400 mt-4 italic">
+          Replies from customers will appear in your email inbox. This log tracks all outbound communications.
+        </p>
       </CardContent>
     </Card>
   );

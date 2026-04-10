@@ -23,6 +23,7 @@ import {
   Building2,
   ChevronDown,
   UserPlus,
+  Mail,
 } from "lucide-react";
 
 const navigation = [
@@ -31,6 +32,7 @@ const navigation = [
   { name: "Customers", href: "/customers", icon: Users, roles: ["admin", "manager", "accounts", "sales", "support"] },
   { name: "Documents", href: "/documents", icon: FileText, roles: ["admin", "manager", "accounts"] },
   { name: "Payment Tracking", href: "/calculator", icon: CreditCard, roles: ["admin", "manager", "accounts"] },
+  { name: "Email Tracking", href: "/email-logs", icon: Mail, roles: ["admin", "manager"] },
   { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "manager"] },
   { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
 ];

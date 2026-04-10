@@ -2567,6 +2567,58 @@ async def get_communication_history(customer_id: str, user: dict = Depends(get_c
     logs = await db.communication_logs.find({"customer_id": customer_id}, {"_id": 0}).sort("sent_at", -1).to_list(100)
     return logs
 
+@api_router.get("/email-logs")
+async def get_all_email_logs(
+    page: int = 1,
+    limit: int = 50,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get all email logs across all customers for tracking"""
+    query = {"channel": "email"}
+    if status and status != "all":
+        query["status"] = {"$regex": status, "$options": "i"}
+    
+    # Get total count
+    total = await db.communication_logs.count_documents(query)
+    
+    # Fetch logs with pagination
+    skip = (page - 1) * limit
+    logs = await db.communication_logs.find(query, {"_id": 0}).sort("sent_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Enrich with customer names
+    customer_ids = list(set(log.get("customer_id", "") for log in logs))
+    customers = {}
+    if customer_ids:
+        customer_docs = await db.customers.find(
+            {"id": {"$in": customer_ids}}, {"_id": 0, "id": 1, "name": 1, "email": 1, "customer_id": 1}
+        ).to_list(len(customer_ids))
+        customers = {c["id"]: c for c in customer_docs}
+    
+    enriched_logs = []
+    for log in logs:
+        cust = customers.get(log.get("customer_id", ""), {})
+        log["customer_name"] = cust.get("name", "Unknown")
+        log["customer_email"] = cust.get("email", "")
+        log["customer_display_id"] = cust.get("customer_id", "")
+        if search:
+            search_lower = search.lower()
+            if (search_lower not in log.get("customer_name", "").lower() and
+                search_lower not in log.get("message_type", "").lower() and
+                search_lower not in log.get("content", "").lower() and
+                search_lower not in log.get("customer_email", "").lower()):
+                continue
+        enriched_logs.append(log)
+    
+    return {
+        "logs": enriched_logs,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
 # ==================== GOOGLE FORMS WEBHOOK ====================
 @api_router.post("/webhook/google-form")
 async def google_form_webhook(data: GoogleFormWebhook, background_tasks: BackgroundTasks):
