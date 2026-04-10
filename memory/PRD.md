@@ -11,124 +11,92 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - **Payment Tracking:** Track payment schedules, calculate total received vs. pending, stage-wise TDS
 - **Document Generation:** Templates for Demand Letters, Allotment Letters, Sales Agreements, Booking Form Previews, Cost Breakups, Bank NOCs, Terms & Conditions, Price Breakups (PDF)
 - **Dashboard:** Key metrics - total revenue, pending payments, total customers, disbursement stage management
-- **Automated Communications:** Email integration (SendGrid)
+- **Email Tracking:** Centralized outbound email log with search, status filter, pagination
+- **Automated Communications:** Integration with Email (SendGrid)
 
 ## Architecture
 - **Backend:** FastAPI + Motor (async MongoDB) + WeasyPrint (PDF) + Pytest
 - **Frontend:** React + TailwindCSS + Shadcn UI + Axios
 - **Database:** MongoDB
 
+### Key Routes
+- `/dashboard` — Main metrics + Disbursement Stage management (admin)
+- `/customers` — Customer list with filters
+- `/customers/:id` — Customer detail with tabs
+- `/email-logs` — Centralized email tracking (admin/manager)
+- `/settings` — User management (admin)
+
 ### File Structure
 ```
 /app/
 ├── backend/
 │   ├── server.py
-│   ├── auth/, customers/, documents/, dashboard/, email_service/, payments/, utils/
-│   ├── documents/templates/
-│   │   ├── __init__.py, common.py, default_template.py, logo_data.py
-│   │   ├── allotment_letter.py, booking_form.py, cost_breakup.py
-│   │   ├── demand_letter.py, email_templates.py, noc_templates.py
-│   │   ├── payment_schedule.py, price_breakup.py, terms_conditions.py
-│   │   ├── sales_agreement_html.py, sales_agreement_template.py
+│   ├── documents/templates/ (12 template files)
+│   ├── auth/, customers/, dashboard/, email_service/, payments/, utils/
 │   ├── tests/
-│   ├── config.py, database.py
 │   └── .env
 └── frontend/
     ├── src/
     │   ├── App.js
-    │   ├── components/customer/
-    │   │   ├── DetailsTab.jsx, PaymentTrackingTab.jsx, EmailComposerDialog.jsx
-    │   │   ├── DocumentsTab.jsx, UploadsTab.jsx, CommunicationTab.jsx
-    │   │   ├── ChecklistTab.jsx, PaymentScheduleTab.jsx, NotesTab.jsx
-    │   │   └── TransactionsCard.jsx, utils.js, index.js
+    │   ├── components/customer/ (10 extracted components)
+    │   ├── components/layout/DashboardLayout.js
     │   └── pages/
     │       ├── CustomerDetailPage.js, BookingFormPage.js, DashboardPage.js
+    │       ├── EmailLogsPage.js, CustomersPage.js
+    │       └── ...
     └── .env
 ```
 
 ## What's Been Implemented
 
-### Completed Features (Core)
-- User authentication (JWT), role-based access control (admin, manager, sales, accounts)
+### Core Features (Complete)
+- JWT auth, role-based access (admin, manager, sales, accounts)
 - Customer CRUD with detailed profiles
 - Payment schedule management with cumulative percentages
-- Transaction logging with stage tracking + PDF export
-- Document generation (all 9+ types with PDF via WeasyPrint)
-- Bank NOC generation (HDFC, BOB, TATA Capital)
-- Document upload/download/preview
-- Communication (Email via SendGrid, WhatsApp MOCKED)
-- Document checklist tracking, Customer notes
-- Dashboard with metrics + Disbursement Payment Stage management
-- Admin-only inline editing of Booking Details
-- Live price calculation during customer edit
+- Transaction logging with PDF export
+- All 9+ document types with PDF generation via WeasyPrint
+- Bank NOC (HDFC, BOB, TATA Capital) with dedicated UI
+- Email via SendGrid, WhatsApp (MOCKED)
+- Document checklist, Notes, Communication history
+- Dashboard with disbursement stage management
+- Admin inline editing of booking details
+- Co-applicant support across all document templates
 
-### Session 2 Changes (April 10, 2026)
-
-#### Co-Applicant Template Integration
-- Price Breakup: Added co-applicant Name, Phone, Email
-- Payment Schedule PDF/HTML: Added co-applicant details
-- Terms & Conditions: Uses `format_customer_names()` (no Mr./Mrs.)
-
-#### Dashboard Payment Stage Restore
-- Restored admin-only "Disbursement Payment Stage" card with Select dropdown
-- Shows overdue customer cards with amounts
-
-#### Transaction PDF Export
-- `GET /api/transactions/{customer_id}/export-html` - queries with $in for both UUID and RRL-XXXXX formats
-- "Export PDF" button in PaymentTrackingTab
-
-#### Cost Breakup Updates
-- BESCOM fixed at Rs. 2,00,000
-- TDS row added below Amenities (TDS = total_flat_value / 101)
-- Basic cost reverse-calculated to keep total unchanged
-
-#### NOC Document Updates
-- Date format changed to DD/MM/YY (e.g., 10/04/26)
-- "Due on" date = NOC generation date (today), not agreement date
-- Signature interchanged: "For RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED" first, then "Authorized Signatory"
-
-#### Demand Letter TDS
-- TDS Payable = demand_raised / 101 (stage-based)
-- TDS Paid = amount_paid / 101
-- TDS Balance = Payable - Paid
-- Values properly formatted with Indian currency
-
-#### Stage-wise TDS in Payment Tracking
-- New TDS section showing Payable, Paid, and Balance per current disbursement stage
-
-#### Disbursement Documents UI Restored
-- NOC generation card with HDFC/BOB/TATA buttons restored in Documents tab
-- NOC documents separated from regular documents list
-
-### Session 1 Changes (April 10, 2026)
-- Fixed backend NameError crash from missing imports
-- Refactored CustomerDetailPage.js (2457 -> 1333 lines)
-- Updated all PDF templates with base64 logo, "Pvt. Ltd." company name
-- Dynamic applicant/co-applicant formatting with age, Aadhaar, PAN
-- Allotment Letter repo rate clause, Sales Agreement total_received update
-- Co-applicant DOB field added
+### Latest Changes (April 10, 2026 - Session 2)
+- **Sales Agreement**: Added "Represented by its Managing Director Mr. Ram R" to VENDORS signature
+- **Email Tracking Page**: New `/email-logs` page with search, status filter, pagination, customer enrichment
+- **Sidebar**: Added "Email Tracking" navigation for admin/manager
+- **CommunicationTab**: Enhanced status badges + inbox note
+- **Transaction PDF Export**: Fixed customer_id mismatch (UUID vs RRL-XXXXX)
+- **Cost Breakup**: BESCOM = Rs.2,00,000 fixed, TDS row (total/101) added
+- **NOC Documents**: Date DD/MM/YY, signature interchanged, due_date = generation date
+- **Demand Letter**: TDS auto-calculated from stage data
+- **Stage-wise TDS**: New section in Payment Tracking tab
+- **Co-applicant**: Added to Price Breakup, Payment Schedule, Terms & Conditions
+- **Disbursement Documents UI**: NOC card restored in Documents tab
+- **Dashboard Payment Stage**: Restored admin dropdown
 
 ## Pending / Backlog
 
-### P1 - In Progress
+### P1
 - Frontend refactoring of `BookingFormPage.js` (~1330 lines)
+- Customer list column additions (Payment %)
 
-### P2 - Future
-- WhatsApp integration via Twilio (currently MOCKED)
+### P2
+- WhatsApp via Twilio (currently MOCKED)
 - Document Checklist for KYC tracking
 - Activity Logs / audit trail
 - Enhanced Dashboard with more charts
-- Customer list column additions (Payment %)
+- SendGrid Inbound Parse for inbox replies
 
-### P3 - Low Priority
+### P3
 - User-uploadable email attachments
 - Admin template editor for PDF templates
 
 ## Testing
 - Test customer: "Ramya test lead" (ID: `6d902613-5106-4294-bc3e-b907f85127f7`)
-- Latest test report: `/app/test_reports/iteration_24.json`
-- Backend: 100% pass (14/14 tests)
-- Frontend: 100% pass
+- Latest test report: `/app/test_reports/iteration_25.json`
+- All tests passing (100%)
 
 ## 3rd Party Integrations
 - **SendGrid (Email)** - requires user API key
