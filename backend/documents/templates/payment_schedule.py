@@ -1,6 +1,6 @@
 """Payment Schedule document templates."""
 from datetime import datetime
-from documents.templates.common import format_inr
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME
 
 def generate_payment_schedule_pdf_html(customer: dict, transactions: list = None) -> str:
     """Generate Payment Schedule PDF HTML with customer data and transactions"""
@@ -78,8 +78,8 @@ def generate_payment_schedule_pdf_html(customer: dict, transactions: list = None
     </head>
     <body>
         <div class="header">
-            <h1>RRL BUILDERS AND DEVELOPERS</h1>
-            <p>Beyond homes. A lifestyle</p>
+            <h1>{COMPANY_NAME.upper()}</h1>
+            <p>Beyond Homes. A Lifestyle</p>
             <h2 style="margin-top: 15px; color: #D4AF37;">PAYMENT SCHEDULE</h2>
         </div>
         
@@ -146,7 +146,7 @@ def generate_payment_schedule_pdf_html(customer: dict, transactions: list = None
         </div>
         
         <p style="text-align: center; margin-top: 30px; color: #666; font-size: 12px;">
-            Generated on {datetime.now().strftime("%d/%m/%Y at %H:%M")} | RRL Builders CRM
+            Generated on {datetime.now().strftime("%d/%m/%Y at %H:%M")} | {COMPANY_NAME} CRM
         </p>
     </body>
     </html>
@@ -247,16 +247,12 @@ def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
             }}
             
             .logo {{
-                width: 60px;
-                height: 60px;
-                background: #1A1A1A;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #D4AF37;
-                font-weight: bold;
-                font-size: 24px;
+                width: 120px;
+            }}
+            
+            .logo img {{
+                width: 120px;
+                height: auto;
             }}
             
             .company-name {{
@@ -383,10 +379,10 @@ def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
         <div class="container">
             <div class="header">
                 <div class="logo-section">
-                    <div class="logo">RRL</div>
+                    <div class="logo">{get_logo_img_tag(120)}</div>
                     <div>
-                        <div class="company-name">RRL Builders and Developers</div>
-                        <div class="company-tagline">Beyond homes. A lifestyle</div>
+                        <div class="company-name">{COMPANY_NAME}</div>
+                        <div class="company-tagline">Beyond Homes. A Lifestyle</div>
                     </div>
                 </div>
                 <div class="document-title">PAYMENT SCHEDULE</div>
@@ -453,7 +449,7 @@ def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
             </div>
             
             <div class="footer">
-                <p>RRL Builders and Developers Pvt Ltd | www.rrlbuildersanddevelopers.com</p>
+                <p>{COMPANY_NAME} | www.rrlbuildersanddevelopers.com</p>
                 <p>This is a computer-generated document. Generated on {datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
             </div>
         </div>

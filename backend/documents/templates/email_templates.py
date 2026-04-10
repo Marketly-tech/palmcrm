@@ -1,6 +1,6 @@
 """Email HTML templates (Welcome, Document)."""
 from datetime import datetime
-from documents.templates.common import format_inr
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME
 
 def generate_welcome_email_html(customer: dict) -> str:
     """Generate the welcome email HTML with black and gold theme"""
@@ -49,16 +49,12 @@ def generate_welcome_email_html(customer: dict) -> str:
             }}
             
             .logo {{
-                width: 50px;
-                height: 50px;
-                background: #1A1A1A;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #D4AF37;
-                font-weight: bold;
-                font-size: 18px;
+                width: 100px;
+            }}
+            
+            .logo img {{
+                width: 100px;
+                height: auto;
             }}
             
             .company-info {{
@@ -191,20 +187,20 @@ def generate_welcome_email_html(customer: dict) -> str:
     <body>
         <div class="email-container">
             <div class="header">
-                <div class="logo">RRL</div>
+                <div class="logo">{get_logo_img_tag(100)}</div>
                 <div class="company-info">
-                    <div class="company-name">RRL Builders and Developers</div>
+                    <div class="company-name">{COMPANY_NAME}</div>
                     <div class="company-tagline">Beyond homes. A lifestyle</div>
                 </div>
             </div>
             
             <p class="greeting">Dear <span>{customer.get('name', 'Valued Customer')}</span>,</p>
             
-            <p><strong>Greetings From RRL Builders and Developers Pvt Ltd.</strong></p>
+            <p><strong>Greetings From {COMPANY_NAME}</strong></p>
             
             <p>It is our distinct pleasure to welcome you to {customer.get('project', 'RRL Palm Altezze')} and to congratulate you on the acquisition of your Residence <span class="flat-highlight">Flat No. {customer.get('unit_number', '')}</span>.</p>
             
-            <p>Your decision reflects a refined appreciation for exceptional design, uncompromising quality, and a lifestyle that goes beyond the ordinary. At RRL Builders and Developers Pvt Ltd, we create homes not merely as living spaces, but as enduring legacies—crafted with precision, discretion, and timeless elegance.</p>
+            <p>Your decision reflects a refined appreciation for exceptional design, uncompromising quality, and a lifestyle that goes beyond the ordinary. At {COMPANY_NAME}, we create homes not merely as living spaces, but as enduring legacies—crafted with precision, discretion, and timeless elegance.</p>
             
             <p>{customer.get('project', 'RRL Palm Altezze')} has been envisioned for a select few who value privacy, sophistication, and exclusivity. Every element of your residence—from architecture and materials to amenities and services—has been thoughtfully curated to offer a living experience of rare distinction.</p>
             
@@ -248,7 +244,7 @@ def generate_welcome_email_html(customer: dict) -> str:
             </div>
             
             <div class="footer">
-                <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
+                <p><strong>{COMPANY_NAME}</strong></p>
                 <p><a href="https://www.rrlbuildersanddevelopers.com" class="footer-link">www.rrlbuildersanddevelopers.com</a></p>
             </div>
         </div>
@@ -276,10 +272,10 @@ def generate_document_email_html(customer: dict, subject: str, body: str) -> str
         <div style="background: #fff; border: 2px solid #D4AF37; border-radius: 8px; max-width: 700px; margin: 0 auto; overflow: hidden;">
             <!-- Header -->
             <div style="background: #1A1A1A; padding: 20px; display: flex; align-items: center;">
-                <div style="background: #D4AF37; color: #1A1A1A; padding: 10px 15px; border-radius: 6px; font-weight: bold; font-size: 18px; margin-right: 15px;">RRL</div>
+                <div style="margin-right: 15px;">{get_logo_img_tag(80)}</div>
                 <div>
-                    <div style="color: #D4AF37; font-size: 18px; font-weight: 700;">RRL Builders and Developers</div>
-                    <div style="color: #999; font-size: 11px;">Beyond homes. A lifestyle</div>
+                    <div style="color: #D4AF37; font-size: 18px; font-weight: 700;">{COMPANY_NAME}</div>
+                    <div style="color: #999; font-size: 11px;">Beyond Homes. A Lifestyle</div>
                 </div>
             </div>
             
@@ -302,7 +298,7 @@ def generate_document_email_html(customer: dict, subject: str, body: str) -> str
             
             <!-- Footer -->
             <div style="background: #fafafa; padding: 15px; text-align: center; font-size: 11px; color: #888; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0;">RRL Builders and Developers Pvt. Ltd. | <a href="https://www.rrlbuildersanddevelopers.com" style="color: #D4AF37;">www.rrlbuildersanddevelopers.com</a></p>
+                <p style="margin: 0;">{COMPANY_NAME} | <a href="https://www.rrlbuildersanddevelopers.com" style="color: #D4AF37;">www.rrlbuildersanddevelopers.com</a></p>
             </div>
         </div>
     </body>

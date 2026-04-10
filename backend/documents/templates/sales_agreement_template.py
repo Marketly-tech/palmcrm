@@ -70,16 +70,12 @@ def generate_sales_agreement_template():
         }
         
         .logo {
-            width: 50px;
-            height: 50px;
-            background: #1A1A1A;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #D4AF37;
-            font-weight: bold;
-            font-size: 18px;
+            width: 120px;
+        }
+        
+        .logo img {
+            width: 120px;
+            height: auto;
         }
         
         .company-name {
@@ -350,10 +346,10 @@ def generate_sales_agreement_template():
 <body>
     <div class="header">
         <div class="logo-section">
-            <div class="logo">RRL</div>
+            <div class="logo">{logo_img}</div>
             <div>
-                <div class="company-name">RRL Builders and Developers</div>
-                <div class="company-tagline">Beyond homes. A lifestyle</div>
+                <div class="company-name">{company_name}</div>
+                <div class="company-tagline">Beyond Homes. A Lifestyle</div>
             </div>
         </div>
     </div>
@@ -441,10 +437,7 @@ def generate_sales_agreement_template():
         <!-- PURCHASER SECTION -->
         <div class="party-section">
             <p class="party-title">PURCHASER:</p>
-            <p><strong><span class="highlight">{customer_name}</span></strong></p>
-            <p>Aged about <span class="highlight">{age}</span> years, {salutation} <span class="highlight">{father_name}</span></p>
-            <p>Residing at: <span class="highlight">{address}</span></p>
-            <p>AADHAAR No.: <span class="highlight">{aadhaar_number}</span> | PAN No.: <span class="highlight">{pan_number}</span> | Mobile: <span class="highlight">{phone}</span></p>
+            {applicant_details_block}
         </div>
         
         <p>Hereinafter referred to as the <strong>PURCHASER/S / ALLOTTEE/S</strong> (which expression unless repugnant to the context shall mean and include his/her/their legal heirs, representatives, administrators, executors, successors and assigns) of the OTHER Part.</p>
@@ -543,7 +536,7 @@ def generate_sales_agreement_template():
         
         <p class="clause">Bajaj Housing Finance Limited ("Lender" or "BHFL") is the Lender of the Project and the properties of the Project have been charged/mortgaged in favour of the Lender and any sale consideration in respect of the units of the Project shall be deposited by the PURCHASER/S directly in the aforesaid Escrow Account. Also the Borrower(s) hereby undertakes that existing and proposed unit buyers of the Project and mortgage financing institution wherever unit buyers availed/are availing Residential Purchase loans shall be informed to deposit balance consideration in the Escrow Account as provided herein.</p>
         
-        <p class="clause"><span class="clause-number">(ii)</span> Accordingly, the PURCHASER/S as a token of acceptance, has paid a sum of <strong>Rs. <span class="highlight">{booking_amount_formatted}</span>/- (<span class="highlight">{booking_amount_words}</span> Only)</strong> vide payment details recorded separately. The receipt of which the VENDORS hereby accepts and acknowledges in the presence of the witnesses attesting hereunder.</p>
+        <p class="clause"><span class="clause-number">(ii)</span> Accordingly, the PURCHASER/S as a token of acceptance, has paid a sum of <strong>Rs. <span class="highlight">{total_received_formatted}</span>/- (<span class="highlight">{total_received_words}</span> Only)</strong> vide payment details recorded separately. The receipt of which the VENDORS hereby accepts and acknowledges in the presence of the witnesses attesting hereunder.</p>
         
         <p class="clause"><span class="clause-number">(iii)</span> The payment of sale consideration being the essence of this Agreement, the PURCHASER/S will pay the balance consideration and all amounts payable under this Agreement without any default in accordance with the payment schedule and timelines mentioned hereunder. All such payments shall be made after deduction of applicable TDS (if any).</p>
         
@@ -854,7 +847,7 @@ def generate_sales_agreement_template():
     </div>
     
     <div class="footer">
-        <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
+        <p><strong>{company_name}</strong></p>
         <p>4th Floor, RRL TOWERS, Sompura Gate, Sarjapura Road, Bengaluru – 562125</p>
         <p>www.rrlbuildersanddevelopers.com | RERA: PRM/KA/RERA/1251/308/PR/141025/008167</p>
         <p style="margin-top: 10px;">Document Generated: {date} | Ref: {customer_id}</p>

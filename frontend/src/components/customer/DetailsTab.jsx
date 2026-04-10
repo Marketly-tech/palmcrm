@@ -623,6 +623,10 @@ const DetailsTab = ({
                 <p className="text-slate-700 mt-1">{customer.co_applicant_father_name || "-"}</p>
               </div>
               <div>
+                <Label>Date of Birth</Label>
+                <p className="text-slate-700 mt-1">{customer.co_applicant_date_of_birth || "-"}</p>
+              </div>
+              <div>
                 <Label>Phone</Label>
                 <p className="text-slate-700 mt-1">{customer.co_applicant_phone || "-"}</p>
               </div>

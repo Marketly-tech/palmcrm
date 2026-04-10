@@ -1,4 +1,5 @@
 """Terms and Conditions document template."""
+from documents.templates.common import get_logo_img_tag, COMPANY_NAME, COMPANY_NAME_FULL, COMPANY_NAME_UPPER
 
 def generate_terms_and_conditions_html(customer: dict) -> str:
     """Generate a Terms and Conditions PDF with the allotment letter terms"""
@@ -41,16 +42,12 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
             }}
             
             .logo {{
-                width: 40px;
-                height: 40px;
-                background: linear-gradient(135deg, #1A1A1A 0%, #333 100%);
-                color: #D4AF37;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 700;
-                font-size: 14px;
-                border-radius: 6px;
+                width: 80px;
+            }}
+            
+            .logo img {{
+                width: 80px;
+                height: auto;
             }}
             
             .company-name {{
@@ -173,10 +170,10 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
     <body>
         <div class="header">
             <div class="logo-section">
-                <div class="logo">RRL</div>
+                <div class="logo">{get_logo_img_tag(80)}</div>
                 <div>
-                    <div class="company-name">RRL Builders and Developers</div>
-                    <div class="company-tagline">Beyond homes. A lifestyle</div>
+                    <div class="company-name">{COMPANY_NAME}</div>
+                    <div class="company-tagline">Beyond Homes. A Lifestyle</div>
                 </div>
             </div>
             <div class="document-title">Terms & Conditions</div>
@@ -196,7 +193,7 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
             
             <div class="term-item">
                 <span class="term-number">2</span>
-                <span class="term-text">All payments to be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) mode drawn in favor of/to the account of <strong>"RRL BUILDERS AND DEVELOPERS PVT LTD"</strong></span>
+                <span class="term-text">All payments to be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) mode drawn in favor of/to the account of <strong>"{COMPANY_NAME_UPPER}"</strong></span>
                 <div class="bank-details">
                     <p><strong>Bank:</strong> Axis Bank</p>
                     <p><strong>Account No:</strong> 922020009963054</p>
@@ -293,12 +290,12 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
                 <div class="signature-line">Co-Applicant Signature</div>
             </div>
             <div class="signature-box">
-                <div class="signature-line">For RRL Builders</div>
+                <div class="signature-line">For {COMPANY_NAME}</div>
             </div>
         </div>
         
         <div class="footer">
-            <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
+            <p><strong>{COMPANY_NAME}</strong></p>
             <p>RERA No: PRM/KA/RERA/1251/308/PR/141025/008167 | CIN: U70109KA2015PTC081706</p>
             <p>www.rrlbuilders.in</p>
         </div>

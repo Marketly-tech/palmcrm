@@ -1,7 +1,10 @@
 """Demand Letter document template."""
 from datetime import datetime
 from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
-from documents.templates.common import format_inr
+from documents.templates.common import (
+    format_inr, format_applicant_block, get_logo_img_tag,
+    COMPANY_NAME, COMPANY_NAME_FULL
+)
 
 def generate_demand_letter_html(customer: dict, transactions: list = None, stage_info: dict = None) -> str:
     """Generate Demand Letter / Installment Call Letter HTML with customer and payment data."""
@@ -13,14 +16,17 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
     # --- Customer Details ---
     customer_name = customer.get('name', '').upper()
     co_applicant = customer.get('co_applicant_name', '')
-    if co_applicant:
-        recipient_name = f"{customer_name} AND {co_applicant.upper()}"
-    else:
-        recipient_name = customer_name
+
+    # Build applicant block
+    applicant_block = format_applicant_block(customer)
+    co_applicant_block = format_applicant_block(customer, prefix="co_applicant_")
+    
+    recipient_html = applicant_block
+    if co_applicant_block:
+        recipient_html += f'<br/><br/><strong>Co-Applicant:</strong><br/>{co_applicant_block}'
 
     address = customer.get('address', '') or ''
     phone = customer.get('phone', '')
-    email = customer.get('email', '')
 
     # --- Property Details ---
     project = customer.get('project', 'RRL Palm Altezze')
@@ -114,13 +120,11 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                 margin-bottom: 0;
             }}
             .header-logo {{
-                background: #D4AF37;
-                color: #1A1A1A;
-                font-weight: 700;
-                font-size: 20px;
-                padding: 8px 14px;
-                border-radius: 4px;
                 margin-right: 16px;
+            }}
+            .header-logo img {{
+                height: 48px;
+                width: auto;
             }}
             .header-text {{
                 flex: 1;
@@ -291,10 +295,10 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
         <div class="page">
             <!-- Header -->
             <div class="header-bar">
-                <div class="header-logo">RRL</div>
+                <div class="header-logo">{get_logo_img_tag(100)}</div>
                 <div class="header-text">
-                    <h1>RRL Builders and Developers</h1>
-                    <p>Beyond homes. A lifestyle</p>
+                    <h1>{COMPANY_NAME}</h1>
+                    <p>Beyond Homes. A Lifestyle</p>
                 </div>
             </div>
 
@@ -306,9 +310,7 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                 <div class="date-line">Date: {date_str}</div>
 
                 <div class="recipient">
-                    <strong>{recipient_name}</strong><br>
-                    {address.replace(chr(10), "<br>") if address else "Address on file"}<br>
-                    Ph. {phone}
+                    {recipient_html}
                 </div>
 
                 <div class="ref-box">
@@ -382,7 +384,7 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                 <div class="bank-details">
                     <h4>Bank Details for Payment</h4>
                     <table>
-                        <tr><td>Account Name</td><td>: RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED</td></tr>
+                        <tr><td>Account Name</td><td>: {COMPANY_NAME_FULL}</td></tr>
                         <tr><td>Account Number</td><td>: 57500001802063</td></tr>
                         <tr><td>Bank Name</td><td>: HDFC BANK</td></tr>
                         <tr><td>IFSC</td><td>: HDFC0009590</td></tr>
@@ -394,7 +396,7 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                     <p>Thanking you,</p>
                     <div class="signature">
                         <div class="for">For</div>
-                        <div class="company">RRL Builders and Developers Private Limited</div>
+                        <div class="company">{COMPANY_NAME_FULL}</div>
                     </div>
                 </div>
             </div>

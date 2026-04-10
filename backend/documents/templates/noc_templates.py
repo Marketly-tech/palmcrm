@@ -1,6 +1,6 @@
 """Bank NOC document templates (HDFC, BOB, TATA Capital)."""
 from datetime import datetime
-from documents.templates.common import format_inr
+from documents.templates.common import format_inr, COMPANY_NAME_FULL
 
 def generate_noc_hdfc_html(customer: dict) -> str:
     """Generate HDFC Bank NOC (No Objection Certificate) for disbursement"""
@@ -123,7 +123,7 @@ def generate_noc_hdfc_html(customer: dict) -> str:
         
         <div class="signature">
             <p class="signature-line">Authorized Signatory</p>
-            <p style="margin-top: 50px;"><strong>For RRL Builders and Developers Private Limited</strong></p>
+            <p style="margin-top: 50px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
         </div>
     </body>
     </html>
@@ -233,7 +233,7 @@ def generate_noc_bob_html(customer: dict) -> str:
         
         <div class="signature">
             <p class="signature-line">Authorized Signatory</p>
-            <p style="margin-top: 50px;"><strong>For RRL Builders and Developers Private Limited</strong></p>
+            <p style="margin-top: 50px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
         </div>
     </body>
     </html>
@@ -356,7 +356,7 @@ def generate_noc_tata_html(customer: dict) -> str:
         
         <div class="signature">
             <p>Yours faithfully</p>
-            <p style="margin-top: 50px;"><strong>For RRL Builders and Developers Private Limited</strong></p>
+            <p style="margin-top: 50px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
         </div>
     </body>
     </html>

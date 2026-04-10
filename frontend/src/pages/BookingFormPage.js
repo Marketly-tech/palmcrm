@@ -102,6 +102,7 @@ const BookingFormPage = () => {
     co_applicant_pan: "",
     co_applicant_aadhar: "",
     co_applicant_address: "",
+    co_applicant_date_of_birth: "",
     co_applicant_profession: "",
     co_applicant_nationality: "Indian",
     
@@ -690,6 +691,17 @@ const BookingFormPage = () => {
                           name="co_applicant_father_name"
                           value={formData.co_applicant_father_name}
                           onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="co_applicant_date_of_birth">Date of Birth</Label>
+                        <Input
+                          id="co_applicant_date_of_birth"
+                          name="co_applicant_date_of_birth"
+                          type="date"
+                          value={formData.co_applicant_date_of_birth}
+                          onChange={handleInputChange}
+                          data-testid="co-applicant-dob-input"
                         />
                       </div>
                       <div className="space-y-2">

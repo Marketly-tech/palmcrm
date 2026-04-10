@@ -283,6 +283,7 @@ class CustomerBase(BaseModel):
     co_applicant_pan: Optional[str] = None
     co_applicant_aadhar: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    co_applicant_date_of_birth: Optional[str] = None
     
     # Property Details
     project: str
@@ -3021,6 +3022,7 @@ class BookingFormData(BaseModel):
     co_applicant_pan: Optional[str] = None
     co_applicant_aadhar: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    co_applicant_date_of_birth: Optional[str] = None
     co_applicant_profession: Optional[str] = None
     co_applicant_nationality: Optional[str] = "Indian"
     

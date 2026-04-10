@@ -1,7 +1,10 @@
 """Sales Agreement dynamic HTML generation."""
 from datetime import datetime
 from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
-from documents.templates.common import format_inr
+from documents.templates.common import (
+    format_inr, format_applicant_block, calculate_age, get_salutation,
+    get_logo_img_tag, COMPANY_NAME
+)
 from documents.templates.sales_agreement_template import generate_sales_agreement_template
 
 def generate_sales_agreement_html(customer: dict, schedule_items: list, transactions: list = None) -> str:
@@ -58,29 +61,19 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
     def fmt(amount):
         return format_indian_currency(amount)
     
-    # Calculate age from date_of_birth
-    age = ""
-    dob = customer.get('date_of_birth')
-    if dob:
-        try:
-            if isinstance(dob, str):
-                dob_date = datetime.strptime(dob, "%Y-%m-%d")
-            else:
-                dob_date = dob
-            today = datetime.now()
-            age = str(today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day)))
-        except:
-            age = ""
+    # Calculate age from date_of_birth using common utility
+    age = calculate_age(customer.get('date_of_birth'))
     
-    # Generate salutation based on gender
-    # S/o for male, D/o for female, W/o for spouse
-    gender = customer.get('gender', '').lower() if customer.get('gender') else 'male'
-    if gender == 'female':
-        salutation = "D/o"
-    elif gender == 'spouse':
-        salutation = "W/o"
-    else:
-        salutation = "S/o"
+    # Generate salutation based on gender using common utility
+    salutation = get_salutation(customer.get('gender'))
+    
+    # Build applicant details block for the template
+    applicant_block = format_applicant_block(customer)
+    co_applicant_block = format_applicant_block(customer, prefix="co_applicant_")
+    
+    applicant_details_html = f'<p>{applicant_block}</p>'
+    if co_applicant_block:
+        applicant_details_html += f'<p style="margin-top: 10px;"><strong>Co-Applicant:</strong><br/>{co_applicant_block}</p>'
     
     # Generate floor ordinal (1st, 2nd, 3rd, etc.)
     floor = customer.get('floor', 0) or 0
@@ -156,6 +149,9 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
     transaction_rows = ""
     total_received_amount = 0
     row_num = 1
+    
+    # Total received = sum of ALL transactions (not just booking/agreement)
+    all_txn_total = sum(float(t.get('amount', 0) or 0) for t in (transactions or []))
     
     # Build transaction rows from actual transaction records
     if transactions and len(transactions) > 0:
@@ -250,7 +246,11 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
         '{possession_date}': possession_date,
         '{payment_schedule_rows}': payment_schedule_rows,
         '{transaction_rows}': transaction_rows,
-        '{total_received_formatted}': fmt(total_received_amount),
+        '{total_received_formatted}': fmt(all_txn_total),
+        '{total_received_words}': number_to_indian_words(int(all_txn_total)),
+        '{logo_img}': get_logo_img_tag(120),
+        '{company_name}': COMPANY_NAME,
+        '{applicant_details_block}': applicant_details_html,
         '{date}': datetime.now().strftime("%d/%m/%Y"),
         '{customer_id}': customer.get('customer_id', '')
     }

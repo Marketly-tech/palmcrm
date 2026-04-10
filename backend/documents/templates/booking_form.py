@@ -1,6 +1,9 @@
 """Booking Form Preview document template."""
 from datetime import datetime
-from documents.templates.common import format_inr
+from documents.templates.common import (
+    format_inr, calculate_age, get_salutation, get_logo_img_tag,
+    COMPANY_NAME
+)
 
 def generate_booking_form_preview_html(customer: dict) -> str:
     """Generate a PDF preview of the submitted booking form with all customer data"""
@@ -82,16 +85,12 @@ def generate_booking_form_preview_html(customer: dict) -> str:
             }}
             
             .logo {{
-                width: 45px;
-                height: 45px;
-                background: linear-gradient(135deg, #1A1A1A 0%, #333 100%);
-                color: #D4AF37;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 700;
-                font-size: 16px;
-                border-radius: 6px;
+                width: 100px;
+            }}
+            
+            .logo img {{
+                width: 100px;
+                height: auto;
             }}
             
             .company-name {{
@@ -231,9 +230,9 @@ def generate_booking_form_preview_html(customer: dict) -> str:
     <body>
         <div class="header">
             <div class="logo-section">
-                <div class="logo">RRL</div>
+                <div class="logo">{get_logo_img_tag(100)}</div>
                 <div>
-                    <div class="company-name">RRL Builders and Developers</div>
+                    <div class="company-name">{COMPANY_NAME}</div>
                     <div class="company-tagline">Beyond homes. A lifestyle</div>
                 </div>
             </div>
@@ -253,7 +252,7 @@ def generate_booking_form_preview_html(customer: dict) -> str:
                 </div>
                 <div class="info-item">
                     <span class="info-label">Father's/Husband's Name</span>
-                    <span class="info-value">{customer.get('father_name', '-')}</span>
+                    <span class="info-value">{get_salutation(customer.get('gender'))} {customer.get('father_name', '-')}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Gender</span>
@@ -262,6 +261,10 @@ def generate_booking_form_preview_html(customer: dict) -> str:
                 <div class="info-item">
                     <span class="info-label">Date of Birth</span>
                     <span class="info-value">{dob or '-'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Age</span>
+                    <span class="info-value">{calculate_age(customer.get('date_of_birth')) or '-'} {('years' if calculate_age(customer.get('date_of_birth')) else '')}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Phone Number</span>
@@ -315,7 +318,15 @@ def generate_booking_form_preview_html(customer: dict) -> str:
                 </div>
                 <div class="info-item">
                     <span class="info-label">Father's/Husband's Name</span>
-                    <span class="info-value">{customer.get('co_applicant_father_name', '-')}</span>
+                    <span class="info-value">{get_salutation(customer.get('gender', 'male'))} {customer.get('co_applicant_father_name', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Date of Birth</span>
+                    <span class="info-value">{customer.get('co_applicant_date_of_birth', '-')}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Age</span>
+                    <span class="info-value">{calculate_age(customer.get('co_applicant_date_of_birth')) or '-'} {('years' if calculate_age(customer.get('co_applicant_date_of_birth')) else '')}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Phone Number</span>
@@ -467,13 +478,13 @@ def generate_booking_form_preview_html(customer: dict) -> str:
                 <div class="signature-line">Customer Signature</div>
             </div>
             <div class="signature-box">
-                <div class="signature-line">For RRL Builders</div>
+                <div class="signature-line">For {COMPANY_NAME}</div>
             </div>
         </div>
         
         <div class="footer">
             <p>This is a system-generated booking form preview. Please verify all details are correct.</p>
-            <p><strong>RRL Builders and Developers Pvt. Ltd.</strong> | www.rrlbuilders.in</p>
+            <p><strong>{COMPANY_NAME}</strong> | www.rrlbuilders.in</p>
         </div>
     </body>
     </html>

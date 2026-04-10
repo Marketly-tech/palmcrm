@@ -1,6 +1,6 @@
 """Cost Breakup document template."""
 from datetime import datetime
-from documents.templates.common import format_inr
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME
 
 def generate_cost_breakup_html(customer: dict) -> str:
     """Generate HTML for Cost Breakup PDF matching the user-provided template"""
@@ -319,7 +319,7 @@ def generate_cost_breakup_html(customer: dict) -> str:
             </div>
             
             <div class="footer">
-                <strong>RRL Builders and Developers Pvt. Ltd.</strong><br>
+                <strong>{COMPANY_NAME}</strong><br>
                 www.rrlbuildersanddevelopers.com
             </div>
         </div>

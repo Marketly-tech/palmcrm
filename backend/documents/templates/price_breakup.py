@@ -1,6 +1,6 @@
 """Price Breakup document template."""
 from datetime import datetime
-from documents.templates.common import format_inr
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME
 
 def generate_price_breakup_html(customer: dict) -> str:
     """Generate HTML for Price Breakup PDF with black and gold theme"""
@@ -75,16 +75,12 @@ def generate_price_breakup_html(customer: dict) -> str:
             }}
             
             .logo {{
-                width: 55px;
-                height: 55px;
-                background: #1A1A1A;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #D4AF37;
-                font-weight: bold;
-                font-size: 20px;
+                width: 100px;
+            }}
+            
+            .logo img {{
+                width: 100px;
+                height: auto;
             }}
             
             .company-name {{
@@ -207,9 +203,9 @@ def generate_price_breakup_html(customer: dict) -> str:
         <div class="container">
             <div class="header">
                 <div class="logo-section">
-                    <div class="logo">RRL</div>
+                    <div class="logo">{get_logo_img_tag(100)}</div>
                     <div>
-                        <div class="company-name">RRL Builders and Developers</div>
+                        <div class="company-name">{COMPANY_NAME}</div>
                         <div class="company-tagline">Beyond homes. A lifestyle</div>
                     </div>
                 </div>
@@ -314,7 +310,7 @@ def generate_price_breakup_html(customer: dict) -> str:
                 <p class="footer-note">* Maintenance charges will attract GST as applicable</p>
                 <p class="footer-note">* Registration as per government norms</p>
                 <p class="footer-company">
-                    <strong>RRL Builders and Developers Pvt. Ltd.</strong><br>
+                    <strong>{COMPANY_NAME}</strong><br>
                     www.rrlbuildersanddevelopers.com<br>
                     Thank you for choosing RRL Palm Altezze
                 </p>

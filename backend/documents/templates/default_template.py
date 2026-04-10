@@ -1,8 +1,10 @@
 """Default document templates by type."""
 from utils.enums import DocumentType
 from documents.templates.sales_agreement_template import generate_sales_agreement_template
+from documents.templates.common import get_logo_img_tag, COMPANY_NAME, COMPANY_NAME_UPPER, COMPANY_NAME_FULL
 
 def get_default_template(doc_type: DocumentType) -> str:
+    logo_img = get_logo_img_tag(120)
     templates = {
         DocumentType.SALES_AGREEMENT: generate_sales_agreement_template(),
         DocumentType.ALLOTMENT_LETTER: """<!DOCTYPE html>
@@ -39,16 +41,12 @@ def get_default_template(doc_type: DocumentType) -> str:
         }
         
         .logo {
-            width: 50px;
-            height: 50px;
-            background: #1A1A1A;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #D4AF37;
-            font-weight: bold;
-            font-size: 18px;
+            width: 120px;
+        }
+        
+        .logo img {
+            width: 120px;
+            height: auto;
         }
         
         .company-name {
@@ -207,10 +205,10 @@ def get_default_template(doc_type: DocumentType) -> str:
 <body>
     <div class="header">
         <div class="logo-section">
-            <div class="logo">RRL</div>
+            <div class="logo">""" + logo_img + """</div>
             <div>
-                <div class="company-name">RRL Builders and Developers</div>
-                <div class="company-tagline">Beyond homes. A lifestyle</div>
+                <div class="company-name">""" + COMPANY_NAME + """</div>
+                <div class="company-tagline">Beyond Homes. A Lifestyle</div>
             </div>
         </div>
         <div class="document-title">Allotment Letter</div>
@@ -218,10 +216,7 @@ def get_default_template(doc_type: DocumentType) -> str:
     
     <div class="recipient">
         <p><strong>To,</strong></p>
-        <p><strong>Dear Mr./Mrs. <span class="highlight">{customer_name}</span></strong></p>
-        <p>Phone No: <span class="highlight">{phone}</span></p>
-        <p>Email: <span class="highlight">{email}</span></p>
-        <p>PAN: <span class="highlight">{pan_number}</span></p>
+        {applicant_details}
     </div>
     
     <div class="subject">
@@ -233,7 +228,7 @@ def get_default_template(doc_type: DocumentType) -> str:
     </div>
     
     <div class="content">
-        <p>We are issuing this allotment letter pursuant to your submission of an expression of interest dated <span class="highlight">{booking_date}</span>, requesting unit No. <span class="highlight">{unit_number}</span> in our project being developed under the name of "<strong>{project}</strong>" RERA No. PRM/KA/RERA/1251/308/PR/141025/008167. Upon due consideration of your EOI, we are pleased to confirm your booking and allot Flat No. <span class="highlight">{unit_number}</span> in "{project}" subject to the Terms and conditions set out herein. We take this opportunity to welcome you to "RRL BUILDERS AND DEVELOPERS PVT LTD" family and are pleased that you have chosen to purchase your home from us.</p>
+        <p>We are issuing this allotment letter pursuant to your submission of an expression of interest dated <span class="highlight">{booking_date}</span>, requesting unit No. <span class="highlight">{unit_number}</span> in our project being developed under the name of "<strong>{project}</strong>" RERA No. PRM/KA/RERA/1251/308/PR/141025/008167. Upon due consideration of your EOI, we are pleased to confirm your booking and allot Flat No. <span class="highlight">{unit_number}</span> in "{project}" subject to the Terms and conditions set out herein. We take this opportunity to welcome you to """ + '"' + COMPANY_NAME_FULL + '"' + """ family and are pleased that you have chosen to purchase your home from us.</p>
         
         <p style="margin-top: 12px;">You hereby acknowledge and confirm that the copies of title documents have been handed over to you and that you have scrutinized and are satisfied with the title of the Developer to the project being good and marketable.</p>
     </div>
@@ -276,10 +271,10 @@ def get_default_template(doc_type: DocumentType) -> str:
     <div class="terms">
         <p><span class="terms-number">1.</span> In consideration of and subject to the Allottee(s) complying with the terms and conditions of this letter, executing and registering necessary documents and agreements under applicable law, and agreeing to make and making timely payment of amounts due, the developer allots the Flat in the project "{project}" in the favour of <span class="highlight">Mr./Mrs. {customer_name}</span>.</p>
         
-        <p><span class="terms-number">2.</span> All payments to be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) mode drawn in favor of/to the account of "RRL BUILDERS AND DEVELOPERS PVT LTD"</p>
+        <p><span class="terms-number">2.</span> All payments to be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) mode drawn in favor of/to the account of """ + '"' + COMPANY_NAME_FULL + '"' + """</p>
         
         <div class="bank-details">
-            <p><strong>Account Holder Name:</strong> RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED</p>
+            <p><strong>Account Holder Name:</strong> """ + COMPANY_NAME_FULL + """</p>
             <p><strong>Bank:</strong> HDFC BANK</p>
             <p><strong>Branch:</strong> SOMPURA</p>
             <p><strong>Account Number:</strong> 57500001802063</p>
@@ -310,7 +305,7 @@ def get_default_template(doc_type: DocumentType) -> str:
         
         <p><span class="terms-number">13.</span> This Letter is neither transferable nor assignable, without the Developer's prior written consent and upon payment of including but not limited to such administrative charges as may be specified by the Developer in this regard.</p>
         
-        <p><span class="terms-number">14.</span> Pre EMI (Interest Only) will be paid by the builder till the completion of the flat or ready for interior. Rate of interest will be calculated considering 30-year tenure irrespective of client's tenure period.</p>
+        <p><span class="terms-number">14.</span> Pre EMI (Interest Only) will be paid by the builder till the completion of the flat or ready for interior. Rate of interest will be calculated considering 30-year tenure irrespective of client's tenure period. As per the current repo rate, the banker is lending at 7.15% as the lower rate of interest, if there is any change in repo rate in the future, the changes will be auto applied.</p>
         
         <p><span class="terms-number">15.</span> <strong>Guidelines for External Vendors:</strong> Should you choose to engage a service provider other than the In-House Team, please be advised that the following security protocols will strictly apply to safeguard the property: Security Deposit of Rs.2,00,000 (Two Lakhs) must be maintained. The flat owner remains fully liable for any damages caused by their vendor to the premises.</p>
         
@@ -325,7 +320,7 @@ def get_default_template(doc_type: DocumentType) -> str:
     
     <div class="signature-section">
         <div class="signature-box">
-            <p><strong>FOR RRL BUILDERS AND DEVELOPERS PVT LTD</strong></p>
+            <p><strong>FOR """ + COMPANY_NAME_UPPER + """</strong></p>
             <div class="signature-line">
                 <p>Authorized Signatory</p>
             </div>
@@ -339,7 +334,7 @@ def get_default_template(doc_type: DocumentType) -> str:
     </div>
     
     <div class="footer">
-        <p><strong>RRL Builders and Developers Pvt. Ltd.</strong></p>
+        <p><strong>""" + COMPANY_NAME + """</strong></p>
         <p>www.rrlbuildersanddevelopers.com</p>
         <p>Date: {date} | Ref: {customer_id}</p>
     </div>
@@ -374,7 +369,7 @@ Agreement Value: Rs. {total_price}/-
 
 The construction has reached the required stage and we request you to process the disbursement.
 
-For RRL Builders and Developers
+For """ + COMPANY_NAME + """
 
 _______________________
 Authorized Signatory
