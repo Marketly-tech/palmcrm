@@ -49,8 +49,14 @@ const DocumentsTab = ({
     setDialogOpen(false);
   };
 
+  const nocDocTypes = ["noc_hdfc", "noc_bob", "noc_tata"];
+
   const nocDocuments = documents.filter(doc =>
-    ["noc_hdfc", "noc_bob", "noc_tata"].includes(doc.doc_type)
+    nocDocTypes.includes(doc.doc_type)
+  );
+
+  const regularDocuments = documents.filter(doc =>
+    !nocDocTypes.includes(doc.doc_type)
   );
 
   const getNocLabel = (type) => {
@@ -103,9 +109,9 @@ const DocumentsTab = ({
           </Dialog>
         </CardHeader>
         <CardContent>
-          {documents.length > 0 ? (
+          {regularDocuments.length > 0 ? (
             <div className="space-y-4">
-              {documents.map((doc) => (
+              {regularDocuments.map((doc) => (
                 <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-4">
                     <FileText className="w-8 h-8 text-primary" />
@@ -158,6 +164,81 @@ const DocumentsTab = ({
         </CardContent>
       </Card>
 
+      {/* Disbursement Documents - Bank NOC Section */}
+      <Card className="mt-6" data-testid="disbursement-docs-card">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            <div>
+              <CardTitle>Disbursement Documents</CardTitle>
+              <CardDescription>Generate Bank NOC (No Objection Certificate) letters</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            {NOC_TYPES.map((noc) => (
+              <Button
+                key={noc.key}
+                variant="outline"
+                className={`h-auto py-3 px-4 flex flex-col items-center gap-1 border-${noc.color}-300 hover:bg-${noc.color}-50`}
+                onClick={() => onGenerateNoc(noc.key, noc.label)}
+                disabled={generatingNoc === noc.key}
+                data-testid={`generate-${noc.key}-btn`}
+              >
+                {generatingNoc === noc.key ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Building2 className="w-5 h-5" />
+                )}
+                <span className="font-medium text-sm">{noc.label}</span>
+                <span className="text-xs text-slate-500">Generate NOC</span>
+              </Button>
+            ))}
+          </div>
+
+          {nocDocuments.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-3">Generated NOC Documents</p>
+              <div className="space-y-3">
+                {nocDocuments.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-6 h-6 text-primary" />
+                      <div>
+                        <p className="font-medium text-sm">{getNocLabel(doc.doc_type)}</p>
+                        <p className="text-xs text-slate-500">
+                          Generated: {new Date(doc.generated_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={getStatusBadge(doc.status)}>{doc.status}</Badge>
+                      <Button variant="outline" size="sm" onClick={() => onPreviewDocument(doc)} data-testid={`preview-noc-${doc.id}`}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => onDownloadDocument(doc)} data-testid={`download-noc-${doc.id}`}>
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      {!isAccountsRole && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => onDeleteDocument(doc, "generated")}
+                          data-testid={`delete-noc-${doc.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </>
   );
 };
