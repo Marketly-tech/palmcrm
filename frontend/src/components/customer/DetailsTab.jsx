@@ -607,7 +607,7 @@ const DetailsTab = ({
       </Card>
 
       {/* Co-Applicant Details */}
-      {customer.co_applicant_name && (
+      {(customer.co_applicant_name || editing) && (
         <Card>
           <CardHeader>
             <CardTitle>Co-Applicant Details</CardTitle>
@@ -616,47 +616,131 @@ const DetailsTab = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Name</Label>
-                <p className="text-slate-700 mt-1">{customer.co_applicant_name}</p>
+                {editing ? (
+                  <Input
+                    value={editData.co_applicant_name || ""}
+                    onChange={(e) => setEditData({ ...editData, co_applicant_name: e.target.value })}
+                    placeholder="Co-applicant full name"
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.co_applicant_name}</p>
+                )}
               </div>
               <div>
                 <Label>Father's/Spouse Name</Label>
-                <p className="text-slate-700 mt-1">{customer.co_applicant_father_name || "-"}</p>
+                {editing ? (
+                  <Input
+                    value={editData.co_applicant_father_name || ""}
+                    onChange={(e) => setEditData({ ...editData, co_applicant_father_name: e.target.value })}
+                    placeholder="Father's/Spouse name"
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.co_applicant_father_name || "-"}</p>
+                )}
               </div>
               <div>
                 <Label>Date of Birth</Label>
-                <p className="text-slate-700 mt-1">{customer.co_applicant_date_of_birth || "-"}</p>
+                {editing ? (
+                  <Input
+                    type="date"
+                    value={editData.co_applicant_date_of_birth || ""}
+                    onChange={(e) => setEditData({ ...editData, co_applicant_date_of_birth: e.target.value })}
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.co_applicant_date_of_birth || "-"}</p>
+                )}
               </div>
               <div>
                 <Label>Phone</Label>
-                <p className="text-slate-700 mt-1">{customer.co_applicant_phone || "-"}</p>
+                {editing ? (
+                  <Input
+                    value={editData.co_applicant_phone || ""}
+                    onChange={(e) => setEditData({ ...editData, co_applicant_phone: e.target.value })}
+                    placeholder="Phone number"
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.co_applicant_phone || "-"}</p>
+                )}
               </div>
               <div>
                 <Label>Email</Label>
-                <p className="text-slate-700 mt-1">{customer.co_applicant_email || "-"}</p>
+                {editing ? (
+                  <Input
+                    value={editData.co_applicant_email || ""}
+                    onChange={(e) => setEditData({ ...editData, co_applicant_email: e.target.value })}
+                    placeholder="Email address"
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.co_applicant_email || "-"}</p>
+                )}
               </div>
               <div>
                 <Label>PAN Number</Label>
-                <p className="text-slate-700 mt-1">{customer.co_applicant_pan || "-"}</p>
+                {editing ? (
+                  <Input
+                    value={editData.co_applicant_pan || ""}
+                    onChange={(e) => setEditData({ ...editData, co_applicant_pan: e.target.value })}
+                    placeholder="PAN number"
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.co_applicant_pan || "-"}</p>
+                )}
               </div>
               <div>
                 <Label>Aadhaar Number</Label>
-                <p className="text-slate-700 mt-1">{customer.co_applicant_aadhar || "-"}</p>
+                {editing ? (
+                  <Input
+                    value={editData.co_applicant_aadhar || ""}
+                    onChange={(e) => setEditData({ ...editData, co_applicant_aadhar: e.target.value })}
+                    placeholder="Aadhaar number"
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.co_applicant_aadhar || "-"}</p>
+                )}
               </div>
               <div>
                 <Label>Profession</Label>
-                <p className="text-slate-700 mt-1">{customer.custom_fields?.co_applicant_profession || "-"}</p>
+                {editing ? (
+                  <Input
+                    value={editData.custom_fields?.co_applicant_profession || ""}
+                    onChange={(e) => setEditData({
+                      ...editData,
+                      custom_fields: { ...(editData.custom_fields || {}), co_applicant_profession: e.target.value }
+                    })}
+                    placeholder="Profession"
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.custom_fields?.co_applicant_profession || "-"}</p>
+                )}
               </div>
               <div>
                 <Label>Nationality</Label>
-                <p className="text-slate-700 mt-1">{customer.custom_fields?.co_applicant_nationality || "Indian"}</p>
+                {editing ? (
+                  <Input
+                    value={editData.custom_fields?.co_applicant_nationality || "Indian"}
+                    onChange={(e) => setEditData({
+                      ...editData,
+                      custom_fields: { ...(editData.custom_fields || {}), co_applicant_nationality: e.target.value }
+                    })}
+                    placeholder="Nationality"
+                  />
+                ) : (
+                  <p className="text-slate-700 mt-1">{customer.custom_fields?.co_applicant_nationality || "Indian"}</p>
+                )}
               </div>
             </div>
-            {customer.co_applicant_address && (
-              <div className="mt-4">
-                <Label>Address</Label>
-                <p className="text-slate-700 mt-1">{customer.co_applicant_address}</p>
-              </div>
-            )}
+            <div className="mt-4">
+              <Label>Address</Label>
+              {editing ? (
+                <Input
+                  value={editData.co_applicant_address || ""}
+                  onChange={(e) => setEditData({ ...editData, co_applicant_address: e.target.value })}
+                  placeholder="Co-applicant address"
+                />
+              ) : (
+                <p className="text-slate-700 mt-1">{customer.co_applicant_address || "-"}</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
