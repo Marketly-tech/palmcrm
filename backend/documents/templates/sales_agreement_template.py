@@ -823,7 +823,7 @@ def generate_sales_agreement_template():
                 <div class="signature-box">
                     <p><strong>PURCHASER/S</strong></p>
                     <div class="signature-line">
-                        <p>{customer_name}</p>
+                        <p>{customer_names}</p>
                     </div>
                 </div>
             </div>

@@ -2,7 +2,7 @@
 from datetime import datetime
 from utils import format_indian_currency
 from utils.enums import DocumentType
-from documents.templates.common import format_inr, format_applicant_block
+from documents.templates.common import format_inr, format_applicant_block, format_customer_names
 from documents.templates.default_template import get_default_template
 
 def generate_allotment_letter_html(customer: dict) -> str:
@@ -31,6 +31,7 @@ def generate_allotment_letter_html(customer: dict) -> str:
     # Use string replacement to avoid CSS brace conflicts
     replacements = {
         '{customer_name}': customer.get('name', ''),
+        '{customer_names}': format_customer_names(customer),
         '{phone}': customer.get('phone', ''),
         '{email}': customer.get('email', ''),
         '{pan_number}': customer.get('pan_number', ''),

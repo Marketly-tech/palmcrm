@@ -106,6 +106,36 @@ def format_applicant_block(customer, prefix=""):
     return result
 
 
+def format_customer_names(customer, uppercase=False):
+    """
+    Format applicant + co-applicant names for use in document body text.
+    
+    Rules:
+    - If gender is 'spouse' (W/o), use "Mr. and Mrs. NAME" (only one name needed)
+    - Otherwise, just use "NAME" (no Mr./Mrs. prefix)
+    - If co-applicant exists and gender is NOT spouse: "NAME AND CO-APPLICANT NAME"
+    - If co-applicant exists and gender IS spouse: "Mr. and Mrs. NAME"
+    
+    Returns the formatted name string.
+    """
+    name = customer.get('name', '') or ''
+    co_name = customer.get('co_applicant_name', '') or ''
+    gender = (customer.get('gender', '') or '').lower()
+    
+    if uppercase:
+        name = name.upper()
+        co_name = co_name.upper()
+    
+    if gender == 'spouse' and co_name:
+        return f"Mr. and Mrs. {name}"
+    
+    if co_name:
+        return f"{name} AND {co_name}"
+    
+    return name
+
+
+
 def format_inr(amount):
     """Format amount in Indian Rupee notation."""
     try:

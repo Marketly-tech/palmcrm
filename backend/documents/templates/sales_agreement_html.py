@@ -3,7 +3,7 @@ from datetime import datetime
 from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
 from documents.templates.common import (
     format_inr, format_applicant_block, calculate_age, get_salutation,
-    get_logo_img_tag, COMPANY_NAME
+    get_logo_img_tag, COMPANY_NAME, format_customer_names
 )
 from documents.templates.sales_agreement_template import generate_sales_agreement_template
 
@@ -216,6 +216,7 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
     replacements = {
         '{agreement_date_text}': agreement_date_text,
         '{customer_name}': customer.get('name', ''),
+        '{customer_names}': format_customer_names(customer),
         '{age}': age,
         '{salutation}': salutation,
         '{father_name}': customer.get('father_name', ''),

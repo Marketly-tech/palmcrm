@@ -269,7 +269,7 @@ def get_default_template(doc_type: DocumentType) -> str:
     <div class="section-title">TERMS & CONDITIONS</div>
     
     <div class="terms">
-        <p><span class="terms-number">1.</span> In consideration of and subject to the Allottee(s) complying with the terms and conditions of this letter, executing and registering necessary documents and agreements under applicable law, and agreeing to make and making timely payment of amounts due, the developer allots the Flat in the project "{project}" in the favour of <span class="highlight">Mr./Mrs. {customer_name}</span>.</p>
+        <p><span class="terms-number">1.</span> In consideration of and subject to the Allottee(s) complying with the terms and conditions of this letter, executing and registering necessary documents and agreements under applicable law, and agreeing to make and making timely payment of amounts due, the developer allots the Flat in the project "{project}" in the favour of <span class="highlight">{customer_names}</span>.</p>
         
         <p><span class="terms-number">2.</span> All payments to be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) mode drawn in favor of/to the account of """ + '"' + COMPANY_NAME_FULL + '"' + """</p>
         
@@ -315,7 +315,7 @@ def get_default_template(doc_type: DocumentType) -> str:
     </div>
     
     <div class="declaration">
-        <p>I/We, <span class="highlight">Mr./Mrs. {customer_name}</span> have fully read and understood the terms and conditions as set out in this Letter and Schedules hereto. I/We undertake to abide by such terms and conditions including any amendment therein from time to time. I/We further declare that the details/information provided in the Letter are true and correct.</p>
+        <p>I/We, <span class="highlight">{customer_names}</span> have fully read and understood the terms and conditions as set out in this Letter and Schedules hereto. I/We undertake to abide by such terms and conditions including any amendment therein from time to time. I/We further declare that the details/information provided in the Letter are true and correct.</p>
     </div>
     
     <div class="signature-section">
@@ -328,7 +328,7 @@ def get_default_template(doc_type: DocumentType) -> str:
         <div class="signature-box">
             <p><strong>ALLOTTEE SIGNATURES</strong></p>
             <div class="signature-line">
-                <p>{customer_name}</p>
+                <p>{customer_names}</p>
             </div>
         </div>
     </div>
@@ -350,14 +350,14 @@ The Manager
 [Bank Name]
 [Branch Address]
 
-Subject: Request for Disbursement of Home Loan for {customer_name}
+Subject: Request for Disbursement of Home Loan for {customer_names}
 
 Dear Sir/Madam,
 
 We hereby request the disbursement of the following amount towards the purchase of property by the below mentioned applicant:
 
 APPLICANT DETAILS:
-Name: {customer_name}
+Name: {customer_names}
 PAN: {pan_number}
 Phone: {phone}
 

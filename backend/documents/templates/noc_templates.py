@@ -1,6 +1,6 @@
 """Bank NOC document templates (HDFC, BOB, TATA Capital)."""
 from datetime import datetime
-from documents.templates.common import format_inr, COMPANY_NAME_FULL
+from documents.templates.common import format_inr, COMPANY_NAME_FULL, format_customer_names
 
 def generate_noc_hdfc_html(customer: dict) -> str:
     """Generate HDFC Bank NOC (No Objection Certificate) for disbursement"""
@@ -36,10 +36,7 @@ def generate_noc_hdfc_html(customer: dict) -> str:
     co_applicant_name = customer.get('co_applicant_name', '')
     
     # Build customer names string
-    if co_applicant_name:
-        customer_names = f"Mr. {name} and Mrs. {co_applicant_name}"
-    else:
-        customer_names = f"Mr. {name}"
+    customer_names = format_customer_names(customer)
     
     # Property details
     flat_no = customer.get('unit_number', '')
@@ -161,7 +158,7 @@ def generate_noc_bob_html(customer: dict) -> str:
     
     name = customer.get('name', '')
     co_applicant_name = customer.get('co_applicant_name', '')
-    customer_names = f"Mr. {name} and Mrs. {co_applicant_name}" if co_applicant_name else f"Mr. {name}"
+    customer_names = format_customer_names(customer)
     
     flat_no = customer.get('unit_number', '')
     tower = customer.get('tower', '1')
@@ -270,19 +267,10 @@ def generate_noc_tata_html(customer: dict) -> str:
         return number_to_words(num // 10000000) + ' Crore' + ('' if num % 10000000 == 0 else ' ' + number_to_words(num % 10000000))
     
     name = customer.get('name', '')
-    age = customer.get('age', '')
     co_applicant_name = customer.get('co_applicant_name', '')
-    co_applicant_age = customer.get('co_applicant_age', '')
     
-    # Build customer names with ages
-    customer_parts = []
-    if name:
-        age_text = f" aged about {age} years" if age else ""
-        customer_parts.append(f"Mr. {name}{age_text}")
-    if co_applicant_name:
-        co_age_text = f" aged about {co_applicant_age} years" if co_applicant_age else ""
-        customer_parts.append(f"Mr. {co_applicant_name}{co_age_text}")
-    customer_names = " and ".join(customer_parts) if customer_parts else "Customer"
+    # Build customer names using common utility
+    customer_names = format_customer_names(customer)
     
     flat_no = customer.get('unit_number', '')
     tower = customer.get('tower', '1')

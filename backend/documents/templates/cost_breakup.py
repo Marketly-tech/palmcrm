@@ -1,6 +1,6 @@
 """Cost Breakup document template."""
 from datetime import datetime
-from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME, format_customer_names
 
 def generate_cost_breakup_html(customer: dict) -> str:
     """Generate HTML for Cost Breakup PDF matching the user-provided template"""
@@ -55,25 +55,9 @@ def generate_cost_breakup_html(customer: dict) -> str:
     # Get customer details
     name = customer.get('name', '')
     co_applicant_name = customer.get('co_applicant_name', '')
-    age = customer.get('age', '')
-    co_applicant_age = customer.get('co_applicant_age', '')
     
-    # Build customer text
-    customer_text_parts = []
-    if name:
-        if customer.get('gender') == 'female':
-            prefix = "Mrs." if customer.get('marital_status') == 'married' else "Ms."
-        else:
-            prefix = "Mr."
-        age_text = f" aged about {age} years" if age else ""
-        customer_text_parts.append(f"{prefix} {name}{age_text}")
-    
-    if co_applicant_name:
-        co_age_text = f" aged about {co_applicant_age} years" if co_applicant_age else ""
-        co_prefix = "Mrs." if customer.get('co_applicant_gender') == 'female' else "Mr."
-        customer_text_parts.append(f"{co_prefix} {co_applicant_name}{co_age_text}")
-    
-    customer_names = " and ".join(customer_text_parts) if customer_text_parts else "Customer"
+    # Build customer names using common utility
+    customer_names = format_customer_names(customer)
     
     # Property details
     flat_no = customer.get('unit_number', '-')
