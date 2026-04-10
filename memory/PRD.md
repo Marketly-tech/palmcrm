@@ -22,32 +22,29 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 ```
 /app/
 ├── backend/
-│   ├── server.py              # Main entry point
+│   ├── server.py
 │   ├── auth/, customers/, documents/, dashboard/, email_service/, payments/, utils/
-│   ├── documents/templates/   # Split template package (was templates.py)
-│   │   ├── __init__.py, common.py, default_template.py
+│   ├── documents/templates/   # Split template package
+│   │   ├── __init__.py, common.py, default_template.py, logo_data.py
 │   │   ├── allotment_letter.py, booking_form.py, cost_breakup.py
 │   │   ├── demand_letter.py, email_templates.py, noc_templates.py
-│   │   ├── payment_schedule.py, price_breakup.py
+│   │   ├── payment_schedule.py, price_breakup.py, terms_conditions.py
 │   │   ├── sales_agreement_html.py, sales_agreement_template.py
-│   │   └── terms_conditions.py
-│   ├── tests/                 # Regression test files
+│   ├── static/rrl_logo.png   # RRL Group logo (transparent)
+│   ├── tests/
 │   ├── config.py, database.py
 │   └── .env
 └── frontend/
     ├── src/
     │   ├── App.js
-    │   ├── components/
-    │   │   ├── customer/      # Extracted tab components
-    │   │   │   ├── DetailsTab.jsx, PaymentTrackingTab.jsx, EmailComposerDialog.jsx
-    │   │   │   ├── DocumentsTab.jsx, UploadsTab.jsx, CommunicationTab.jsx
-    │   │   │   ├── ChecklistTab.jsx, PaymentScheduleTab.jsx, NotesTab.jsx
-    │   │   │   ├── PaymentTrackingCard.jsx, TransactionsCard.jsx
-    │   │   │   └── utils.js, index.js
-    │   │   └── ui/            # Shadcn components
+    │   ├── components/customer/  # Extracted tab components
+    │   │   ├── DetailsTab.jsx, PaymentTrackingTab.jsx, EmailComposerDialog.jsx
+    │   │   ├── DocumentsTab.jsx, UploadsTab.jsx, CommunicationTab.jsx
+    │   │   ├── ChecklistTab.jsx, PaymentScheduleTab.jsx, NotesTab.jsx
+    │   │   └── utils.js, index.js
     │   └── pages/
-    │       ├── CustomerDetailPage.js (~1333 lines, refactored from ~2457)
-    │       ├── BookingFormPage.js (~1280 lines, pending refactor)
+    │       ├── CustomerDetailPage.js (~1333 lines)
+    │       ├── BookingFormPage.js (~1330 lines)
     │       └── DashboardPage.js
     └── .env
 ```
@@ -59,38 +56,42 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - Role-based access control (admin, manager, sales, accounts)
 - Customer CRUD with detailed profiles
 - Payment schedule management with cumulative percentages
-- Transaction logging with stage tracking (booking, agreement, scheduled_disbursement)
-- Document generation (Sales Agreement, Allotment Letter, Price Breakup, Cost Breakup, Disbursement Letter, Payment Schedule, Demand Letter)
-- Bank NOC generation (HDFC, Bank of Baroda, TATA Capital)
+- Transaction logging with stage tracking
+- Document generation (all 9 types with PDF)
+- Bank NOC generation (HDFC, BOB, TATA Capital)
 - Document upload/download/preview
 - Communication (Email via SendGrid, WhatsApp MOCKED)
 - Document checklist tracking
 - Customer notes
-- Dashboard with metrics (Total Revenue, Pending, Customer Count)
+- Dashboard with metrics
 - Admin-only inline editing of Booking Details
-- Agreement status tracking with dropdown
-- Payment due date management
-- Disbursement calculator
 - Live price calculation during customer edit
 
-### Code Refactoring Done (April 2026)
-- **Backend:** Split `documents/templates.py` (~4500 lines) into modular `documents/templates/` package with 12 files
-- **Frontend:** Extracted `CustomerDetailPage.js` from 2457 → 1333 lines by creating:
-  - `DetailsTab.jsx` - Personal Info, Property & Pricing, Booking Details, Bank Details, Co-Applicant
-  - `PaymentTrackingTab.jsx` - Payment Tracking, Disbursement Calculator, Transaction Records
-  - `EmailComposerDialog.jsx` - Unified email composer dialog
+### Document Template Overhaul (April 10, 2026)
+- **Company Name:** Updated from "RRL Builders and Developers" to "RRL Builders and Developers Pvt. Ltd." in ALL documents, emails, and PDFs
+- **Logo:** Replaced "R" text logo with actual RRL Group logo image (base64-embedded PNG) across all document templates
+- **Applicant/Co-applicant Format:** Updated across all documents to include:
+  - Name, Age (auto-calculated from DOB), S/o or D/o or W/o {father/spouse name}
+  - Address, Aadhaar, PAN, Phone
+  - Same format applied to co-applicant
+- **Allotment Letter Point 14:** Added repo rate text: "As per the current repo rate, the banker is lending at 7.15%..."
+- **Sales Agreement Point 2:** Updated to use total received from ALL transactions (not just booking amount)
+- **Co-applicant DOB:** New field `co_applicant_date_of_birth` added to booking form and customer details
+
+### Code Refactoring (April 3, 2026)
+- Backend: Split `documents/templates.py` (~4500 lines) into modular package with 12 files
+- Frontend: Extracted `CustomerDetailPage.js` from 2457 → 1333 lines (3 new components)
 - Fixed payment double-counting bug
-- Auto-generated booking transactions for all customers
-- Fixed transaction edit/save bug with legacy data normalization
-- Addressed code quality issues (React hooks, empty catch blocks, hardcoded secrets)
+- Fixed transaction edit/save bug
+- Addressed code quality issues
 
 ## Pending / Backlog
 
 ### P1 - In Progress
-- Frontend refactoring of `BookingFormPage.js` (~1280 lines)
+- Frontend refactoring of `BookingFormPage.js` (~1330 lines)
 
 ### P2 - Future
-- WhatsApp integration via Twilio (currently MOCKED with whatsapp:// link)
+- WhatsApp integration via Twilio (currently MOCKED)
 - Document Checklist for KYC tracking
 - Activity Logs / audit trail
 - Enhanced Dashboard with more charts
@@ -101,10 +102,10 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 
 ## Testing
 - Test customer: "Ramya test lead" (ID: `6d902613-5106-4294-bc3e-b907f85127f7`)
-- Backend: 100% pass (27/27 tests in iteration 21)
-- Frontend: 100% pass (all tabs and features verified)
-- Test reports: `/app/test_reports/iteration_21.json`
+- Latest test report: `/app/test_reports/iteration_22.json`
+- Backend: 100% pass (25/25 tests)
+- Frontend: 100% pass
 
 ## 3rd Party Integrations
 - **SendGrid (Email)** - requires user API key
-- **WhatsApp** - MOCKED (uses whatsapp:// link, Twilio integration pending)
+- **WhatsApp** - MOCKED (uses whatsapp:// link)
