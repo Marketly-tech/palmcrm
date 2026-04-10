@@ -20,5 +20,9 @@ export { default as TransactionsCard } from './TransactionsCard';
 // Dialog components
 export { default as EmailComposerDialog } from './EmailComposerDialog';
 
+// Layout components
+export { default as CustomerHeader } from './CustomerHeader';
+export { default as CustomerQuickInfo } from './CustomerQuickInfo';
+
 // Utility functions
 export * from './utils';
