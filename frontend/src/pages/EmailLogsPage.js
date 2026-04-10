@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { Mail, Search, ChevronLeft, ChevronRight, ExternalLink, Inbox } from "lucide-react";
+import { Mail, Search, ChevronLeft, ChevronRight, ExternalLink, Inbox, ChevronDown, ChevronUp, Eye } from "lucide-react";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
@@ -26,6 +26,7 @@ const EmailLogsPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -124,40 +125,70 @@ const EmailLogsPage = () => {
               {logs.map((log) => (
                 <div
                   key={log.id}
-                  className="p-4 border rounded-lg hover:border-slate-300 transition-colors"
+                  className="border rounded-lg hover:border-slate-300 transition-colors overflow-hidden"
                   data-testid={`email-log-${log.id}`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Mail className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                        <span className="font-medium text-sm truncate">{log.customer_name}</span>
-                        <span className="text-xs text-slate-400">({log.customer_display_id})</span>
-                        <Badge variant="outline" className={`text-xs ${getStatusBadge(log.status)}`}>
-                          {log.status}
-                        </Badge>
+                  <div
+                    className="p-4 cursor-pointer"
+                    onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Mail className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                          <span className="font-medium text-sm truncate">{log.customer_name}</span>
+                          <span className="text-xs text-slate-400">({log.customer_display_id})</span>
+                          <Badge variant="outline" className={`text-xs ${getStatusBadge(log.status)}`}>
+                            {log.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm font-medium text-slate-800 truncate">{log.message_type}</p>
+                        {log.customer_email && (
+                          <p className="text-xs text-slate-500">To: {log.customer_email}</p>
+                        )}
+                        {expandedId !== log.id && (
+                          <p className="text-xs text-slate-400 line-clamp-1 mt-1">{log.content?.substring(0, 120)}...</p>
+                        )}
                       </div>
-                      <p className="text-sm font-medium text-slate-800 truncate">{log.message_type}</p>
-                      {log.customer_email && (
-                        <p className="text-xs text-slate-500">To: {log.customer_email}</p>
-                      )}
-                      <p className="text-xs text-slate-400 line-clamp-2 mt-1">{log.content?.substring(0, 200)}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                      <p className="text-xs text-slate-400 whitespace-nowrap">
-                        {new Date(log.sent_at).toLocaleDateString()} {new Date(log.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/customers/${log.customer_id}`)}
-                        data-testid={`view-customer-${log.id}`}
-                      >
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <p className="text-xs text-slate-400 whitespace-nowrap">
+                          {new Date(log.sent_at).toLocaleDateString()} {new Date(log.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <div className="flex items-center gap-1">
+                          {expandedId === log.id ? (
+                            <ChevronUp className="w-4 h-4 text-slate-400" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
+                  
+                  {/* Expanded Email Preview */}
+                  {expandedId === log.id && (
+                    <div className="border-t bg-slate-50 p-4" data-testid={`email-preview-${log.id}`}>
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-slate-500"><strong>To:</strong> {log.customer_email || 'N/A'}</p>
+                          <p className="text-xs text-slate-500"><strong>Subject:</strong> {log.message_type}</p>
+                          <p className="text-xs text-slate-500"><strong>Sent:</strong> {new Date(log.sent_at).toLocaleString()}</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/customers/${log.customer_id}`); }}
+                          data-testid={`view-customer-${log.id}`}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          View Customer
+                        </Button>
+                      </div>
+                      <div className="bg-white border rounded-lg p-4 text-sm text-slate-700 whitespace-pre-wrap max-h-64 overflow-y-auto">
+                        {log.content || 'No content available'}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               
