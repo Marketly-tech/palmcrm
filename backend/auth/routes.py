@@ -5,7 +5,6 @@ Handles user registration, login, password reset, and user management.
 from typing import List, Dict, Any
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 
 from config import settings
@@ -15,30 +14,12 @@ from auth.models import (
     UserCreate, UserLogin, User, UserResponse, TokenResponse,
     VerifyEmailRequest, ResetPasswordRequest, AdminResetPasswordRequest
 )
-from auth.utils import hash_password, verify_password, create_token, check_role
+from auth.utils import hash_password, verify_password, create_token, check_role, get_current_user
 
 # Create router
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 admin_router = APIRouter(tags=["Admin"])
 users_router = APIRouter(prefix="/users", tags=["Users"])
-
-# Security
-security = HTTPBearer()
-
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Get the current authenticated user from JWT token."""
-    db = get_database()
-    try:
-        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0})
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 async def log_activity(user_id: str, user_name: str, action: str, entity_type: str, entity_id: str, details: str):

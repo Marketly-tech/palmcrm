@@ -30,11 +30,13 @@ class CustomerBase(BaseModel):
     co_applicant_pan: Optional[str] = None
     co_applicant_aadhar: Optional[str] = None
     co_applicant_address: Optional[str] = None
+    co_applicant_date_of_birth: Optional[str] = None
     
     # Property Details
     project: str
     tower: str
     unit_number: str
+    booking_number: Optional[str] = None
     floor: int = 0
     bhk_type: str = ""
     saleable_area: float = 0

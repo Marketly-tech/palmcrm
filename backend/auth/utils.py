@@ -46,12 +46,17 @@ def check_role(required_roles: List[UserRole]):
     return role_checker
 
 
-# Note: get_current_user is defined in routes.py because it needs database access
-# It will be imported from there when needed
-
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """
-    Placeholder - actual implementation is in routes.py because it needs db access.
-    This is here for import consistency.
-    """
-    raise NotImplementedError("Use get_current_user from auth.routes instead")
+    """Get the current authenticated user from JWT token."""
+    from database import get_database
+    db = get_database()
+    try:
+        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
