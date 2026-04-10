@@ -111,6 +111,7 @@ def generate_payment_schedule_pdf_html(customer: dict, transactions: list = None
                     <div class="info-value">{customer.get('email', '-')}</div>
                 </div>
             </div>
+            {'<h3 style="color: #D4AF37; margin-top: 15px;">Co-Applicant Details</h3><div class="info-grid"><div class="info-item"><div class="info-label">Co-Applicant Name</div><div class="info-value">' + customer.get('co_applicant_name', '-') + '</div></div><div class="info-item"><div class="info-label">Phone</div><div class="info-value">' + (customer.get('co_applicant_phone', '') or '-') + '</div></div><div class="info-item"><div class="info-label">Email</div><div class="info-value">' + (customer.get('co_applicant_email', '') or '-') + '</div></div></div>' if customer.get('co_applicant_name') else ''}
         </div>
         
         <h3>Payment Transactions</h3>
@@ -413,6 +414,7 @@ def generate_payment_schedule_html(customer: dict, schedule_items: list) -> str:
                     <span class="info-label">Booking Date</span>
                     <span class="info-value">{booking_date}</span>
                 </div>
+                {'<div class="info-item"><span class="info-label">Co-Applicant</span><span class="info-value">' + customer.get('co_applicant_name', '') + '</span></div>' if customer.get('co_applicant_name') else ''}
             </div>
             
             <table class="schedule-table">

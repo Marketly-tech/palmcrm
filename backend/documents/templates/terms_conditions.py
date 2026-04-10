@@ -1,11 +1,11 @@
 """Terms and Conditions document template."""
-from documents.templates.common import get_logo_img_tag, COMPANY_NAME, COMPANY_NAME_FULL, COMPANY_NAME_UPPER
+from documents.templates.common import get_logo_img_tag, COMPANY_NAME, COMPANY_NAME_FULL, COMPANY_NAME_UPPER, format_customer_names
 
 def generate_terms_and_conditions_html(customer: dict) -> str:
     """Generate a Terms and Conditions PDF with the allotment letter terms"""
     
     project = customer.get('project', 'RRL Palm Altezze')
-    customer_name = customer.get('name', 'Customer')
+    customer_name = format_customer_names(customer)
     unit_number = customer.get('unit_number', '')
     
     html = f'''
@@ -181,14 +181,14 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
         
         <div class="intro">
             <p>The following Terms and Conditions govern the allotment of <span class="highlight">Unit No. {unit_number}</span> 
-            in project <span class="highlight">{project}</span> to <span class="highlight">Mr./Mrs. {customer_name}</span>. 
+            in project <span class="highlight">{project}</span> to <span class="highlight">{customer_name}</span>. 
             Please read carefully and acknowledge your understanding and acceptance.</p>
         </div>
         
         <div class="terms-list">
             <div class="term-item">
                 <span class="term-number">1</span>
-                <span class="term-text">In consideration of and subject to the Allottee(s) complying with the terms and conditions of this letter, executing and registering necessary documents and agreements under applicable law, and agreeing to make and making timely payment of amounts due, the developer allots the Flat in the project "{project}" in the favour of <span class="highlight">Mr./Mrs. {customer_name}</span>.</span>
+                <span class="term-text">In consideration of and subject to the Allottee(s) complying with the terms and conditions of this letter, executing and registering necessary documents and agreements under applicable law, and agreeing to make and making timely payment of amounts due, the developer allots the Flat in the project "{project}" in the favour of <span class="highlight">{customer_name}</span>.</span>
             </div>
             
             <div class="term-item">

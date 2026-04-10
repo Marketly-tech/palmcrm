@@ -1,0 +1,77 @@
+{
+  "summary": "Iteration 23 - Testing NEW features: Co-applicant in document templates, Dashboard Payment Stage dropdown, Transaction Export PDF. All core features working correctly. One issue found: terms_conditions document type NOT exposed via API.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/documents/generate",
+        "issue": "terms_conditions document type NOT in DocumentType enum. Template file exists at /app/backend/documents/templates/terms_conditions.py but not exposed via API",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration23_features.py",
+    "/app/test_reports/pytest/pytest_iteration23.xml"
+  ],
+  "action_items": [
+    "Add 'terms_conditions' to DocumentType enum in server.py and handle it in the document generation endpoint to expose the Terms & Conditions template via API"
+  ],
+  "critical_code_review_comments": [
+    "terms_conditions.py template exists and uses format_customer_names correctly, but the document type is not registered in the API's DocumentType enum, making it inaccessible via POST /api/documents/generate"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration23_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin_email": "crm@rrlbuildersanddevelopers.com",
+    "admin_password": "#RRLnew2026",
+    "test_customer_id": "6d902613-5106-4294-bc3e-b907f85127f7",
+    "test_customer_name": "Ramya test lead",
+    "co_applicant_name": "Marketly",
+    "co_applicant_email": "marketlytech@gmail.com"
+  },
+  "seed_data_creation": "None - used existing test customer 'Ramya test lead' with co-applicant 'Marketly'",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All NEW features tested and working: 1) Price Breakup document shows co-applicant Name, Phone, Email when co-applicant exists - VERIFIED. 2) Payment Schedule PDF shows co-applicant details - VERIFIED. 3) Dashboard 'Disbursement Payment Stage' card with Select dropdown for admins - VERIFIED (10 stages from Podium 40% to Handover 100%). 4) POST /api/settings/current-stage updates stage and shows success toast - VERIFIED. 5) Transaction Export PDF button in PaymentTrackingTab - VERIFIED (opens new window with formatted HTML). 6) GET /api/transactions/{customer_id}/export-html returns HTML with customer details and co-applicant info - VERIFIED. NOTE: terms_conditions document type is NOT in the API enum - main agent needs to add it.",
+  "features_tested": {
+    "co_applicant_in_documents": {
+      "price_breakup": "PASS - Contains 'Co-Applicant Details' section with Name, Phone, Email",
+      "payment_schedule_pdf": "PASS - Contains co-applicant section",
+      "terms_conditions": "NOT TESTABLE - Document type not in API enum"
+    },
+    "dashboard_payment_stage": {
+      "payment_stage_card_visible": "PASS - Card with title 'Disbursement Payment Stage' visible for admin",
+      "select_dropdown": "PASS - Shows 10 stages from Podium (40%) to Handover (100%)",
+      "stage_change": "PASS - POST /api/settings/current-stage works, shows success toast",
+      "overdue_data_refresh": "PASS - GET /api/dashboard/overdue-by-stage returns overdue customers"
+    },
+    "transaction_export_pdf": {
+      "export_html_endpoint": "PASS - GET /api/transactions/{customer_id}/export-html returns {content, customer_name}",
+      "export_button_visible": "PASS - Button visible in PaymentTrackingTab when transactions exist",
+      "export_opens_new_window": "PASS - Opens new window with formatted HTML containing Transaction Details, customer info, co-applicant info"
+    },
+    "api_endpoints": {
+      "GET /api/settings/payment-stages": "PASS - Returns array of 10 stages",
+      "GET /api/settings/current-stage": "PASS - Returns current stage info",
+      "POST /api/settings/current-stage": "PASS - Sets stage (admin only)",
+      "GET /api/dashboard/overdue-by-stage": "PASS - Returns overdue data with customers list",
+      "GET /api/transactions/{customer_id}/export-html": "PASS - Returns HTML content",
+      "POST /api/documents/generate (price_breakup)": "PASS - Contains co-applicant",
+      "POST /api/documents/generate (payment_schedule)": "PASS - Contains co-applicant"
+    }
+  },
+  "mocked_apis": {
+    "WhatsApp": "Uses whatsapp:// link (MOCKED)"
+  }
+}

@@ -1,6 +1,6 @@
 """Price Breakup document template."""
 from datetime import datetime
-from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME, format_customer_names
 
 def generate_price_breakup_html(customer: dict) -> str:
     """Generate HTML for Price Breakup PDF with black and gold theme"""
@@ -232,6 +232,7 @@ def generate_price_breakup_html(customer: dict) -> str:
                         <span class="info-value">{booking_date}</span>
                     </div>
                 </div>
+                {'<div class="section-title" style="margin-top: 15px;">Co-Applicant Details</div><div class="info-grid"><div class="info-item"><span class="info-label">Name:</span><span class="info-value">' + customer.get('co_applicant_name', '-') + '</span></div><div class="info-item"><span class="info-label">Contact:</span><span class="info-value">' + (customer.get('co_applicant_phone', '') or '-') + '</span></div><div class="info-item"><span class="info-label">Email:</span><span class="info-value">' + (customer.get('co_applicant_email', '') or '-') + '</span></div></div>' if customer.get('co_applicant_name') else ''}
             </div>
             
             <div class="section">

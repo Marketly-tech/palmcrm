@@ -26,7 +26,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { Plus, Edit, Trash2, Save, CreditCard, CheckCircle } from "lucide-react";
+import { Plus, Edit, Trash2, Save, CreditCard, CheckCircle, Download } from "lucide-react";
+import axios from "axios";
+import DOMPurify from "dompurify";
+import { toast } from "sonner";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 const PaymentTrackingTab = ({
   customer,
@@ -245,7 +251,32 @@ const PaymentTrackingTab = ({
             <CardTitle>Transaction Records</CardTitle>
             <CardDescription>Track all payment transactions by stage</CardDescription>
           </div>
-          <Dialog open={transactionDialogOpen} onOpenChange={(open) => {
+          <div className="flex items-center gap-2">
+            {transactions.length > 0 && (
+              <Button
+                variant="outline"
+                data-testid="export-transactions-pdf-btn"
+                onClick={async () => {
+                  try {
+                    const custId = customer.customer_id || customer.id;
+                    const response = await axios.get(`${API}/transactions/${custId}/export-html`);
+                    const printWindow = window.open("", "_blank");
+                    if (printWindow) {
+                      const sanitized = DOMPurify.sanitize(response.data.content, { WHOLE_DOCUMENT: true, ADD_TAGS: ['style', 'link'], ADD_ATTR: ['target'] });
+                      printWindow.document.open();
+                      printWindow.document.write(sanitized);
+                      printWindow.document.close();
+                    }
+                  } catch (error) {
+                    toast.error("Failed to export transactions");
+                  }
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export PDF
+              </Button>
+            )}
+            <Dialog open={transactionDialogOpen} onOpenChange={(open) => {
             setTransactionDialogOpen(open);
             if (!open) {
               setEditingTransaction(null);
@@ -344,6 +375,7 @@ const PaymentTrackingTab = ({
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           {transactions.length > 0 ? (
