@@ -68,15 +68,21 @@ def generate_cost_breakup_html(customer: dict) -> str:
     carpet_area = round(saleable_area * 0.625, 2) if saleable_area else 0
     
     # Pricing components mapping to cost breakup
-    basic_cost = customer.get('base_price', 0)
-    bescom = customer.get('infrastructure_charges', 150000)  # Default 1.5L for BESCOM
+    bescom = 200000  # Fixed BESCOM charges Rs. 2,00,000
     car_parking = customer.get('additional_charges', 200000)  # Default 2L for car parking
     amenities = customer.get('club_house_charges', 150000)  # Amenities
     
-    # Total - either use stored total or calculate
+    # Total - use stored total price
     total_value = customer.get('total_price', 0)
-    if not total_value:
-        total_value = basic_cost + bescom + car_parking + amenities
+    
+    # TDS = Total flat value / 101
+    tds = round(total_value / 101) if total_value else 0
+    
+    # Basic cost = reverse calculated so total stays the same
+    basic_cost = total_value - bescom - car_parking - amenities - tds
+    if basic_cost < 0:
+        basic_cost = customer.get('base_price', 0)
+        total_value = basic_cost + bescom + car_parking + amenities + tds
     
     # Get date
     booking_date = customer.get('booking_date', datetime.now().strftime("%Y-%m-%d"))
@@ -282,6 +288,10 @@ def generate_cost_breakup_html(customer: dict) -> str:
                     <tr>
                         <td>AMENITIES</td>
                         <td class="amount">{format_inr(amenities)}</td>
+                    </tr>
+                    <tr>
+                        <td>TDS</td>
+                        <td class="amount">{format_inr(tds)}</td>
                     </tr>
                     <tr class="total-row">
                         <td><strong>TOTAL</strong></td>

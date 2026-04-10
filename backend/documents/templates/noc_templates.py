@@ -59,16 +59,19 @@ def generate_noc_hdfc_html(customer: dict) -> str:
     # Dates
     booking_date = customer.get('booking_date', datetime.now().strftime("%Y-%m-%d"))
     agreement_date = customer.get('agreement_date', booking_date)
-    today_date = datetime.now().strftime("%d-%m-%Y")
+    today_date = datetime.now().strftime("%d/%m/%y")
     
     if agreement_date and '-' in str(agreement_date):
         try:
             dt = datetime.strptime(str(agreement_date), "%Y-%m-%d")
-            agreement_display = dt.strftime("%d-%m-%Y")
+            agreement_display = dt.strftime("%d/%m/%y")
         except:
             agreement_display = today_date
     else:
         agreement_display = today_date
+    
+    # Due date is the date of NOC generation
+    due_date = today_date
     
     html = f'''
     <!DOCTYPE html>
@@ -107,7 +110,7 @@ def generate_noc_hdfc_html(customer: dict) -> str:
         <div class="salutation">Dear Sir,</div>
         
         <div class="content">
-            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(booking_amount)}/-</strong> ({booking_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {agreement_display}.</p>
+            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(booking_amount)}/-</strong> ({booking_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
             
             <p>We hereby assure you that the said flat appurtenant there to be not subject to any encumbrance, charge, or liability of any kind whatsoever and that the entire property is free and marketable. We further confirm that we have a clear legal and marketable title to the said property and every part thereof.</p>
             
@@ -119,8 +122,8 @@ def generate_noc_hdfc_html(customer: dict) -> str:
         </div>
         
         <div class="signature">
-            <p class="signature-line">Authorized Signatory</p>
-            <p style="margin-top: 50px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
+            <p><strong>For {COMPANY_NAME_FULL}</strong></p>
+            <p class="signature-line" style="margin-top: 50px;">Authorized Signatory</p>
         </div>
     </body>
     </html>
@@ -175,16 +178,19 @@ def generate_noc_bob_html(customer: dict) -> str:
     balance_words = f"Rupees {number_to_words(balance)} Only"
     loan_words = f"Rupees {number_to_words(loan_amount)} Only"
     
-    today_date = datetime.now().strftime("%d-%m-%Y")
+    today_date = datetime.now().strftime("%d/%m/%y")
     agreement_date = customer.get('agreement_date', customer.get('booking_date', ''))
     if agreement_date and '-' in str(agreement_date):
         try:
             dt = datetime.strptime(str(agreement_date), "%Y-%m-%d")
-            agreement_display = dt.strftime("%d-%m-%Y")
+            agreement_display = dt.strftime("%d/%m/%y")
         except:
             agreement_display = today_date
     else:
         agreement_display = today_date
+    
+    # Due date is the date of NOC generation
+    due_date = today_date
     
     html = f'''
     <!DOCTYPE html>
@@ -223,14 +229,14 @@ def generate_noc_bob_html(customer: dict) -> str:
         <div class="salutation">Dear Sir / Madam,</div>
         
         <div class="content">
-            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(booking_amount)}/-</strong> ({booking_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {agreement_display}.</p>
+            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(booking_amount)}/-</strong> ({booking_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
             
             <p>We further confirm that we have a clear legal and marketable title to the said property and every part thereof. We have no objection to your giving a loan of <strong>Rs.{format_inr(loan_amount)}/-</strong> ({loan_words}) to said <strong>{customer_names}</strong> owner/s of the said flat and his/their mortgaging the said flat with you by way of security for repayment notwithstanding anything to the contrary contained in our agreement dated {agreement_display} with {customer_names}.</p>
         </div>
         
         <div class="signature">
-            <p class="signature-line">Authorized Signatory</p>
-            <p style="margin-top: 50px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
+            <p><strong>For {COMPANY_NAME_FULL}</strong></p>
+            <p class="signature-line" style="margin-top: 50px;">Authorized Signatory</p>
         </div>
     </body>
     </html>
@@ -277,16 +283,19 @@ def generate_noc_tata_html(customer: dict) -> str:
     floor = customer.get('floor', '')
     floor_text = f"{floor}th" if floor else ""
     
-    today_date = datetime.now().strftime("%d-%m-%Y")
+    today_date = datetime.now().strftime("%d/%m/%y")
     agreement_date = customer.get('agreement_date', customer.get('booking_date', ''))
     if agreement_date and '-' in str(agreement_date):
         try:
             dt = datetime.strptime(str(agreement_date), "%Y-%m-%d")
-            agreement_display = dt.strftime("%d %B %Y")
+            agreement_display = dt.strftime("%d/%m/%y")
         except:
-            agreement_display = datetime.now().strftime("%d %B %Y")
+            agreement_display = today_date
     else:
-        agreement_display = datetime.now().strftime("%d %B %Y")
+        agreement_display = today_date
+    
+    # Due date is the date of NOC generation
+    due_date = today_date
     
     html = f'''
     <!DOCTYPE html>
@@ -344,7 +353,8 @@ def generate_noc_tata_html(customer: dict) -> str:
         
         <div class="signature">
             <p>Yours faithfully</p>
-            <p style="margin-top: 50px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
+            <p style="margin-top: 15px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
+            <p class="signature-line" style="margin-top: 50px;">Authorized Signatory</p>
         </div>
     </body>
     </html>

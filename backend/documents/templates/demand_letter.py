@@ -66,10 +66,10 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
     # Outstanding
     total_outstanding = max(0, round(demand_raised - amount_paid, 2))
 
-    # TDS (default 0)
-    tds_payable = 0
-    tds_paid = 0
-    tds_to_be_paid = 0
+    # TDS calculation: TDS = demand_raised / 101 (stage-wise)
+    tds_payable = round(demand_raised / 101, 2) if demand_raised else 0
+    tds_paid = round(amount_paid / 101, 2) if amount_paid else 0
+    tds_to_be_paid = max(0, round(tds_payable - tds_paid, 2))
 
     # Net amount payable
     net_amount_payable = max(0, round(total_outstanding - tds_payable, 2))
@@ -359,15 +359,15 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                     </tr>
                     <tr>
                         <th>TDS Payable</th>
-                        <td>{tds_payable}</td>
+                        <td>{fmt(tds_payable)}</td>
                     </tr>
                     <tr>
                         <th>TDS Paid</th>
-                        <td>{tds_paid}</td>
+                        <td>{fmt(tds_paid)}</td>
                     </tr>
                     <tr>
                         <th>TDS To be Paid</th>
-                        <td>{tds_to_be_paid}</td>
+                        <td>{fmt(tds_to_be_paid)}</td>
                     </tr>
                     <tr class="highlight">
                         <th>Net Amount Payable<br><small>(Total Outstanding - TDS Payable)</small></th>

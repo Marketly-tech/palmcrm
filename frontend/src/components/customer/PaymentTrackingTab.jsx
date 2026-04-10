@@ -145,6 +145,36 @@ const PaymentTrackingTab = ({
               </div>
             </div>
             
+            {/* Stage-wise TDS */}
+            {overdueInfo?.current_stage && (
+              <div className="pt-4 border-t" data-testid="tds-section">
+                <p className="text-sm font-medium text-slate-700 mb-2">Stage-wise TDS (1%)</p>
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="p-3 bg-blue-50 rounded-lg text-center">
+                    <p className="text-xs text-slate-500">TDS Payable</p>
+                    <p className="font-bold text-blue-700" data-testid="tds-payable">
+                      {formatCurrency(Math.round((overdueInfo.expected_amount || 0) / 101))}
+                    </p>
+                    <p className="text-xs text-slate-400">On demand raised</p>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg text-center">
+                    <p className="text-xs text-slate-500">TDS Paid</p>
+                    <p className="font-bold text-green-700" data-testid="tds-paid">
+                      {formatCurrency(Math.round(totalReceived / 101))}
+                    </p>
+                    <p className="text-xs text-slate-400">On amount received</p>
+                  </div>
+                  <div className="p-3 bg-amber-50 rounded-lg text-center">
+                    <p className="text-xs text-slate-500">TDS Balance</p>
+                    <p className="font-bold text-amber-700" data-testid="tds-balance">
+                      {formatCurrency(Math.max(0, Math.round((overdueInfo.expected_amount || 0) / 101) - Math.round(totalReceived / 101)))}
+                    </p>
+                    <p className="text-xs text-slate-400">To be paid</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Payment Due Date Section */}
             <div className="pt-4 border-t">
               <div className="flex items-center justify-between">
@@ -258,7 +288,7 @@ const PaymentTrackingTab = ({
                 data-testid="export-transactions-pdf-btn"
                 onClick={async () => {
                   try {
-                    const custId = customer.customer_id || customer.id;
+                    const custId = customer.id || customer.customer_id;
                     const response = await axios.get(`${API}/transactions/${custId}/export-html`);
                     const printWindow = window.open("", "_blank");
                     if (printWindow) {

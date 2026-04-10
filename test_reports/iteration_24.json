@@ -1,0 +1,94 @@
+{
+  "summary": "Iteration 24 - Testing document template changes (Cost Breakup, NOC, Demand Letter) and frontend TDS section. All 14 backend tests passed. Frontend Payment Tracking tab with TDS section verified working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "Cost Breakup Template",
+        "issue": "When customer's total_price is less than fixed charges (BESCOM 200000 + AMENITIES), the reverse calculation falls back to base_price and recalculates total. This is expected behavior but may show different total than customer record for test data with low total_price.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dashboard",
+        "issues": ["Console warning about chart dimensions (-1 width/height) - cosmetic issue, charts still render"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration24_features.py",
+    "/app/test_reports/pytest/pytest_iteration24.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All requested features are implemented correctly:",
+    "1. Transaction PDF Export: Works for both RRL-XXXXX format and UUID - queries with $in on multiple customer IDs",
+    "2. Cost Breakup: BESCOM fixed at Rs.2,00,000, TDS row (total/101) appears below AMENITIES",
+    "3. NOC Documents: Date format DD/MM/YY (e.g., 10/04/26), signature order correct (For Company first, then Authorized Signatory)",
+    "4. NOC Documents: 'due on' date is today's date (not agreement date)",
+    "5. Demand Letter: TDS Payable calculated from demand_raised/101, TDS Paid from amount_paid/101",
+    "6. Frontend: Payment Tracking tab shows 'Stage-wise TDS (1%)' section with TDS Payable, TDS Paid, TDS Balance",
+    "7. Dashboard: Disbursement Payment Stage dropdown visible for admin users"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration24_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin_email": "crm@rrlbuildersanddevelopers.com",
+    "admin_password": "#RRLnew2026",
+    "test_customer_ramya_uuid": "6d902613-5106-4294-bc3e-b907f85127f7",
+    "test_customer_ramya_id": "RRL-00036",
+    "test_customer_sovaraj_uuid": "c514f446-bb16-43b2-bd37-faf767006024",
+    "test_customer_sovaraj_id": "RRL-00002"
+  },
+  "seed_data_creation": "None - used existing test customers",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All features from iteration 24 tested and working: 1) Transaction PDF Export works for both customer_id formats (RRL-XXXXX and UUID) - VERIFIED. 2) Cost Breakup shows BESCOM=2,00,000 and TDS row below AMENITIES - VERIFIED. 3) NOC documents (HDFC, BOB, TATA) have DD/MM/YY date format and correct signature order - VERIFIED. 4) NOC 'due on' date is today's date - VERIFIED. 5) Demand Letter TDS calculated from stage data - VERIFIED. 6) Frontend Payment Tracking tab shows Stage-wise TDS section with TDS Payable, TDS Paid, TDS Balance - VERIFIED. 7) Dashboard Payment Stage dropdown visible for admin - VERIFIED.",
+  "features_tested": {
+    "transaction_pdf_export": {
+      "rrl_format": "PASS - GET /api/transactions/RRL-00002/export-html returns HTML with 146,645 chars for SOVARAJ PRUSTY",
+      "uuid_format": "PASS - GET /api/transactions/{uuid}/export-html returns HTML with 146,378 chars for Ramya test lead"
+    },
+    "cost_breakup": {
+      "bescom_fixed": "PASS - BESCOM shows 2,00,000",
+      "tds_row": "PASS - TDS row appears below AMENITIES",
+      "total_calculation": "PASS - Total is calculated (reverse calc when total_price < fixed charges)"
+    },
+    "noc_documents": {
+      "hdfc_date_format": "PASS - Date: 10/04/26 (DD/MM/YY)",
+      "hdfc_signature_order": "PASS - 'For RRL BUILDERS...' appears before 'Authorized Signatory'",
+      "hdfc_due_date": "PASS - 'due on 10/04/26' (today's date)",
+      "bob_date_format": "PASS - DD/MM/YY format",
+      "bob_signature_order": "PASS - Correct order",
+      "tata_signature_order": "PASS - 'Yours faithfully' -> 'For Company' -> 'Authorized Signatory'"
+    },
+    "demand_letter": {
+      "tds_payable": "PASS - TDS Payable calculated from demand_raised/101",
+      "tds_paid": "PASS - TDS Paid calculated from amount_paid/101"
+    },
+    "frontend_payment_tracking": {
+      "tds_section": "PASS - 'Stage-wise TDS (1%)' section visible",
+      "tds_payable": "PASS - Shows ₹838",
+      "tds_paid": "PASS - Shows ₹847",
+      "tds_balance": "PASS - Shows ₹0"
+    },
+    "dashboard_payment_stage": {
+      "card_visible": "PASS - 'Disbursement Payment Stage' card visible for admin",
+      "select_dropdown": "PASS - Shows 'On Completion of Podium Slab (40%)'",
+      "last_updated": "PASS - Shows 'Last updated by RRL CRM Admin'"
+    }
+  },
+  "mocked_apis": {
+    "WhatsApp": "Uses whatsapp:// link (MOCKED)"
+  }
+}

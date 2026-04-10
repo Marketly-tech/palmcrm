@@ -1343,8 +1343,13 @@ async def export_transactions_html(customer_id: str, user: dict = Depends(get_cu
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
+    # Query transactions using both possible customer_id values (UUID and RRL-XXXXX)
+    cust_uuid = customer.get('id', '')
+    cust_display_id = customer.get('customer_id', '')
+    possible_ids = list(set(filter(None, [customer_id, cust_uuid, cust_display_id])))
+    
     transactions = await db.payment_transactions.find(
-        {"customer_id": customer_id}, {"_id": 0}
+        {"customer_id": {"$in": possible_ids}}, {"_id": 0}
     ).sort("transaction_date", 1).to_list(1000)
     
     for t in transactions:
