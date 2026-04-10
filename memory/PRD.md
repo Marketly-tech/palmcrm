@@ -28,15 +28,24 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 └── frontend/
     ├── src/
     │   ├── App.js
+    │   ├── hooks/
+    │   │   └── useCustomerPage.js (734 lines - extracted customer page logic)
     │   ├── components/
     │   │   ├── booking/ (7 extracted components - constants, steps, uploads, success)
-    │   │   ├── customer/ (10 extracted components - tabs, cards, dialogs)
+    │   │   ├── customer/ (12 components - tabs, cards, dialogs, CustomerHeader, CustomerQuickInfo)
+    │   │   ├── customers/ (3 components - CreateCustomerDialog, CustomerFilters, CustomerTable)
+    │   │   ├── dashboard/ (8 components - StatsCards, RevenueCards, PaymentStageCard, ExportDataCard, PaymentStatusChart, UpcomingPayments, DueDateCountdown, RecentActivity)
+    │   │   ├── settings/ (4 components - UserManagementCard, EditUserDialog, ResetPasswordDialog, GeneralSettingsTab)
     │   │   ├── layout/DashboardLayout.js
     │   │   └── ui/ (Shadcn components)
+    │   ├── utils/safePreview.js
     │   └── pages/
     │       ├── BookingFormPage.js (231 lines, refactored from 1336)
-    │       ├── CustomerDetailPage.js (1334 lines, refactored from 2457)
-    │       ├── DashboardPage.js, CustomersPage.js, EmailLogsPage.js
+    │       ├── CustomerDetailPage.js (246 lines, refactored from 1322)
+    │       ├── SettingsPage.js (180 lines, refactored from 669)
+    │       ├── CustomersPage.js (175 lines, refactored from 655)
+    │       ├── DashboardPage.js (157 lines, refactored from 641)
+    │       └── EmailLogsPage.js
     └── .env
 ```
 
@@ -52,15 +61,13 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - Dashboard with disbursement stage management
 - Admin inline editing, live price calculator
 - Co-applicant across all templates
-- Sales Agreement: "Represented by its Managing Director Mr. Ram R"
-- Cost Breakup: BESCOM Rs.2,00,000, TDS (total/101)
-- NOC: DD/MM/YY date, signature interchanged, due_date=generation date
-- Demand Letter: TDS auto-calculated from stage
-- Frontend refactoring: BookingFormPage (1336→231), CustomerDetailPage (2457→1334)
+- Security: DOMPurify for XSS, sessionStorage for auth, safePreview.js for HTML rendering
+- Frontend refactoring complete: All 5 major pages broken into sub-components (Apr 2026)
 
 ## Pending / Backlog
 ### P1
-- Customer list column additions (Payment %)
+- Backend complexity reduction (dashboard/routes.py, customers/routes.py, document templates)
+- Backend server.py route extraction to modular files
 
 ### P2
 - WhatsApp via Twilio (currently MOCKED)
@@ -75,7 +82,7 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 
 ## Testing
 - Test customer: "Ramya test lead" (ID: `6d902613-5106-4294-bc3e-b907f85127f7`)
-- Latest: iteration_26.json — 100% pass
+- Latest: iteration_27.json — 100% pass (frontend refactoring validation)
 - **CRITICAL:** Only use "Ramya test lead" for testing. Do NOT test with other customers.
 
 ## 3rd Party Integrations
