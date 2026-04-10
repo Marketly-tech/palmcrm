@@ -101,7 +101,7 @@ const BookingFormPage = () => {
           uploads.push(axios.post(`${API}/public/upload-document/${customerId}`, fd));
         }
       }
-      try { await Promise.all(uploads); } catch { /* continue even if uploads fail */ }
+      try { await Promise.all(uploads); } catch (uploadErr) { console.warn("Some document uploads failed:", uploadErr.message); }
 
       setSubmissionResult(response.data);
       setSubmitted(true);

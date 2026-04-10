@@ -9,13 +9,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-
-# Test credentials
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
-TEST_CUSTOMER_UUID = "6d902613-5106-4294-bc3e-b907f85127f7"
-TEST_CUSTOMER_ID = "RRL-00036"
+from conftest_credentials import TEST_BASE_URL as BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, TEST_CUSTOMER_UUID, TEST_CUSTOMER_ID
 
 
 @pytest.fixture(scope="module")

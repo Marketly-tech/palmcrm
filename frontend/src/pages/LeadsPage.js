@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import DOMPurify from "dompurify";
+import { openSafePreviewWindow } from "../utils/safePreview";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -98,14 +98,7 @@ const LeadsPage = () => {
       
       // Show the generated content
       if (response.data.welcome_html) {
-        // Open in new window for preview
-        const previewWindow = window.open("", "_blank");
-        if (previewWindow) {
-          const sanitized = DOMPurify.sanitize(response.data.welcome_html, { WHOLE_DOCUMENT: true, ADD_TAGS: ['style', 'link'], ADD_ATTR: ['target'] });
-          previewWindow.document.open();
-          previewWindow.document.write(sanitized);
-          previewWindow.document.close();
-        }
+        openSafePreviewWindow(response.data.welcome_html);
       }
       
       fetchLeads();

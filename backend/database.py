@@ -16,7 +16,7 @@ async def connect_to_mongo():
     try:
         if client is None:
             client = AsyncIOMotorClient(settings.MONGO_URL)
-            db = client[settings.DB_NAME]
+        db = client[settings.DB_NAME]
         print(f"Connected to MongoDB: {settings.DB_NAME}")
     except Exception as e:
         print(f"Failed to connect to MongoDB: {e}")

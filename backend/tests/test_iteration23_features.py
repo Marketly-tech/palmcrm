@@ -11,14 +11,10 @@ import pytest
 import requests
 import os
 
-# Get BASE_URL from environment
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-crm-dev.preview.emergentagent.com').rstrip('/')
-API = f"{BASE_URL}/api"
+from conftest_credentials import TEST_BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, TEST_CUSTOMER_UUID as TEST_CUSTOMER_ID
 
-# Test credentials
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
-TEST_CUSTOMER_ID = "6d902613-5106-4294-bc3e-b907f85127f7"  # Ramya test lead with co-applicant
+BASE_URL = TEST_BASE_URL.rstrip('/')
+API = f"{BASE_URL}/api"
 
 
 class TestAuth:

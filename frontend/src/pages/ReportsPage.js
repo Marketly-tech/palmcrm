@@ -47,6 +47,7 @@ const ReportsPage = () => {
 
   useEffect(() => {
     fetchReportData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount
   }, []);
 
   const fetchReportData = async () => {

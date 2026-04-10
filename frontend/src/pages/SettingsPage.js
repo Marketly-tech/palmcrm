@@ -81,6 +81,7 @@ const SettingsPage = () => {
     } else {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchUsers is stable, runs once on mount
   }, []);
 
   const fetchUsers = async () => {

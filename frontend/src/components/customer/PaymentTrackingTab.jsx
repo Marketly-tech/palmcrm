@@ -28,7 +28,7 @@ import {
 } from "../ui/dialog";
 import { Plus, Edit, Trash2, Save, CreditCard, CheckCircle, Download } from "lucide-react";
 import axios from "axios";
-import DOMPurify from "dompurify";
+import { openSafePreviewWindow } from "../../utils/safePreview";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -290,13 +290,7 @@ const PaymentTrackingTab = ({
                   try {
                     const custId = customer.id || customer.customer_id;
                     const response = await axios.get(`${API}/transactions/${custId}/export-html`);
-                    const printWindow = window.open("", "_blank");
-                    if (printWindow) {
-                      const sanitized = DOMPurify.sanitize(response.data.content, { WHOLE_DOCUMENT: true, ADD_TAGS: ['style', 'link'], ADD_ATTR: ['target'] });
-                      printWindow.document.open();
-                      printWindow.document.write(sanitized);
-                      printWindow.document.close();
-                    }
+                    openSafePreviewWindow(response.data.content);
                   } catch (error) {
                     toast.error("Failed to export transactions");
                   }

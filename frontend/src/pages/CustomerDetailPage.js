@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { openSafePreviewWindow } from "../utils/safePreview";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -172,6 +173,7 @@ const CustomerDetailPage = () => {
     notes: ""
   });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setState setters are stable references per React guarantees
   const fetchCustomerData = useCallback(async () => {
     try {
       const [customerRes, scheduleRes, checklistRes, docsRes, commsRes, uploadedDocsRes, transactionsRes, overdueRes, notesRes] = await Promise.all([
@@ -481,13 +483,7 @@ const CustomerDetailPage = () => {
   const handleDownloadDocument = async (doc) => {
     try {
       const response = await axios.get(`${API}/documents/html/${doc.id}`);
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        const sanitized = DOMPurify.sanitize(response.data.content, { WHOLE_DOCUMENT: true, ADD_TAGS: ['style', 'link'], ADD_ATTR: ['target'] });
-        printWindow.document.open();
-        printWindow.document.write(sanitized);
-        printWindow.document.close();
-      }
+      openSafePreviewWindow(response.data.content);
     } catch (error) {
       toast.error("Failed to download document");
     }
@@ -639,13 +635,7 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
       toast.success("Price breakup generated");
       
       if (response.data.html_content) {
-        const printWindow = window.open("", "_blank");
-        if (printWindow) {
-          const sanitized = DOMPurify.sanitize(response.data.html_content, { WHOLE_DOCUMENT: true, ADD_TAGS: ['style', 'link'], ADD_ATTR: ['target'] });
-          printWindow.document.open();
-          printWindow.document.write(sanitized);
-          printWindow.document.close();
-        }
+        openSafePreviewWindow(response.data.html_content);
       }
       
       fetchCustomerData();
@@ -685,12 +675,11 @@ Thank you for choosing RRL Builders and Developers Pvt. Ltd.`;
         setPreviewContent(DOMPurify.sanitize(`<img src="${dataUrl}" style="max-width: 100%; height: auto;" alt="${DOMPurify.sanitize(filename)}" />`));
         setPreviewDialogOpen(true);
       } else if (content_type === "application/pdf") {
-        const pdfWindow = window.open("", "_blank");
-        if (pdfWindow) {
-          pdfWindow.document.open();
-          pdfWindow.document.write(DOMPurify.sanitize(`<iframe src="${dataUrl}" style="width:100%;height:100%;border:none;"></iframe>`, { ADD_TAGS: ['iframe'], ADD_ATTR: ['src', 'style'] }));
-          pdfWindow.document.close();
-        }
+        const pdfHtml = `<!DOCTYPE html><html><head><title>PDF Preview</title></head><body style="margin:0;"><iframe src="${DOMPurify.sanitize(dataUrl)}" style="width:100%;height:100vh;border:none;"></iframe></body></html>`;
+        const blob = new Blob([pdfHtml], { type: 'text/html; charset=utf-8' });
+        const blobUrl = URL.createObjectURL(blob);
+        const pdfWindow = window.open(blobUrl, '_blank');
+        if (pdfWindow) setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
       } else {
         // For other types, trigger download
         handleDownloadUploadedDoc(doc);

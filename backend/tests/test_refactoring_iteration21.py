@@ -6,14 +6,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-crm-dev.preview.emergentagent.com')
-
-# Test customer ID - Ramya test lead
-TEST_CUSTOMER_ID = "6d902613-5106-4294-bc3e-b907f85127f7"
-
-# Admin credentials
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
+from conftest_credentials import TEST_BASE_URL as BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, TEST_CUSTOMER_UUID as TEST_CUSTOMER_ID
 
 
 @pytest.fixture(scope="module")
