@@ -427,7 +427,7 @@ async def send_email_notification(
 
     log_content = f"To: {recipient_email}\nSubject: {subject}\n\n{message}"
     if attachments_info:
-        log_content += f"\n\nAttachments:\n- " + "\n- ".join(attachments_info)
+        log_content += "\n\nAttachments:\n- " + "\n- ".join(attachments_info)
 
     log = CommunicationLog(customer_id=customer_id, channel="email", message_type=subject, content=log_content, status=email_status, sent_by=user['id'])
     doc = log.model_dump()

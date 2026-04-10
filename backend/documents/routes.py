@@ -322,8 +322,6 @@ async def export_transactions_html(customer_id: str, user: dict = Depends(get_cu
     total_received = sum(float(t.get('amount', 0) or 0) for t in transactions)
     total_price = float(customer.get('total_price', 0) or 0)
     balance = total_price - total_received
-    customer_names = format_customer_names(customer)
-
     co_applicant_row = ""
     if customer.get('co_applicant_name'):
         co_applicant_row = f'''

@@ -3,88 +3,84 @@
 ## Original Problem Statement
 Build a web-based POST-SALES Internal CRM for a real estate developer called "RRL Builders". The CRM must manage the entire post-booking lifecycle of a real estate customer, replacing Excel sheets and automating processes.
 
+## Core Requirements
+- **Lead/Booking Intake:** Public-facing booking form with document uploads
+- **User & Role Management:** Admin user creation, permissions (admin/manager/accounts/sales/support)
+- **Customer Profile:** Detailed editable profiles with tabs for personal details, price calculator, payment schedule, documents, communication
+- **Transaction Management:** Log all customer payments
+- **Payment Tracking:** Track schedules, calculate received vs pending, stage-based overdue
+- **Document Generation:** PDF templates for Allotment Letters, Sales Agreements, Booking Form Previews, Cost Breakups, Bank NOCs, Terms & Conditions, Price Breakups, Demand Letters
+- **Dashboard:** Key metrics, revenue, pending payments, stage-wise overdue counts
+- **Automated Communications:** Email integration via SendGrid
+
 ## Architecture
-- **Backend:** FastAPI + Motor (async MongoDB) + WeasyPrint (PDF)
-- **Frontend:** React + TailwindCSS + Shadcn UI + Axios
-- **Database:** MongoDB
-
-### Key Routes
-- `/dashboard` — Main metrics + Disbursement Stage management (admin)
-- `/customers` — Customer list with filters
-- `/customers/:id` — Customer detail with tabs
-- `/email-logs` — Centralized email tracking (admin/manager)
-- `/booking-form` — Public booking form (no auth)
-- `/settings` — User management (admin)
-
-### File Structure
 ```
 /app/
 ├── backend/
-│   ├── server.py
-│   ├── documents/templates/ (12 template files)
-│   ├── auth/, customers/, dashboard/, email_service/, payments/, utils/
-│   ├── tests/
-│   └── .env
-└── frontend/
-    ├── src/
-    │   ├── App.js
-    │   ├── hooks/
-    │   │   └── useCustomerPage.js (734 lines - extracted customer page logic)
-    │   ├── components/
-    │   │   ├── booking/ (7 extracted components - constants, steps, uploads, success)
-    │   │   ├── customer/ (12 components - tabs, cards, dialogs, CustomerHeader, CustomerQuickInfo)
-    │   │   ├── customers/ (3 components - CreateCustomerDialog, CustomerFilters, CustomerTable)
-    │   │   ├── dashboard/ (8 components - StatsCards, RevenueCards, PaymentStageCard, ExportDataCard, PaymentStatusChart, UpcomingPayments, DueDateCountdown, RecentActivity)
-    │   │   ├── settings/ (4 components - UserManagementCard, EditUserDialog, ResetPasswordDialog, GeneralSettingsTab)
-    │   │   ├── layout/DashboardLayout.js
-    │   │   └── ui/ (Shadcn components)
-    │   ├── utils/safePreview.js
-    │   └── pages/
-    │       ├── BookingFormPage.js (231 lines, refactored from 1336)
-    │       ├── CustomerDetailPage.js (246 lines, refactored from 1322)
-    │       ├── SettingsPage.js (180 lines, refactored from 669)
-    │       ├── CustomersPage.js (175 lines, refactored from 655)
-    │       ├── DashboardPage.js (157 lines, refactored from 641)
-    │       └── EmailLogsPage.js
-    └── .env
+│   ├── server.py              # Thin shell (~232 lines) - app init, CORS, routers, startup
+│   ├── config.py              # Environment settings
+│   ├── database.py            # MongoDB connection
+│   ├── auth/                  # Auth routes, models, utils (login, register, JWT, roles)
+│   ├── customers/             # Customer CRUD routes, models
+│   ├── payments/              # Payment schedules, transactions, calculator
+│   ├── dashboard/             # Stats, recent activities, upcoming dues
+│   ├── documents/             # Document generation, templates, upload/download, checklist
+│   │   └── templates/         # HTML template generators per doc type
+│   ├── email_service/         # Email sending, previews, communication history
+│   ├── booking/               # Public booking form, leads management
+│   ├── settings/              # Payment stages, notes, overdue, units, export, projects
+│   ├── utils/                 # Shared utilities, enums, payment helpers
+│   └── tests/                 # Pytest test files
+├── frontend/
+│   └── src/
+│       ├── components/
+│       │   ├── customer/      # Extracted customer page components
+│       │   ├── settings/      # Extracted settings components
+│       │   ├── customers/     # Extracted customers list components
+│       │   └── dashboard/     # Extracted dashboard components
+│       └── pages/             # Thin page wrappers
+└── memory/
+    └── PRD.md
 ```
 
-## What's Been Implemented (Complete)
-- JWT auth, role-based access (admin, manager, sales, accounts)
-- Customer CRUD with detailed profiles, co-applicant support
-- Payment schedule with cumulative %, stage-wise TDS
-- Transaction logging + PDF export
-- All 9+ document types with PDF (WeasyPrint)
-- Bank NOC (HDFC, BOB, TATA Capital) with dedicated UI
-- Email via SendGrid + Email Tracking page
-- Document checklist, Notes, Communication history
-- Dashboard with disbursement stage management
-- Admin inline editing, live price calculator
-- Co-applicant across all templates
-- Security: DOMPurify for XSS, sessionStorage for auth, safePreview.js for HTML rendering
-- Frontend refactoring complete: All 5 major pages broken into sub-components (Apr 2026)
+## What's Been Implemented
+- [x] User authentication with JWT (admin, manager, accounts, sales roles)
+- [x] Customer CRUD with detailed profiles
+- [x] Public booking form with auto-email
+- [x] Payment schedule management with templates
+- [x] Transaction management with CRUD
+- [x] Stage-based overdue calculation system
+- [x] PDF document generation (12+ doc types including Bank NOCs)
+- [x] Email integration via SendGrid
+- [x] Dashboard with revenue metrics and stage tracking
+- [x] CSV/Excel export
+- [x] Document checklist
+- [x] Activity logging
+- [x] Customer notes
+- [x] Unit pricing management
+- [x] Frontend refactoring (all 4 major pages modularized)
+- [x] **Backend refactoring: server.py reduced from ~4200 to ~232 lines** (Apr 2026)
 
-## Pending / Backlog
+## Upcoming Tasks (Prioritized)
 ### P1
-- Backend complexity reduction (dashboard/routes.py, customers/routes.py, document templates)
-- Backend server.py route extraction to modular files
+- Backend function complexity reduction in `documents/templates/*.py`
+- Comprehensive testing with real data on production
 
 ### P2
-- WhatsApp via Twilio (currently MOCKED)
-- Document Checklist for KYC tracking
-- Activity Logs / audit trail
-- Enhanced Dashboard with more charts
-- SendGrid Inbound Parse for inbox replies
+- Inbox View for Email Tracking (inbound replies)
+- WhatsApp via Twilio integration (currently MOCKED)
+- Implement Activity Logs UI (audit trail)
 
 ### P3
-- User-uploadable email attachments
-- Admin template editor for PDF templates
+- User-Uploadable Email Attachments
+- Template Editor (admin-facing UI for PDF templates)
 
-## Testing
-- Test customer: "Ramya test lead" (ID: `6d902613-5106-4294-bc3e-b907f85127f7`)
-- Latest: iteration_27.json — 100% pass (frontend refactoring validation)
-- **CRITICAL:** Only use "Ramya test lead" for testing. Do NOT test with other customers.
+## Technical Stack
+- **Backend:** FastAPI, Python 3.11, Motor (async MongoDB), WeasyPrint (PDFs)
+- **Frontend:** React, TailwindCSS, Shadcn UI
+- **Database:** MongoDB
+- **Email:** SendGrid (requires user API key)
 
 ## 3rd Party Integrations
-- **SendGrid (Email)** - requires user API key
+- **SendGrid (Email)** - requires User API Key
 - **WhatsApp** - MOCKED (uses whatsapp:// link)

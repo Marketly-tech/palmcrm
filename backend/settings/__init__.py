@@ -174,7 +174,6 @@ async def get_customer_overdue(customer_id: str, user: dict = Depends(get_curren
 
 @overdue_router.get("/customers/overdue/list")
 async def get_overdue_customers_list(user: dict = Depends(get_current_user)):
-    db = get_database()
     overdue_data = await _get_overdue_by_stage_data(user)
     return {"customer_ids": [c["customer_id"] for c in overdue_data.get("overdue_customers", [])]}
 
