@@ -261,7 +261,7 @@ def generate_cost_breakup_html(customer: dict) -> str:
             <div class="site-address">
                 <div class="site-address-title">Site Address:</div>
                 <div class="site-address-text">
-                    Sy No. 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087.
+                    {customer.get('project', 'RRL Palm Altezze')}, Sy No. 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087.
                 </div>
             </div>
             
