@@ -31,6 +31,8 @@ const CustomersPage = () => {
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [agreementFilter, setAgreementFilter] = useState("");
+  const [bankFilter, setBankFilter] = useState("");
+  const [banks, setBanks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -42,7 +44,8 @@ const CustomersPage = () => {
   useEffect(() => {
     fetchCustomers();
     fetchProjects();
-  }, [search, projectFilter, statusFilter, agreementFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchBanks();
+  }, [search, projectFilter, statusFilter, agreementFilter, bankFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCustomers = async () => {
     try {
@@ -51,6 +54,7 @@ const CustomersPage = () => {
       if (projectFilter) params.append("project", projectFilter);
       if (statusFilter) params.append("agreement_status", statusFilter);
       if (agreementFilter) params.append("agreement_filter", agreementFilter);
+      if (bankFilter) params.append("finance_bank", bankFilter);
       const response = await axios.get(`${API}/customers?${params.toString()}`);
       setCustomers(response.data.customers);
       setTotal(response.data.total);
@@ -61,6 +65,11 @@ const CustomersPage = () => {
   const fetchProjects = async () => {
     try { const response = await axios.get(`${API}/projects`); setProjects(response.data); }
     catch (error) { console.error("Failed to fetch projects:", error); }
+  };
+
+  const fetchBanks = async () => {
+    try { const response = await axios.get(`${API}/customers/banks`); setBanks(response.data); }
+    catch (error) { console.error("Failed to fetch banks:", error); }
   };
 
   const handleSubmit = async (e) => {
@@ -122,6 +131,7 @@ const CustomersPage = () => {
         projectFilter={projectFilter} setProjectFilter={setProjectFilter}
         statusFilter={statusFilter} setStatusFilter={setStatusFilter}
         agreementFilter={agreementFilter} setAgreementFilter={setAgreementFilter}
+        bankFilter={bankFilter} setBankFilter={setBankFilter} banks={banks}
         projects={projects} total={total}
       />
 
@@ -132,7 +142,7 @@ const CustomersPage = () => {
 
       <CustomerTable
         customers={customers} loading={loading} isAccountsRole={isAccountsRole}
-        agreementFilter={agreementFilter}
+        agreementFilter={agreementFilter} bankFilter={bankFilter}
         onNavigate={navigate}
         onDeleteClick={(customer, e) => { e.stopPropagation(); setCustomerToDelete(customer); setDeleteDialogOpen(true); }}
         onAgreementStatusChange={handleAgreementStatusChange}

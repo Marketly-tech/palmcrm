@@ -45,6 +45,7 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 
 ## What's Been Implemented
 - [x] User authentication with JWT (admin, manager, accounts, sales roles)
+- [x] **Backend refactoring: server.py reduced from ~4200 to ~232 lines** (Apr 2026)
 - [x] Customer CRUD with detailed profiles
 - [x] Public booking form with auto-email
 - [x] Payment schedule management with templates
@@ -59,7 +60,7 @@ Build a web-based POST-SALES Internal CRM for a real estate developer called "RR
 - [x] Customer notes
 - [x] Unit pricing management
 - [x] Frontend refactoring (all 4 major pages modularized)
-- [x] **Backend refactoring: server.py reduced from ~4200 to ~232 lines** (Apr 2026)
+- [x] **Bank-wise overdue tracking with cumulative totals** (May 2026)
 
 ## Upcoming Tasks (Prioritized)
 ### P1

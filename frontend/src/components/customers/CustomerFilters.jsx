@@ -5,11 +5,12 @@ import { Card, CardContent } from "../ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../ui/select";
-import { Search, Filter, AlertTriangle } from "lucide-react";
+import { Search, Filter, AlertTriangle, Building2 } from "lucide-react";
 
 const CustomerFilters = ({
   search, setSearch, projectFilter, setProjectFilter,
   statusFilter, setStatusFilter, agreementFilter, setAgreementFilter,
+  bankFilter, setBankFilter, banks,
   projects, total,
 }) => (
   <Card>
@@ -28,6 +29,17 @@ const CustomerFilters = ({
               <SelectItem value="all">All Projects</SelectItem>
               {projects.map((project) => (
                 <SelectItem key={project.name} value={project.name}>{project.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={bankFilter || "all"} onValueChange={(v) => setBankFilter(v === "all" ? "" : v)}>
+            <SelectTrigger className={`w-full sm:w-48 ${bankFilter ? "border-amber-400 bg-amber-50" : ""}`} data-testid="filter-bank-select">
+              <Building2 className="w-4 h-4 mr-2" /><SelectValue placeholder="All Banks" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Banks</SelectItem>
+              {(banks || []).map((bank) => (
+                <SelectItem key={bank} value={bank}>{bank}</SelectItem>
               ))}
             </SelectContent>
           </Select>
