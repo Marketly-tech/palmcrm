@@ -409,8 +409,16 @@ export function useCustomerPage(id) {
 
   const handleDownloadDocument = async (doc) => {
     try {
-      const response = await axios.get(`${API}/documents/html/${doc.id}`);
-      openSafePreviewWindow(response.data.content);
+      const response = await axios.get(`${API}/documents/pdf/${doc.id}`, { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url;
+      const docType = (doc.doc_type || "Document").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()).replace(/ /g, "_");
+      link.setAttribute("download", `RRL_${docType}_${(customer?.name || "Customer").replace(/ /g, "_")}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     } catch {
       toast.error("Failed to download document");
     }

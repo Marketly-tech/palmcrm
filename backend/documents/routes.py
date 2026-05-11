@@ -10,6 +10,8 @@ import uuid
 import base64
 import logging
 
+from weasyprint import HTML
+
 from database import get_database
 from config import settings
 from utils.enums import UserRole, DocumentType, AgreementStatus
@@ -214,6 +216,32 @@ async def generate_cost_breakup_pdf(customer_id: str, user: dict = Depends(get_c
 
 
 # ==================== DOCUMENT HTML / LISTING ====================
+@router.get("/documents/pdf/{doc_id}")
+async def download_document_as_pdf(doc_id: str, user: dict = Depends(get_current_user)):
+    """Convert a generated document's HTML to PDF and return it for download."""
+    db = get_database()
+    doc = await db.generated_documents.find_one({"id": doc_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    customer = await db.customers.find_one({"id": doc.get("customer_id")}, {"_id": 0, "name": 1, "unit_number": 1})
+    customer_name = (customer.get("name", "Customer") if customer else "Customer").replace(" ", "_")
+    doc_type_label = (doc.get("doc_type", "Document") or "Document").replace("_", " ").title().replace(" ", "_")
+    filename = f"RRL_{doc_type_label}_{customer_name}.pdf"
+
+    try:
+        pdf_bytes = HTML(string=doc["content"]).write_pdf()
+    except Exception as e:
+        logger.error(f"PDF generation failed for doc {doc_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate PDF")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
 @router.get("/documents/html/{doc_id}")
 async def get_document_html(doc_id: str, user: dict = Depends(get_current_user)):
     db = get_database()
