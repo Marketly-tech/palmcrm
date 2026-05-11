@@ -149,29 +149,38 @@ const PaymentTrackingTab = ({
             {overdueInfo?.current_stage && (
               <div className="pt-4 border-t" data-testid="tds-section">
                 <p className="text-sm font-medium text-slate-700 mb-2">Stage-wise TDS (1%)</p>
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <div className="p-3 bg-blue-50 rounded-lg text-center">
-                    <p className="text-xs text-slate-500">TDS Payable</p>
-                    <p className="font-bold text-blue-700" data-testid="tds-payable">
-                      {formatCurrency(Math.round((overdueInfo.expected_amount || 0) / 101))}
-                    </p>
-                    <p className="text-xs text-slate-400">On demand raised</p>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg text-center">
-                    <p className="text-xs text-slate-500">TDS Paid</p>
-                    <p className="font-bold text-green-700" data-testid="tds-paid">
-                      {formatCurrency(Math.round(totalReceived / 101))}
-                    </p>
-                    <p className="text-xs text-slate-400">On amount received</p>
-                  </div>
-                  <div className="p-3 bg-amber-50 rounded-lg text-center">
-                    <p className="text-xs text-slate-500">TDS Balance</p>
-                    <p className="font-bold text-amber-700" data-testid="tds-balance">
-                      {formatCurrency(Math.max(0, Math.round((overdueInfo.expected_amount || 0) / 101) - Math.round(totalReceived / 101)))}
-                    </p>
-                    <p className="text-xs text-slate-400">To be paid</p>
-                  </div>
-                </div>
+                {(() => {
+                  const tdsPayable = Math.round((overdueInfo.expected_amount || 0) * 0.01);
+                  const tdsPaid = transactions
+                    .filter(t => t.transaction_stage === 'tds')
+                    .reduce((sum, t) => sum + (t.amount || 0), 0);
+                  const tdsBalance = Math.max(0, tdsPayable - Math.round(tdsPaid));
+                  return (
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="p-3 bg-blue-50 rounded-lg text-center">
+                        <p className="text-xs text-slate-500">TDS Payable</p>
+                        <p className="font-bold text-blue-700" data-testid="tds-payable">
+                          {formatCurrency(tdsPayable)}
+                        </p>
+                        <p className="text-xs text-slate-400">1% of demand raised</p>
+                      </div>
+                      <div className="p-3 bg-green-50 rounded-lg text-center">
+                        <p className="text-xs text-slate-500">TDS Paid</p>
+                        <p className="font-bold text-green-700" data-testid="tds-paid">
+                          {formatCurrency(Math.round(tdsPaid))}
+                        </p>
+                        <p className="text-xs text-slate-400">From TDS transactions</p>
+                      </div>
+                      <div className="p-3 bg-amber-50 rounded-lg text-center">
+                        <p className="text-xs text-slate-500">TDS Balance</p>
+                        <p className={`font-bold ${tdsBalance > 0 ? 'text-red-600' : 'text-amber-700'}`} data-testid="tds-balance">
+                          {formatCurrency(tdsBalance)}
+                        </p>
+                        <p className="text-xs text-slate-400">To be paid</p>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
             
