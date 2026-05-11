@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 29 - Post-refactor regression test for documents/routes.py + generators.py + transactions_export template, and 3 split frontend tabs (DetailsTab, PaymentTrackingTab, CommunicationTab). 19/19 backend tests passed. All 3 customer-detail tabs render and behave correctly. No regressions introduced by the refactor.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/documents/generate", "issue": "Response document object has `_id: None` key (Pydantic alias). Not a real ObjectId leak, but unnecessary noise in payload — recommend serializing with by_alias=False or excluding _id."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_refactoring_iteration29.py",
+    "/app/test_reports/pytest/pytest_refactoring_iteration29.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "documents/generators.py cleanly dispatches by DocumentType with a SIMPLE_GENERATORS map + async renderers for schedule/agreement/demand. Good separation.",
+    "documents/templates/transactions_export.py extracted as expected; the route wraps it in JSON {content, customer_name} (unchanged contract).",
+    "All 11 doc types (DocumentType enum) generate successfully: sales_agreement, price_breakup, cost_breakup, allotment_letter, noc_hdfc/bob/tata, demand_letter, welcome_letter, disbursement_letter, payment_schedule (skipped when no schedule).",
+    "Note: 'booking_form' and 'terms_and_conditions' listed in problem statement are NOT in DocumentType enum — these templates exist only for preview endpoints, not for POST /api/documents/generate. Pre-existing, not a refactor regression.",
+    "Frontend tabs DetailsTab, PaymentTrackingTab, CommunicationTab now correctly compose smaller subcomponents (details/, payment/, communication/). All edit/save buttons, dialogs, and data render with same props/contract as before.",
+    "Customer dispatcher in generators.py uses `customer.get('id')` consistently; matches existing routes (no UUID mismatch observed)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_refactoring_iteration29.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 tests passed)",
+    "frontend": "100% (3/3 refactored tabs verified end-to-end)"
+  },
+  "test_credentials": {
+    "admin": "crm@rrlbuildersanddevelopers.com / #RRLnew2026",
+    "test_customer": "Ramya test lead (6d902613-5106-4294-bc3e-b907f85127f7)"
+  },
+  "seed_data_creation": "None. Created one TEST_ prefixed template (TEST_refactor_template) and one TEST_ prefixed uploaded document (TEST_refactor_upload.txt) — both via Ramya test lead, low impact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Refactor of documents/routes.py into generators.py + transactions_export template is regression-clean. All 11 DocumentType enum values generate via dispatcher. Three split frontend tabs (Details/Payment/Communication) render and behave identically to pre-refactor. WhatsApp send is MOCKED (wa.me link). For future tests use test file /app/backend/tests/test_refactoring_iteration29.py as regression baseline. Important: 'booking_form' and 'terms_and_conditions' doc types listed in problem statement are NOT in DocumentType enum (only used by preview endpoints), so POST /api/documents/generate rejects them with 422 — this is expected, not a bug.",
+  "mocked_apis": {"whatsapp": "MOCKED — opens wa.me link only. SendGrid email is real."}
+}

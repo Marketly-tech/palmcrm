@@ -83,35 +83,82 @@ class BookingFormData(BaseModel):
     remarks: Optional[str] = None
 
 
+def _resolve_unit_fields(data, unit):
+    """Resolve property fields from form data or unit database."""
+    return {
+        "rate_per_sqft": data.rate_per_sqft if data.rate_per_sqft > 0 else (unit.get('rate_per_sqft', 0) if unit else 0),
+        "saleable_area": data.saleable_area if data.saleable_area > 0 else (unit.get('saleable_area', 0) if unit else 0),
+        "floor": data.floor if data.floor > 0 else (unit.get('floor', 0) if unit else 0),
+        "bhk_type": data.bhk_type if data.bhk_type else (unit.get('bhk_type', '') if unit else ''),
+        "floor_rise_cost": data.floor_rise_cost if data.floor_rise_cost > 0 else 0,
+    }
+
+
+def _calculate_pricing(data, fields):
+    """Calculate pricing from form data or auto-calculate from unit fields."""
+    sa = fields["saleable_area"]
+    frc = fields["floor_rise_cost"]
+    if data.total_price > 0:
+        return {
+            "base_price": data.base_price, "floor_rise_total": data.floor_rise_total,
+            "club_house": data.club_house_charges, "parking_charges": data.additional_parking_charges,
+            "labour_cess": data.labour_cess, "gst": data.gst_amount, "total_price": data.total_price,
+        }
+    base_price = fields["rate_per_sqft"] * sa
+    floor_rise_total = frc * sa
+    club_house = 200000
+    parking_charges = data.additional_parking * 300000
+    subtotal = base_price + floor_rise_total + club_house + parking_charges
+    return {
+        "base_price": base_price, "floor_rise_total": floor_rise_total,
+        "club_house": club_house, "parking_charges": parking_charges,
+        "labour_cess": subtotal * 0.007, "gst": subtotal * 0.05,
+        "total_price": subtotal + subtotal * 0.007 + subtotal * 0.05,
+    }
+
+
+async def _send_booking_welcome_email(customer, doc):
+    """Send auto welcome email on booking submission."""
+    if not customer.email or not SENDGRID_API_KEY:
+        return "not_sent"
+    try:
+        welcome_html = generate_welcome_email_html(doc)
+        price_breakup_html = generate_price_breakup_html(doc)
+        subject = f"Welcome to {customer.project} - Booking Confirmation & Terms"
+        message = Mail(from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME), to_emails=customer.email, subject=subject, html_content=welcome_html)
+        try:
+            pdf_bytes = HTML(string=price_breakup_html).write_pdf()
+            encoded_pdf = base64.b64encode(pdf_bytes).decode()
+            attachment = Attachment(FileContent(encoded_pdf), FileName(f"RRL_PriceBreakup_{customer.name.replace(' ', '_')}.pdf"), FileType('application/pdf'), Disposition('attachment'))
+            message.add_attachment(attachment)
+        except Exception as pdf_error:
+            logger.error(f"Error generating PDF for auto-email: {str(pdf_error)}")
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
+        if response.status_code in [200, 201, 202]:
+            db = get_database()
+            log = CommunicationLog(customer_id=customer.id, channel="email", message_type="Auto Welcome Email",
+                content=f"To: {customer.email}\nSubject: {subject}\n\n[Auto-sent on booking submission with Price Breakup PDF]",
+                status="sent", sent_by="system")
+            log_doc = log.model_dump()
+            log_doc['sent_at'] = log_doc['sent_at'].isoformat()
+            await db.communication_logs.insert_one(log_doc)
+            return "sent"
+        return "failed"
+    except Exception as e:
+        logger.error(f"Error auto-sending welcome email: {str(e)}")
+        return "error"
+
+
 @router.post("/public/booking-form")
 async def submit_booking_form(data: BookingFormData):
     db = get_database()
     unit = await db.units.find_one({"project": data.project, "tower": data.tower, "unit_number": data.unit_number}, {"_id": 0})
 
-    rate_per_sqft = data.rate_per_sqft if data.rate_per_sqft > 0 else (unit.get('rate_per_sqft', 0) if unit else 0)
-    saleable_area = data.saleable_area if data.saleable_area > 0 else (unit.get('saleable_area', 0) if unit else 0)
-    floor = data.floor if data.floor > 0 else (unit.get('floor', 0) if unit else 0)
-    bhk_type = data.bhk_type if data.bhk_type else (unit.get('bhk_type', '') if unit else '')
-    uds = round(saleable_area * 0.495046, 2) if saleable_area > 0 else 0
-    floor_rise_cost = data.floor_rise_cost if data.floor_rise_cost > 0 else 0
-
-    if data.total_price > 0:
-        base_price = data.base_price
-        floor_rise_total = data.floor_rise_total
-        club_house = data.club_house_charges
-        parking_charges = data.additional_parking_charges
-        labour_cess = data.labour_cess
-        gst = data.gst_amount
-        total_price = data.total_price
-    else:
-        base_price = rate_per_sqft * saleable_area
-        floor_rise_total = floor_rise_cost * saleable_area
-        club_house = 200000
-        parking_charges = data.additional_parking * 300000
-        subtotal = base_price + floor_rise_total + club_house + parking_charges
-        labour_cess = subtotal * 0.007
-        gst = subtotal * 0.05
-        total_price = subtotal + labour_cess + gst
+    fields = _resolve_unit_fields(data, unit)
+    pricing = _calculate_pricing(data, fields)
+    uds = round(fields["saleable_area"] * 0.495046, 2) if fields["saleable_area"] > 0 else 0
+    total_price = round(pricing["total_price"], 2)
 
     customer = Customer(
         name=data.name, phone=data.phone, email=data.email,
@@ -124,12 +171,12 @@ async def submit_booking_form(data: BookingFormData):
         co_applicant_pan=data.co_applicant_pan, co_applicant_aadhar=data.co_applicant_aadhar,
         co_applicant_address=data.co_applicant_address,
         project=data.project, tower=data.tower, unit_number=data.unit_number,
-        floor=floor, bhk_type=bhk_type, saleable_area=saleable_area, uds=uds,
+        floor=fields["floor"], bhk_type=fields["bhk_type"], saleable_area=fields["saleable_area"], uds=uds,
         parking=data.parking, additional_parking=data.additional_parking,
-        rate_per_sqft=rate_per_sqft, base_price=round(base_price, 2),
-        club_house_charges=round(club_house, 2), additional_parking_charges=round(parking_charges, 2),
-        labour_cess=round(labour_cess, 2), gst_percentage=5, gst_amount=round(gst, 2),
-        total_price=round(total_price, 2), booking_amount=data.booking_amount,
+        rate_per_sqft=fields["rate_per_sqft"], base_price=round(pricing["base_price"], 2),
+        club_house_charges=round(pricing["club_house"], 2), additional_parking_charges=round(pricing["parking_charges"], 2),
+        labour_cess=round(pricing["labour_cess"], 2), gst_percentage=5, gst_amount=round(pricing["gst"], 2),
+        total_price=total_price, booking_amount=data.booking_amount,
         booking_date=data.transaction_date or datetime.now().strftime("%Y-%m-%d"),
         total_received=data.booking_amount,
         balance_amount=round(total_price - data.booking_amount, 2),
@@ -141,8 +188,8 @@ async def submit_booking_form(data: BookingFormData):
         transaction_bank=data.transaction_bank, remarks=data.remarks,
         custom_fields={
             "profession": data.profession or "",
-            "floor_rise_cost": floor_rise_cost,
-            "floor_rise_total": round(floor_rise_total, 2),
+            "floor_rise_cost": fields["floor_rise_cost"],
+            "floor_rise_total": round(pricing["floor_rise_total"], 2),
             "co_applicant_profession": data.co_applicant_profession or "",
             "co_applicant_nationality": data.co_applicant_nationality or "Indian",
         }
@@ -164,36 +211,7 @@ async def submit_booking_form(data: BookingFormData):
 
     await log_activity("system", "Booking Form", "create", "customer", customer.id, f"New booking: {customer.name} for {data.project} - {data.unit_number}")
 
-    email_status = "not_sent"
-    if customer.email and SENDGRID_API_KEY:
-        try:
-            welcome_html = generate_welcome_email_html(doc)
-            price_breakup_html = generate_price_breakup_html(doc)
-            subject = f"Welcome to {customer.project} - Booking Confirmation & Terms"
-            message = Mail(from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME), to_emails=customer.email, subject=subject, html_content=welcome_html)
-            try:
-                pdf_bytes = HTML(string=price_breakup_html).write_pdf()
-                encoded_pdf = base64.b64encode(pdf_bytes).decode()
-                filename = f"RRL_PriceBreakup_{customer.name.replace(' ', '_')}.pdf"
-                attachment = Attachment(FileContent(encoded_pdf), FileName(filename), FileType('application/pdf'), Disposition('attachment'))
-                message.add_attachment(attachment)
-            except Exception as pdf_error:
-                logger.error(f"Error generating PDF for auto-email: {str(pdf_error)}")
-            sg = SendGridAPIClient(SENDGRID_API_KEY)
-            response = sg.send(message)
-            if response.status_code in [200, 201, 202]:
-                email_status = "sent"
-                log = CommunicationLog(customer_id=customer.id, channel="email", message_type="Auto Welcome Email",
-                    content=f"To: {customer.email}\nSubject: {subject}\n\n[Auto-sent on booking submission with Price Breakup PDF]",
-                    status="sent", sent_by="system")
-                log_doc = log.model_dump()
-                log_doc['sent_at'] = log_doc['sent_at'].isoformat()
-                await db.communication_logs.insert_one(log_doc)
-            else:
-                email_status = "failed"
-        except Exception as e:
-            email_status = "error"
-            logger.error(f"Error auto-sending welcome email: {str(e)}")
+    email_status = await _send_booking_welcome_email(customer, doc)
 
     return {
         "message": "Booking submitted successfully! Our team will contact you shortly.",

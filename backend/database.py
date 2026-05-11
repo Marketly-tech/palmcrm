@@ -6,8 +6,11 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from config import settings
 
 # MongoDB client instance - initialized immediately for import compatibility
-client: AsyncIOMotorClient = AsyncIOMotorClient(settings.MONGO_URL)
-db = client[settings.DB_NAME]
+try:
+    client: AsyncIOMotorClient = AsyncIOMotorClient(settings.MONGO_URL)
+    db = client[settings.DB_NAME]
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize MongoDB connection: {e}") from e
 
 
 async def connect_to_mongo():

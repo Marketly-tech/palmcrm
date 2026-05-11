@@ -61,19 +61,8 @@ async def create_customer(customer_data: CustomerCreate, user: dict = Depends(ge
     return {**doc, "_id": None}
 
 
-@router.get("")
-async def get_customers(
-    search: Optional[str] = None,
-    project: Optional[str] = None,
-    agreement_status: Optional[str] = None,
-    agreement_filter: Optional[str] = None,
-    finance_bank: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 50,
-    user: dict = Depends(get_current_user)
-):
-    """Get customers with filters."""
-    db = get_database()
+def _build_customer_query(search, project, agreement_status, finance_bank, agreement_filter):
+    """Build MongoDB query from filter parameters."""
     query = {}
     if search:
         query["$or"] = [
@@ -89,75 +78,85 @@ async def get_customers(
         query["agreement_status"] = agreement_status
     if finance_bank:
         query["finance_bank"] = {"$regex": f"^{finance_bank}$", "$options": "i"}
-    
-    # Apply agreement filters
-    if agreement_filter:
-        if agreement_filter == "upcoming_due":
-            pass  # Will filter in Python
-        elif agreement_filter == "pending_agreement":
-            query["agreement_status"] = {"$in": ["draft", "sent"]}
-        elif agreement_filter == "agreement_due":
-            query["agreement_status"] = "sent"
-    
+    if agreement_filter == "pending_agreement":
+        query["agreement_status"] = {"$in": ["draft", "sent"]}
+    elif agreement_filter == "agreement_due":
+        query["agreement_status"] = "sent"
+    return query
+
+
+def _filter_upcoming_due(customers, limit):
+    """Post-filter customers by upcoming due date."""
+    today = datetime.now(timezone.utc).date()
+    filtered = []
+    for customer in customers:
+        booking_date_str = customer.get('booking_date')
+        if not booking_date_str:
+            continue
+        try:
+            booking_date = datetime.strptime(booking_date_str, "%Y-%m-%d").date() if isinstance(booking_date_str, str) else booking_date_str
+            due_date = booking_date + timedelta(days=10)
+            days_until_due = (due_date - today).days
+            if -3 <= days_until_due <= 5:
+                customer['_due_date'] = due_date.isoformat()
+                customer['_days_until_due'] = days_until_due
+                filtered.append(customer)
+        except Exception:
+            continue
+    filtered.sort(key=lambda x: x.get('_days_until_due', 999))
+    return filtered[:limit]
+
+
+async def _enrich_with_overdue(db, customers):
+    """Add _overdue_amount to each customer based on current payment stage."""
+    from utils.payment_helpers import PAYMENT_STAGES
+    settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    cumulative_pct = 0
+    if settings_doc and settings_doc.get("current_stage"):
+        stage_info = next((s for s in PAYMENT_STAGES if s["key"] == settings_doc["current_stage"]), None)
+        if stage_info:
+            cumulative_pct = stage_info["cumulative"]
+
+    customer_ids = [c["id"] for c in customers]
+    all_txns = await db.payment_transactions.find(
+        {"customer_id": {"$in": customer_ids}}, {"_id": 0, "customer_id": 1, "amount": 1}
+    ).to_list(100000)
+    txn_totals = {}
+    for txn in all_txns:
+        cid = txn.get("customer_id")
+        txn_totals[cid] = txn_totals.get(cid, 0) + (txn.get("amount", 0) or 0)
+
+    for customer in customers:
+        total_price = customer.get("total_price", 0) or 0
+        expected = (total_price * cumulative_pct) / 100
+        customer["_overdue_amount"] = round(max(0, expected - txn_totals.get(customer["id"], 0)), 2)
+
+
+@router.get("")
+async def get_customers(
+    search: Optional[str] = None,
+    project: Optional[str] = None,
+    agreement_status: Optional[str] = None,
+    agreement_filter: Optional[str] = None,
+    finance_bank: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    user: dict = Depends(get_current_user)
+):
+    """Get customers with filters."""
+    db = get_database()
+    query = _build_customer_query(search, project, agreement_status, finance_bank, agreement_filter)
+
     fetch_limit = limit * 2 if agreement_filter == "upcoming_due" else limit
     customers = await db.customers.find(query, {"_id": 0}).skip(skip).limit(fetch_limit).to_list(fetch_limit)
-    
-    # Post-filter for upcoming_due
+
     if agreement_filter == "upcoming_due":
-        today = datetime.now(timezone.utc).date()
-        filtered_customers = []
-        
-        for customer in customers:
-            booking_date_str = customer.get('booking_date')
-            if not booking_date_str:
-                continue
-            try:
-                if isinstance(booking_date_str, str):
-                    booking_date = datetime.strptime(booking_date_str, "%Y-%m-%d").date()
-                else:
-                    booking_date = booking_date_str
-                
-                due_date = booking_date + timedelta(days=10)
-                days_until_due = (due_date - today).days
-                
-                if -3 <= days_until_due <= 5:
-                    customer['_due_date'] = due_date.isoformat()
-                    customer['_days_until_due'] = days_until_due
-                    filtered_customers.append(customer)
-            except Exception:
-                continue
-        
-        filtered_customers.sort(key=lambda x: x.get('_days_until_due', 999))
-        customers = filtered_customers[:limit]
-    
-    # When bank filter or overdue filter is active, compute overdue amounts
+        customers = _filter_upcoming_due(customers, limit)
+
     if finance_bank or agreement_filter == "overdue":
-        from utils.payment_helpers import PAYMENT_STAGES
-        settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
-        cumulative_pct = 0
-        if settings_doc and settings_doc.get("current_stage"):
-            stage_key = settings_doc["current_stage"]
-            stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
-            if stage_info:
-                cumulative_pct = stage_info["cumulative"]
-
-        customer_ids = [c["id"] for c in customers]
-        all_txns = await db.payment_transactions.find(
-            {"customer_id": {"$in": customer_ids}}, {"_id": 0, "customer_id": 1, "amount": 1}
-        ).to_list(100000)
-        txn_totals = {}
-        for txn in all_txns:
-            cid = txn.get("customer_id")
-            txn_totals[cid] = txn_totals.get(cid, 0) + (txn.get("amount", 0) or 0)
-
-        for customer in customers:
-            total_price = customer.get("total_price", 0) or 0
-            expected = (total_price * cumulative_pct) / 100
-            received = txn_totals.get(customer["id"], 0)
-            customer["_overdue_amount"] = round(max(0, expected - received), 2)
+        await _enrich_with_overdue(db, customers)
 
     total = await db.customers.count_documents(query) if agreement_filter != "upcoming_due" else len(customers)
-    
     return {"customers": customers, "total": total}
 
 

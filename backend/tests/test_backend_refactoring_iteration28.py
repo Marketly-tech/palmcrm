@@ -11,12 +11,12 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-crm-dev.preview.emergentagent.com').rstrip('/')
 
-# Test credentials from test_credentials.md
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
-ACCOUNTS_EMAIL = "accounts@rrlbuilders.com"
-ACCOUNTS_PASSWORD = "accounts123"
-TEST_CUSTOMER_ID = "6d902613-5106-4294-bc3e-b907f85127f7"
+# Test credentials from environment variables (see /app/memory/test_credentials.md)
+ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "crm@rrlbuildersanddevelopers.com")
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "#RRLnew2026")
+ACCOUNTS_EMAIL = os.environ.get("TEST_ACCOUNTS_EMAIL", "accounts@rrlbuilders.com")
+ACCOUNTS_PASSWORD = os.environ.get("TEST_ACCOUNTS_PASSWORD", "accounts123")
+TEST_CUSTOMER_ID = os.environ.get("TEST_CUSTOMER_ID", "6d902613-5106-4294-bc3e-b907f85127f7")
 
 
 class TestHealthEndpoints:

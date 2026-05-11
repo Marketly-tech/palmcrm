@@ -14,8 +14,7 @@ export { default as DetailsTab } from './DetailsTab';
 export { default as PaymentTrackingTab } from './PaymentTrackingTab';
 
 // Card components
-export { default as PaymentTrackingCard } from './PaymentTrackingCard';
-export { default as TransactionsCard } from './TransactionsCard';
+// (PaymentTrackingCard / TransactionsCard removed - logic now lives in PaymentTrackingTab subcomponents)
 
 // Dialog components
 export { default as EmailComposerDialog } from './EmailComposerDialog';
