@@ -332,13 +332,14 @@
 - [x] Cost breakup: project name in site address (May 2026)
 - [x] Welcome email: restored all 3 PDF attachments (Booking Form, T&C, Price Breakup) (May 2026)
 - [x] Payment Schedule doc: now shows slab-wise schedule instead of transactions (May 2026)
+- [x] Code Quality refactor — extracted `documents/generators.py` dispatcher + `documents/templates/transactions_export.py`; reduced `documents/routes.py` from 587→351 lines (Feb 2026)
+- [x] Frontend component split — `DetailsTab` 751→79, `PaymentTrackingTab` 488→129, `CommunicationTab` 310→46 lines; new subfolders `customer/details`, `customer/payment`, `customer/communication`; removed unused `PaymentTrackingCard.jsx` & `TransactionsCard.jsx` (Feb 2026)
 
 ---
 
 ## 9. Upcoming / Backlog
 
 ### P1 (High Priority)
-- Backend function complexity reduction in `documents/templates/*.py`
 - Comprehensive testing with real production data
 
 ### P2 (Medium Priority)
