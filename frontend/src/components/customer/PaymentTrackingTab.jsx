@@ -338,6 +338,7 @@ const PaymentTrackingTab = ({
                       <SelectItem value="booking">Booking</SelectItem>
                       <SelectItem value="agreement">Agreement</SelectItem>
                       <SelectItem value="scheduled_disbursement">Scheduled Disbursement</SelectItem>
+                      <SelectItem value="tds">TDS</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -422,9 +423,11 @@ const PaymentTrackingTab = ({
                       <Badge className={
                         txn.transaction_stage === 'booking' ? 'bg-blue-100 text-blue-700' :
                         txn.transaction_stage === 'agreement' ? 'bg-green-100 text-green-700' :
+                        txn.transaction_stage === 'tds' ? 'bg-amber-100 text-amber-700' :
                         'bg-purple-100 text-purple-700'
                       }>
                         {txn.transaction_stage === 'scheduled_disbursement' ? 'Scheduled Disbursement' : 
+                         txn.transaction_stage === 'tds' ? 'TDS' :
                          (txn.transaction_stage ? txn.transaction_stage.charAt(0).toUpperCase() + txn.transaction_stage.slice(1) : 'Payment')}
                       </Badge>
                     </TableCell>

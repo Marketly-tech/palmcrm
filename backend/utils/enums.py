@@ -60,3 +60,4 @@ class TransactionStage(str, Enum):
     BOOKING = "booking"
     AGREEMENT = "agreement"
     SCHEDULED_DISBURSEMENT = "scheduled_disbursement"
+    TDS = "tds"

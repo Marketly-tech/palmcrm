@@ -38,6 +38,7 @@ const TRANSACTION_STAGES = [
   { value: "booking", label: "Booking" },
   { value: "agreement", label: "Agreement" },
   { value: "scheduled_disbursement", label: "Scheduled Disbursement" },
+  { value: "tds", label: "TDS" },
 ];
 
 const TransactionsCard = ({
@@ -97,12 +98,14 @@ const TransactionsCard = ({
     switch (stage) {
       case 'booking': return 'bg-blue-100 text-blue-700';
       case 'agreement': return 'bg-green-100 text-green-700';
+      case 'tds': return 'bg-amber-100 text-amber-700';
       default: return 'bg-purple-100 text-purple-700';
     }
   };
 
   const getStageLabel = (stage) => {
     if (stage === 'scheduled_disbursement') return 'Scheduled Disbursement';
+    if (stage === 'tds') return 'TDS';
     return stage ? stage.charAt(0).toUpperCase() + stage.slice(1) : 'Payment';
   };
 
