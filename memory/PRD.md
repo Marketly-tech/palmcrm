@@ -328,7 +328,10 @@
 - [x] Bank-wise overdue tracking with cumulative totals (May 2026)
 - [x] PDF download fix (server-side WeasyPrint conversion) (May 2026)
 - [x] TDS transaction stage restored (May 2026)
+- [x] TDS calculation fixed — maps to actual TDS transactions, not formula (May 2026)
 - [x] Cost breakup: project name in site address (May 2026)
+- [x] Welcome email: restored all 3 PDF attachments (Booking Form, T&C, Price Breakup) (May 2026)
+- [x] Payment Schedule doc: now shows slab-wise schedule instead of transactions (May 2026)
 
 ---
 

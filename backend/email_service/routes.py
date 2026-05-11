@@ -23,7 +23,7 @@ from documents.templates import (
     generate_price_breakup_html, generate_booking_form_preview_html,
     generate_terms_and_conditions_html, generate_welcome_email_html,
     generate_document_email_html, generate_sales_agreement_html,
-    generate_allotment_letter_html
+    generate_allotment_letter_html, generate_demand_letter_html
 )
 
 logger = logging.getLogger(__name__)
@@ -186,8 +186,13 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
     attachments_data = []
 
     if data.email_type == "welcome":
+        form_preview_html = generate_booking_form_preview_html(customer)
+        terms_conditions_html = generate_terms_and_conditions_html(customer)
         price_breakup_html = generate_price_breakup_html(customer)
-        attachments_data.append({"filename": f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf", "html": price_breakup_html, "doc_type": DocumentType.PRICE_BREAKUP})
+        customer_name_safe = customer.get('name', 'Customer').replace(' ', '_')
+        attachments_data.append({"filename": f"RRL_BookingFormPreview_{customer_name_safe}.pdf", "html": form_preview_html, "doc_type": DocumentType.WELCOME_LETTER})
+        attachments_data.append({"filename": f"RRL_TermsAndConditions_{customer_name_safe}.pdf", "html": terms_conditions_html, "doc_type": DocumentType.WELCOME_LETTER})
+        attachments_data.append({"filename": f"RRL_PriceBreakup_{customer_name_safe}.pdf", "html": price_breakup_html, "doc_type": DocumentType.PRICE_BREAKUP})
     elif data.email_type == "sales_agreement":
         schedule = await db.payment_schedules.find_one({"customer_id": customer_id}, {"_id": 0})
         schedule_items = schedule.get('items', []) if schedule else []

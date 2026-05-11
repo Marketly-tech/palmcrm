@@ -93,10 +93,11 @@ async def generate_document(data: DocumentGenerate, user: dict = Depends(get_cur
     elif data.doc_type == DocumentType.ALLOTMENT_LETTER:
         content = generate_allotment_letter_html(customer)
     elif data.doc_type == DocumentType.PAYMENT_SCHEDULE:
-        transactions = await db.payment_transactions.find(
-            {"customer_id": data.customer_id}, {"_id": 0}
-        ).sort("transaction_date", 1).to_list(1000)
-        content = generate_payment_schedule_pdf_html(customer, transactions)
+        schedule = await db.payment_schedules.find_one({"customer_id": data.customer_id}, {"_id": 0})
+        schedule_items = schedule.get('items', []) if schedule else []
+        if not schedule_items:
+            raise HTTPException(status_code=404, detail="No payment schedule found. Please generate one first.")
+        content = generate_payment_schedule_html(customer, schedule_items)
     elif data.doc_type == DocumentType.NOC_HDFC:
         content = generate_noc_hdfc_html(customer)
     elif data.doc_type == DocumentType.NOC_BOB:
