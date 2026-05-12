@@ -32,10 +32,26 @@ _SIMPLE_GENERATORS = {
     DocumentType.PRICE_BREAKUP: generate_price_breakup_html,
     DocumentType.COST_BREAKUP: generate_cost_breakup_html,
     DocumentType.ALLOTMENT_LETTER: generate_allotment_letter_html,
+}
+
+
+# NOC generators that need transactions to compute "received excl TDS"
+_NOC_GENERATORS = {
     DocumentType.NOC_HDFC: generate_noc_hdfc_html,
     DocumentType.NOC_BOB: generate_noc_bob_html,
     DocumentType.NOC_TATA: generate_noc_tata_html,
 }
+
+
+async def _render_noc(db, customer: dict, doc_type: DocumentType) -> str:
+    transactions = await db.payment_transactions.find(
+        {"customer_id": customer.get('id')}, {"_id": 0}
+    ).sort("transaction_date", 1).to_list(1000)
+    generator = _NOC_GENERATORS[doc_type]
+    # TATA NOC doesn't include the received-amount line; call without transactions
+    if doc_type == DocumentType.NOC_TATA:
+        return generator(customer)
+    return generator(customer, transactions)
 
 
 async def _render_sales_agreement(db, customer: dict) -> str:
@@ -139,6 +155,8 @@ async def render_document_content(
         return await _render_payment_schedule(db, customer)
     if doc_type == DocumentType.DEMAND_LETTER:
         return await _render_demand_letter(db, customer)
+    if doc_type in _NOC_GENERATORS:
+        return await _render_noc(db, customer, doc_type)
     if doc_type in _SIMPLE_GENERATORS:
         return _SIMPLE_GENERATORS[doc_type](customer)
     return await _render_from_template(db, customer, doc_type, custom_fields or {})

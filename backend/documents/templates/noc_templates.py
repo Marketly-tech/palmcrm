@@ -2,7 +2,7 @@
 from datetime import datetime
 from documents.templates.common import format_inr, COMPANY_NAME_FULL, format_customer_names
 
-def generate_noc_hdfc_html(customer: dict) -> str:
+def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
     """Generate HDFC Bank NOC (No Objection Certificate) for disbursement"""
     
     def format_inr(amount):
@@ -47,12 +47,22 @@ def generate_noc_hdfc_html(customer: dict) -> str:
     # Financial details
     total_price = customer.get('total_price', 0) or 0
     booking_amount = customer.get('booking_amount', 0) or 0
-    balance = total_price - booking_amount
+    # Received = sum of all transactions excluding TDS (fallback to booking_amount)
+    if transactions:
+        received_amount = sum(
+            float(t.get('amount', 0) or 0)
+            for t in transactions
+            if (t.get('transaction_stage') or t.get('transaction_type')) != 'tds'
+        )
+    else:
+        received_amount = booking_amount
+    received_amount = int(round(received_amount))
+    balance = total_price - received_amount
     loan_amount = customer.get('loan_amount', 0) or balance
-    
+
     # Format amounts with words
     total_price_words = f"Rupees {number_to_words(total_price)} Only"
-    booking_words = f"Rupees {number_to_words(booking_amount)} Only"
+    received_words = f"Rupees {number_to_words(received_amount)} Only"
     balance_words = f"Rupees {number_to_words(balance)} Only"
     loan_words = f"Rupees {number_to_words(loan_amount)} Only"
     
@@ -110,7 +120,7 @@ def generate_noc_hdfc_html(customer: dict) -> str:
         <div class="salutation">Dear Sir,</div>
         
         <div class="content">
-            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(booking_amount)}/-</strong> ({booking_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
+            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(received_amount)}/-</strong> ({received_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
             
             <p>We hereby assure you that the said flat appurtenant there to be not subject to any encumbrance, charge, or liability of any kind whatsoever and that the entire property is free and marketable. We further confirm that we have a clear legal and marketable title to the said property and every part thereof.</p>
             
@@ -132,7 +142,7 @@ def generate_noc_hdfc_html(customer: dict) -> str:
 
 
 
-def generate_noc_bob_html(customer: dict) -> str:
+def generate_noc_bob_html(customer: dict, transactions: list = None) -> str:
     """Generate Bank of Baroda (BOB) NOC for disbursement"""
     
     def format_inr(amount):
@@ -170,11 +180,21 @@ def generate_noc_bob_html(customer: dict) -> str:
     
     total_price = customer.get('total_price', 0) or 0
     booking_amount = customer.get('booking_amount', 0) or 0
-    balance = total_price - booking_amount
+    # Received = sum of all transactions excluding TDS (fallback to booking_amount)
+    if transactions:
+        received_amount = sum(
+            float(t.get('amount', 0) or 0)
+            for t in transactions
+            if (t.get('transaction_stage') or t.get('transaction_type')) != 'tds'
+        )
+    else:
+        received_amount = booking_amount
+    received_amount = int(round(received_amount))
+    balance = total_price - received_amount
     loan_amount = customer.get('loan_amount', 0) or balance
-    
+
     total_price_words = f"Rupees {number_to_words(total_price)} Only"
-    booking_words = f"Rupees {number_to_words(booking_amount)} Only"
+    received_words = f"Rupees {number_to_words(received_amount)} Only"
     balance_words = f"Rupees {number_to_words(balance)} Only"
     loan_words = f"Rupees {number_to_words(loan_amount)} Only"
     
@@ -229,7 +249,7 @@ def generate_noc_bob_html(customer: dict) -> str:
         <div class="salutation">Dear Sir / Madam,</div>
         
         <div class="content">
-            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(booking_amount)}/-</strong> ({booking_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
+            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(received_amount)}/-</strong> ({received_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
             
             <p>We further confirm that we have a clear legal and marketable title to the said property and every part thereof. We have no objection to your giving a loan of <strong>Rs.{format_inr(loan_amount)}/-</strong> ({loan_words}) to said <strong>{customer_names}</strong> owner/s of the said flat and his/their mortgaging the said flat with you by way of security for repayment notwithstanding anything to the contrary contained in our agreement dated {agreement_display} with {customer_names}.</p>
         </div>
