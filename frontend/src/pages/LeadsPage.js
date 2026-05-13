@@ -54,6 +54,9 @@ const LeadsPage = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [sendingWelcome, setSendingWelcome] = useState({});
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [leadToReject, setLeadToReject] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     fetchLeads();
@@ -79,6 +82,32 @@ const LeadsPage = () => {
       setViewDialogOpen(false);
     } catch (error) {
       toast.error("Failed to approve lead");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const openRejectDialog = (lead) => {
+    setLeadToReject(lead);
+    setRejectReason("");
+    setRejectDialogOpen(true);
+  };
+
+  const handleReject = async () => {
+    if (!leadToReject) return;
+    setProcessing(true);
+    try {
+      await axios.put(`${API}/leads/${leadToReject.id}/reject`, null, {
+        params: rejectReason ? { reason: rejectReason } : {},
+      });
+      toast.success(`${leadToReject.name} has been rejected and removed.`);
+      fetchLeads();
+      setRejectDialogOpen(false);
+      setViewDialogOpen(false);
+      setLeadToReject(null);
+      setRejectReason("");
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || "Failed to reject lead");
     } finally {
       setProcessing(false);
     }
@@ -252,8 +281,20 @@ const LeadsPage = () => {
                           onClick={() => handleApprove(lead)}
                           disabled={processing}
                           data-testid={`approve-lead-${lead.id}`}
+                          title="Approve lead"
                         >
                           <CheckCircle className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => openRejectDialog(lead)}
+                          disabled={processing}
+                          data-testid={`reject-lead-${lead.id}`}
+                          title="Reject lead"
+                        >
+                          <XCircle className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -385,9 +426,70 @@ const LeadsPage = () => {
                   )}
                   Approve
                 </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => openRejectDialog(selectedLead)}
+                  disabled={processing}
+                  data-testid="confirm-reject-btn"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Reject
+                </Button>
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Lead Confirmation Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Lead?</DialogTitle>
+            <DialogDescription>
+              {leadToReject ? (
+                <>This will permanently delete <strong>{leadToReject.name}</strong>'s
+                booking submission and release the assigned unit
+                ({leadToReject.tower}-{leadToReject.unit_number}) back to available.
+                This action cannot be undone.</>
+              ) : "This action cannot be undone."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="reject-reason" className="text-sm font-medium">
+              Reason (optional)
+            </label>
+            <Input
+              id="reject-reason"
+              data-testid="reject-reason-input"
+              placeholder="e.g. Duplicate submission, customer withdrew, etc."
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectDialogOpen(false)}
+              disabled={processing}
+              data-testid="reject-cancel-btn"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={processing}
+              data-testid="reject-confirm-btn"
+            >
+              {processing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <XCircle className="w-4 h-4 mr-2" />
+              )}
+              Confirm Reject
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

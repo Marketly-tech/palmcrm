@@ -1,0 +1,45 @@
+{
+  "summary": "Tested booking form Co-Applicant Gender field (with dynamic S/o, D/o, W/o label), backend BookingFormData accepting co_applicant_gender + co_applicant_date_of_birth, and new PUT /api/leads/{id}/reject endpoint (admin/manager). 6/6 backend pytest cases passed. Frontend e2e: co-applicant gender dynamic label works on /booking-form, Reject row button + confirmation dialog with reason + View-dialog Reject button + full flow (lead disappears, toast shows, unit released) all working.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration35_booking_reject.py",
+    "/app/test_reports/pytest/pytest_iteration35.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "LeadsPage.js is approaching 500 lines and mixes presentation + business logic; consider extracting LeadsTable, LeadViewDialog, RejectConfirmDialog into separate components per the >700 line guideline before further growth.",
+    "Reject endpoint deletes the customer hard via db.customers.delete_one — there is no audit trail/record of the rejected lead besides the activity log entry. Consider soft-delete (stage='rejected') so analytics/reporting can still see rejected leads + reason.",
+    "Backend reject endpoint accepts `reason` as a query param via request URL; per REST conventions a JSON body for PUT actions with side-data is preferable. Functionally works though.",
+    "BookingFormData & Customer correctly include co_applicant_gender / co_applicant_date_of_birth now — fix verified end-to-end."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration35_booking_reject.py (new)",
+    "/app/test_reports/pytest/pytest_iteration35.xml (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% on flows tested"},
+  "test_credentials": "Admin: crm@rrlbuildersanddevelopers.com / #RRLnew2026 (used). Test customer ID 6d902613-... not modified.",
+  "seed_data_creation": "Test data created via /api/public/booking-form (TEST_FE_Reject_Lead, TEST_FE_Reject_FromDialog, TEST_Reject_Lead_*, TEST_CoApp). All cleaned up via PUT /api/leads/{id}/reject during tests. Test unit T-FE-TEST + T-FE-TEST2 were synthetic (no DB units pre-existed). Reject also cleaned up customers + checklists.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend /api/units returns 0 units in this environment, so booking tests use synthetic unit data — booking submit handles missing unit gracefully (resolves fields from payload). The reject endpoint is documented in the task brief as /api/leads/{id}/reject (correct). The booking submit endpoint is /api/public/booking-form (NOT /api/booking/submit as the brief says).",
+  "verified_flows": [
+    "Co-Applicant Gender Select renders with default 'male' and Father/Spouse Name label shows '(S/o)'",
+    "Selecting 'Female (D/o)' updates label to '(D/o)'",
+    "Selecting 'Spouse (W/o)' updates label to 'Spouse Name (W/o)'",
+    "POST /api/public/booking-form persists co_applicant_gender + co_applicant_date_of_birth correctly retrievable via GET /api/customers/{id}",
+    "Leads page shows red XCircle reject button on each row alongside Approve",
+    "Clicking reject opens confirmation dialog with customer name + unit + reason input",
+    "View Lead dialog footer also has destructive Reject button that opens the same confirmation",
+    "Confirm Reject → PUT /api/leads/{id}/reject?reason=... → customer deleted, unit released to is_available=true, document_checklist deleted, toast shown, leads list refreshed",
+    "Reject of non-existent lead returns 404",
+    "Reject without auth returns 401/403"
+  ],
+  "untested": [
+    "CoApplicantCard.jsx edit/view mode on Customer Detail page (gender Select + dynamic label) — only Public Booking Form variant was verified. Recommend main agent self-test by opening a customer with co_applicant data and toggling edit mode."
+  ]
+}

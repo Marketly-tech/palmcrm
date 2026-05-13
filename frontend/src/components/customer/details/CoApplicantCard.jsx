@@ -1,6 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Label } from "../../ui/label";
 import { Input } from "../../ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "../../ui/select";
 
 const CoApplicantCard = ({ customer, editing, editData, setEditData }) => {
   if (!customer.co_applicant_name && !editing) return null;
@@ -32,7 +35,13 @@ const CoApplicantCard = ({ customer, editing, editData, setEditData }) => {
             )}
           </div>
           <div>
-            <Label>Father's/Spouse Name</Label>
+            <Label>
+              {(editing ? editData.co_applicant_gender : customer.co_applicant_gender) === "female"
+                ? "Father's/Spouse Name (D/o)"
+                : (editing ? editData.co_applicant_gender : customer.co_applicant_gender) === "spouse"
+                ? "Spouse Name (W/o)"
+                : "Father's/Spouse Name (S/o)"}
+            </Label>
             {editing ? (
               <Input
                 value={editData.co_applicant_father_name || ""}
@@ -41,6 +50,28 @@ const CoApplicantCard = ({ customer, editing, editData, setEditData }) => {
               />
             ) : (
               <p className="text-slate-700 mt-1">{customer.co_applicant_father_name || "-"}</p>
+            )}
+          </div>
+          <div>
+            <Label>Gender</Label>
+            {editing ? (
+              <Select
+                value={editData.co_applicant_gender || "male"}
+                onValueChange={(v) => setEditData({ ...editData, co_applicant_gender: v })}
+              >
+                <SelectTrigger data-testid="co-applicant-gender-edit"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male (S/o)</SelectItem>
+                  <SelectItem value="female">Female (D/o)</SelectItem>
+                  <SelectItem value="spouse">Spouse (W/o)</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="text-slate-700 mt-1">
+                {customer.co_applicant_gender === "female" ? "Female (D/o)" :
+                 customer.co_applicant_gender === "spouse" ? "Spouse (W/o)" :
+                 customer.co_applicant_gender === "male" ? "Male (S/o)" : "-"}
+              </p>
             )}
           </div>
           <div>

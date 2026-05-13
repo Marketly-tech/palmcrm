@@ -22,7 +22,8 @@ export const initialFormData = {
   gender: "male", pan_number: "", aadhar_number: "", address: "",
   company: "", designation: "", profession: "", nationality: "Indian",
   // Co-Applicant
-  co_applicant_name: "", co_applicant_father_name: "", co_applicant_phone: "",
+  co_applicant_name: "", co_applicant_father_name: "", co_applicant_gender: "male",
+  co_applicant_phone: "",
   co_applicant_email: "", co_applicant_pan: "", co_applicant_aadhar: "",
   co_applicant_address: "", co_applicant_date_of_birth: "",
   co_applicant_profession: "", co_applicant_nationality: "Indian",

@@ -49,6 +49,7 @@ class BookingFormData(BaseModel):
     nationality: str = "Indian"
     co_applicant_name: Optional[str] = None
     co_applicant_father_name: Optional[str] = None
+    co_applicant_gender: Optional[str] = None  # male, female, spouse
     co_applicant_phone: Optional[str] = None
     co_applicant_email: Optional[str] = None
     co_applicant_pan: Optional[str] = None
@@ -167,6 +168,8 @@ async def submit_booking_form(data: BookingFormData):
         aadhar_number=data.aadhar_number or "", address=data.address or "",
         company=data.company, designation=data.designation, nationality=data.nationality,
         co_applicant_name=data.co_applicant_name, co_applicant_father_name=data.co_applicant_father_name,
+        co_applicant_gender=data.co_applicant_gender,
+        co_applicant_date_of_birth=data.co_applicant_date_of_birth,
         co_applicant_phone=data.co_applicant_phone, co_applicant_email=data.co_applicant_email,
         co_applicant_pan=data.co_applicant_pan, co_applicant_aadhar=data.co_applicant_aadhar,
         co_applicant_address=data.co_applicant_address,

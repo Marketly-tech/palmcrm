@@ -123,8 +123,23 @@ const ApplicantDetailsStep = ({
             <Input id="co_applicant_name" name="co_applicant_name" value={formData.co_applicant_name} onChange={onInputChange} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="co_applicant_father_name">Father/Spouse Name</Label>
+            <Label htmlFor="co_applicant_father_name">
+              {formData.co_applicant_gender === "female" ? "Father/Spouse Name (D/o)"
+                : formData.co_applicant_gender === "spouse" ? "Spouse Name (W/o)"
+                : "Father/Spouse Name (S/o)"}
+            </Label>
             <Input id="co_applicant_father_name" name="co_applicant_father_name" value={formData.co_applicant_father_name} onChange={onInputChange} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="co_applicant_gender">Gender</Label>
+            <Select value={formData.co_applicant_gender} onValueChange={(v) => onSelectChange("co_applicant_gender", v)}>
+              <SelectTrigger data-testid="co-applicant-gender-select"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male (S/o)</SelectItem>
+                <SelectItem value="female">Female (D/o)</SelectItem>
+                <SelectItem value="spouse">Spouse (W/o)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="co_applicant_date_of_birth">Date of Birth</Label>

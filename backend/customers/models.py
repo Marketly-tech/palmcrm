@@ -31,6 +31,7 @@ class CustomerBase(BaseModel):
     co_applicant_aadhar: Optional[str] = None
     co_applicant_address: Optional[str] = None
     co_applicant_date_of_birth: Optional[str] = None
+    co_applicant_gender: Optional[str] = None  # male, female, spouse
     
     # Property Details
     project: str
