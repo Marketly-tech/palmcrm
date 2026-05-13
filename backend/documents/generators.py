@@ -148,7 +148,22 @@ async def _render_from_template(
 async def render_document_content(
     db, customer: dict, doc_type: DocumentType, custom_fields: Dict[str, Any] = None
 ) -> str:
-    """Return the rendered HTML content for the requested document type."""
+    """Return the rendered HTML content for the requested document type.
+
+    Admin precedence: if a DocumentTemplate with matching doc_type and
+    `is_active=True` exists in the database, use it (with placeholder
+    substitution) instead of the built-in file-based generator. This is the
+    backend half of the Admin Template Editor feature.
+    """
+    override = await db.document_templates.find_one(
+        {"doc_type": doc_type.value, "is_active": True}, {"_id": 0}
+    )
+    if override and override.get('content'):
+        content = override['content']
+        for placeholder, value in _build_placeholders(customer, custom_fields or {}).items():
+            content = content.replace(placeholder, str(value))
+        return content
+
     if doc_type == DocumentType.SALES_AGREEMENT:
         return await _render_sales_agreement(db, customer)
     if doc_type == DocumentType.PAYMENT_SCHEDULE:

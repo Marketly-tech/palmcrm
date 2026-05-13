@@ -74,6 +74,7 @@ export function useCustomerPage(id) {
   // Document preview
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewContent, setPreviewContent] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
 
   // Email composer
   const [sendingWelcome, setSendingWelcome] = useState(false);
@@ -398,13 +399,8 @@ export function useCustomerPage(id) {
 
   // ─── Documents ───────────────────────────────────────────────
   const handlePreviewDocument = async (doc) => {
-    try {
-      const response = await axios.get(`${API}/documents/html/${doc.id}`);
-      setPreviewContent(response.data.content);
-      setPreviewDialogOpen(true);
-    } catch {
-      toast.error("Failed to load document preview");
-    }
+    setPreviewDoc(doc);
+    setPreviewDialogOpen(true);
   };
 
   const handleDownloadDocument = async (doc) => {
@@ -719,7 +715,7 @@ export function useCustomerPage(id) {
     newTransaction, setNewTransaction,
     handleSaveTransaction, handleEditTransaction, handleDeleteTransaction,
     // Documents
-    previewDialogOpen, setPreviewDialogOpen, previewContent,
+    previewDialogOpen, setPreviewDialogOpen, previewContent, previewDoc,
     docDeleteDialogOpen, setDocDeleteDialogOpen, docToDelete,
     docDeleteType, docDeleting, generatingNoc,
     handlePreviewDocument, handleDownloadDocument,

@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 30 — Tested the PDF inline-edit + Admin Template Editor feature. Backend: 18/18 tests passed (PUT /documents/html/{id} with admin/accounts/validation/404 cases, PDF download after edit, full snapshot→override→regenerate→delete→fallback flow, snapshot validation/403, 8-doc-type regression). Frontend: EditableDocumentDialog works end-to-end (open from Documents tab → Edit toggle → contenteditable iframe → Save persists to backend → Download PDF). Settings Document Templates tab CRASHES with 'customers.slice is not a function' because /api/customers returns {customers: [...], total: N} but DocumentTemplatesTab does setCustomers(res.data || []).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/documents/generate", "issue": "Response document object still has `_id: null` key in payload (carried over from iteration 29)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DocumentTemplatesTab", "issue": "Page crashes with 'TypeError: customers.slice is not a function'. /api/customers returns {customers: [...], total: N} but the component does `setCustomers(custRes.data || [])` then `customers.slice(0, 200).map(...)`. Whole template editor is unusable — the doc-type select, sample-customer select, Customize button, HTML textarea and preview iframe are all unreachable.", "selector": "[data-testid='template-doctype-select']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "EditableDocumentDialog", "issues": ["Console warning: 'Missing Description or aria-describedby={undefined} for DialogContent' — add a <DialogDescription> for a11y."]},
+      {"screen": "SettingsPage", "issues": ["Document Templates tab trigger is visible to accounts role; only the panel content shows the 'Only administrators...' restriction. Spec called for the tab itself to be admin-only — consider hiding TabsTrigger when !hasRole('admin') to match the spec."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration30_doc_editor.py",
+    "/app/test_reports/pytest/pytest_iteration30.xml"
+  ],
+  "action_items": [
+    "FIX (critical): In /app/frontend/src/components/settings/DocumentTemplatesTab.jsx, change `setCustomers(custRes.data || [])` to `setCustomers(custRes.data?.customers || [])` (or destructure {customers}). Without this fix the entire admin Template Editor is broken on first render.",
+    "Optional: hide the 'Document Templates' TabsTrigger for non-admin roles in /app/frontend/src/pages/SettingsPage.js to match the spec ('visible only to admin').",
+    "Optional: add a DialogDescription to EditableDocumentDialog for the a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "Backend override precedence (documents/generators.py: render_document_content) correctly checks {doc_type, is_active: true} first and applies placeholder substitution. Verified by snapshot → put new content with TEST_OVERRIDE_MARKER_X9Y2 → regenerate → marker found in output.",
+    "Backend snapshot endpoint correctly handles the re-snapshot case (overwrites existing template content and re-activates) — verified.",
+    "PUT /documents/html/{id} role check uses `user.get('role') == 'accounts'` literal string while DELETE /documents/{id} uses `user['role']`. Mixing styles is fine but consider using utils/enums.UserRole.ACCOUNTS for consistency.",
+    "EditableDocumentDialog: uses sandbox='allow-same-origin' which intentionally drops allow-scripts — formatting is preserved as intended. contenteditable toggle on body works, save round-trips through PUT /documents/html/{id} and content persists (verified UI_TEST_MARKER_ZZZZ stayed in DOM after save).",
+    "DocumentTemplatesTab data-load bug (above) is the only blocker — the rest of the UI flow (doc-type select, Customize, HTML textarea, Code/Preview toggle, Revert AlertDialog) is wired correctly but unreachable until customers list is fixed."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration30_doc_editor.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 tests passed)",
+    "frontend": "50% — EditableDocumentDialog flow works fully; DocumentTemplatesTab is completely broken on first render"
+  },
+  "test_credentials": {
+    "admin": "crm@rrlbuildersanddevelopers.com / #RRLnew2026",
+    "accounts": "accounts@rrlbuilders.com / accounts123",
+    "test_customer": "Ramya test lead (6d902613-5106-4294-bc3e-b907f85127f7)"
+  },
+  "seed_data_creation": "Generated docs during PUT/PDF tests were deleted in fixture teardown. Snapshot template for 'cost_breakup' was created and deleted in the same test (no residual override).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend feature is solid. Only the DocumentTemplatesTab.jsx customer-list parsing bug needs fixing. After the one-line fix (`custRes.data?.customers || []`), retest the full Customize → Save → Revert flow in Settings. Use existing test file /app/backend/tests/test_iteration30_doc_editor.py as the regression baseline for the editor backend.",
+  "rca of the issue": "DocumentTemplatesTab.jsx (line ~89) sets customers state from axios response: `setCustomers(custRes.data || [])`. However the /api/customers endpoint was changed (in an earlier iteration) to return a paginated object `{customers: [...], total: N}` rather than a bare array. As a result `customers` becomes the object, and `customers.slice(0, 200).map(...)` on line ~238 throws TypeError, which propagates up via React rendering and shows the 'Uncaught runtime errors' overlay. Fix: `setCustomers(custRes.data?.customers || [])`. No backend change needed."
+}

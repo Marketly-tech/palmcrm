@@ -64,6 +64,62 @@ async def update_template(template_id: str, updates: Dict[str, Any], user: dict 
     return {"message": "Template updated"}
 
 
+@router.delete("/templates/{template_id}")
+async def delete_template(template_id: str, user: dict = Depends(check_role([UserRole.ADMIN]))):
+    """Revert to the built-in default by removing the admin override template."""
+    db = get_database()
+    result = await db.document_templates.delete_one({"id": template_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    await log_activity(user['id'], user['name'], "delete", "template", template_id, "Reverted to default template")
+    return {"message": "Template removed, default restored"}
+
+
+@router.post("/templates/snapshot/{doc_type}")
+async def snapshot_default_template(doc_type: DocumentType, body: Dict[str, Any], user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER]))):
+    """Render the default document for a sample customer and save the HTML as
+    a starting-point template the admin can then edit. Returns the new template."""
+    db = get_database()
+    sample_customer_id = body.get('customer_id')
+    if not sample_customer_id:
+        raise HTTPException(status_code=400, detail="customer_id required to render a sample")
+    customer = await db.customers.find_one({"id": sample_customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Sample customer not found")
+    # Temporarily disable any existing override so we render the built-in default
+    existing = await db.document_templates.find_one({"doc_type": doc_type.value}, {"_id": 0})
+    if existing:
+        await db.document_templates.update_one({"id": existing['id']}, {"$set": {"is_active": False}})
+    try:
+        content = await render_document_content(db, customer, doc_type, {})
+    finally:
+        if existing:
+            await db.document_templates.update_one({"id": existing['id']}, {"$set": {"is_active": existing.get('is_active', True)}})
+    # Create new template (or overwrite existing) with the rendered HTML as starting point
+    if existing:
+        await db.document_templates.update_one(
+            {"id": existing['id']},
+            {"$set": {"content": content, "is_active": True, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        tmpl_id = existing['id']
+    else:
+        new_tmpl = DocumentTemplate(
+            name=f"{doc_type.value} (custom)",
+            doc_type=doc_type,
+            content=content,
+            is_active=True,
+        )
+        doc = new_tmpl.model_dump()
+        doc['doc_type'] = doc_type.value
+        doc['created_at'] = doc['created_at'].isoformat()
+        doc['updated_at'] = doc['updated_at'].isoformat()
+        await db.document_templates.insert_one(doc)
+        tmpl_id = new_tmpl.id
+    await log_activity(user['id'], user['name'], "snapshot", "template", tmpl_id, f"Created editable template for {doc_type.value}")
+    saved = await db.document_templates.find_one({"id": tmpl_id}, {"_id": 0})
+    return saved
+
+
 # ==================== DOCUMENT GENERATION ====================
 @router.post("/documents/generate")
 async def generate_document(data: DocumentGenerate, user: dict = Depends(get_current_user)):
@@ -169,6 +225,25 @@ async def get_document_html(doc_id: str, user: dict = Depends(get_current_user))
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return {"id": doc['id'], "doc_type": doc['doc_type'], "content": doc['content'], "generated_at": doc['generated_at']}
+
+
+@router.put("/documents/html/{doc_id}")
+async def update_document_html(doc_id: str, body: Dict[str, Any], user: dict = Depends(get_current_user)):
+    """Update the HTML content of a generated document (in-place edit before download)."""
+    if user.get('role') == 'accounts':
+        raise HTTPException(status_code=403, detail="Accounts role cannot edit documents")
+    content = body.get('content')
+    if not isinstance(content, str) or not content.strip():
+        raise HTTPException(status_code=400, detail="content (string) is required")
+    db = get_database()
+    result = await db.generated_documents.update_one(
+        {"id": doc_id},
+        {"$set": {"content": content, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+    await log_activity(user['id'], user['name'], "edit", "document", doc_id, "Edited generated document HTML")
+    return {"message": "Document updated"}
 
 
 @router.get("/documents/{customer_id}")

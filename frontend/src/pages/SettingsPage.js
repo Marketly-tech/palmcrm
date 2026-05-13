@@ -4,9 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import { Card, CardContent } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { toast } from "sonner";
-import { Users, Settings, Shield } from "lucide-react";
+import { Users, Settings, Shield, FileText } from "lucide-react";
 import {
   UserManagementCard, EditUserDialog, ResetPasswordDialog, GeneralSettingsTab,
+  DocumentTemplatesTab,
 } from "../components/settings";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -127,6 +128,7 @@ const SettingsPage = () => {
       <Tabs defaultValue="users" className="space-y-4">
         <TabsList>
           <TabsTrigger value="users" data-testid="tab-users"><Users className="w-4 h-4 mr-2" />User Management</TabsTrigger>
+          <TabsTrigger value="templates" data-testid="tab-templates"><FileText className="w-4 h-4 mr-2" />Document Templates</TabsTrigger>
           <TabsTrigger value="general" data-testid="tab-general"><Settings className="w-4 h-4 mr-2" />General</TabsTrigger>
         </TabsList>
 
@@ -156,6 +158,20 @@ const SettingsPage = () => {
 
         <TabsContent value="general">
           <GeneralSettingsTab user={user} getRoleBadge={getRoleBadge} />
+        </TabsContent>
+
+        <TabsContent value="templates">
+          {hasRole("admin") ? (
+            <DocumentTemplatesTab />
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Shield className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                <p className="text-lg font-medium text-slate-700">Access Restricted</p>
+                <p className="text-slate-500">Only administrators can edit document templates</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 

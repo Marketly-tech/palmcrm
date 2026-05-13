@@ -1,11 +1,7 @@
 import { useParams } from "react-router-dom";
-import DOMPurify from "dompurify";
 import axios from "axios";
 import { useCustomerPage } from "../hooks/useCustomerPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "../components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -20,6 +16,7 @@ import {
   DocumentsTab, ChecklistTab, DetailsTab, PaymentTrackingTab,
   EmailComposerDialog, CustomerHeader, CustomerQuickInfo,
 } from "../components/customer";
+import EditableDocumentDialog from "../components/customer/documents/EditableDocumentDialog";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -202,13 +199,17 @@ const CustomerDetailPage = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Document Preview Dialog */}
-      <Dialog open={h.previewDialogOpen} onOpenChange={h.setPreviewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Document Preview</DialogTitle></DialogHeader>
-          <div className="mt-4" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(h.previewContent || "", { ADD_TAGS: ["style", "link", "img"], ADD_ATTR: ["target", "src", "alt"] }) }} />
-        </DialogContent>
-      </Dialog>
+      {/* Document Preview + Edit Dialog */}
+      <EditableDocumentDialog
+        open={h.previewDialogOpen}
+        onOpenChange={h.setPreviewDialogOpen}
+        doc={h.previewDoc}
+        customerName={h.customer?.name}
+        onSaved={() => {
+          // reload documents list so updated_at reflects
+          axios.get(`${API}/documents/${id}`).then(r => h.setDocuments(r.data)).catch(() => {});
+        }}
+      />
 
       {/* Document Delete Confirmation */}
       <AlertDialog open={h.docDeleteDialogOpen} onOpenChange={h.setDocDeleteDialogOpen}>
