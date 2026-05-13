@@ -5,6 +5,7 @@ import { Separator } from "../ui/separator";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../ui/select";
+import { CANONICAL_BANKS } from "../../utils/banks";
 
 const PaymentStep = ({ formData, onInputChange, onSelectChange }) => {
   return (
@@ -47,7 +48,14 @@ const PaymentStep = ({ formData, onInputChange, onSelectChange }) => {
           {formData.finance_type !== "self" && (
             <div className="space-y-2">
               <Label htmlFor="finance_bank">Preferred Bank</Label>
-              <Input id="finance_bank" name="finance_bank" value={formData.finance_bank} onChange={onInputChange} placeholder="e.g., HDFC, SBI" />
+              <Select value={formData.finance_bank} onValueChange={(v) => onSelectChange("finance_bank", v)}>
+                <SelectTrigger><SelectValue placeholder="Select preferred bank" /></SelectTrigger>
+                <SelectContent>
+                  {CANONICAL_BANKS.map((b) => (
+                    <SelectItem key={b} value={b}>{b}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>

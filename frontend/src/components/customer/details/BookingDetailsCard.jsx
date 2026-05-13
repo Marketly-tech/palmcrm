@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "../../ui/select";
 import { Pencil } from "lucide-react";
+import { CANONICAL_BANKS } from "../../../utils/banks";
 
 const BookingDetailsCard = ({
   customer,
@@ -50,7 +51,29 @@ const BookingDetailsCard = ({
               </div>
               <div>
                 <Label htmlFor="edit-finance-bank">Bank</Label>
-                <Input id="edit-finance-bank" data-testid="edit-finance-bank" value={bookingForm.finance_bank} onChange={(e) => setBookingForm(prev => ({ ...prev, finance_bank: e.target.value }))} />
+                <Select
+                  value={CANONICAL_BANKS.includes(bookingForm.finance_bank) ? bookingForm.finance_bank : (bookingForm.finance_bank ? "__other__" : "")}
+                  onValueChange={(v) => setBookingForm(prev => ({ ...prev, finance_bank: v === "__other__" ? "" : v }))}
+                >
+                  <SelectTrigger id="edit-finance-bank" data-testid="edit-finance-bank">
+                    <SelectValue placeholder="Select bank" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CANONICAL_BANKS.map((b) => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                    <SelectItem value="__other__">Other (type below)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!CANONICAL_BANKS.includes(bookingForm.finance_bank) && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Enter bank name"
+                    value={bookingForm.finance_bank}
+                    onChange={(e) => setBookingForm(prev => ({ ...prev, finance_bank: e.target.value }))}
+                    data-testid="edit-finance-bank-other"
+                  />
+                )}
               </div>
               <div>
                 <Label htmlFor="edit-booking-amount">Booking Amount</Label>

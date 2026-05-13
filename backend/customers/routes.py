@@ -4,6 +4,7 @@ Handles customer CRUD operations.
 """
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
+import re
 from fastapi import APIRouter, HTTPException, Depends
 from pymongo import ReturnDocument
 
@@ -11,6 +12,7 @@ from database import get_database
 from utils.enums import UserRole
 from auth import get_current_user, log_activity, check_role
 from customers.models import Customer, CustomerCreate, DocumentChecklist
+from utils.banks import to_canonical, aliases_for
 
 # Create router
 router = APIRouter(prefix="/customers", tags=["Customers"])
@@ -18,10 +20,26 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
 
 @router.get("/banks")
 async def get_unique_banks(user: dict = Depends(get_current_user)):
-    """Get unique finance_bank values for filter dropdown."""
+    """Get canonical bank names for the customer filter dropdown.
+
+    Returns each bank exactly once even when the DB has aliases
+    (e.g. "HDFC" + "HDFC Bank" both collapse to "HDFC Bank").
+    """
     db = get_database()
-    banks = await db.customers.distinct("finance_bank")
-    return sorted([b for b in banks if b])
+    raw_banks = await db.customers.distinct("finance_bank")
+    canonical_set = set()
+    for raw in raw_banks:
+        canonical = to_canonical(raw)
+        if canonical:
+            canonical_set.add(canonical)
+    return sorted(canonical_set)
+
+
+@router.get("/banks/registry")
+async def get_bank_registry(user: dict = Depends(get_current_user)):
+    """Canonical bank list used by frontend Select inputs."""
+    from utils.banks import list_canonical_names
+    return list_canonical_names()
 
 
 async def generate_customer_id():
@@ -77,7 +95,14 @@ def _build_customer_query(search, project, agreement_status, finance_bank, agree
     if agreement_status:
         query["agreement_status"] = agreement_status
     if finance_bank:
-        query["finance_bank"] = {"$regex": f"^{finance_bank}$", "$options": "i"}
+        # Match any DB alias of the chosen canonical bank, case-insensitive.
+        # e.g. user picks "HDFC Bank" → also matches rows with "HDFC", "HDFC BANK".
+        canonical = to_canonical(finance_bank) or finance_bank
+        alias_patterns = [re.escape(a) for a in aliases_for(canonical)]
+        query["finance_bank"] = {
+            "$regex": f"^({'|'.join(alias_patterns)})$",
+            "$options": "i",
+        }
     if agreement_filter == "pending_agreement":
         query["agreement_status"] = {"$in": ["draft", "sent"]}
     elif agreement_filter == "agreement_due":

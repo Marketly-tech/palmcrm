@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 33 — Canonical Bank Filter feature E2E verified. Backend: 6/6 pytest pass in test_bank_filter.py (dedup endpoint returns 'HDFC Bank' only once across HDFC/HDFC BANK/hdfc bank aliases; /banks/registry returns full 10-bank canonical list; finance_bank=HDFC%20Bank filter matches all seeded alias variants; unknown bank passthrough returns 200; Ramya untouched). Frontend: Customer list bank filter dropdown shows 6 deduped canonical names (HDFC Bank, Bank of Baroda, Canara Bank, State Bank of India, TATA Capital — single HDFC entry); selecting HDFC Bank filters 8 customers and aggregates ₹32,04,347 Total Overdue across aliases. BookingDetailsCard edit form Select shows all 10 canonical banks + 'Other (type below)' option; selecting Other reveals the text Input for legacy/free-text values. PaymentStep.jsx (public booking form) source-verified to use CANONICAL_BANKS in a Select with no free-text Input — wizard requires walking multiple steps to render but the component code is clean.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bank_filter.py",
+    "/app/test_reports/pytest/bank_filter_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/utils/banks.py — clean canonical/alias registry. _norm collapses whitespace + lowercases. to_canonical returns the input.strip() unchanged for unknown banks so they still appear in the filter list (good UX).",
+    "backend/customers/routes.py:97-105 — finance_bank filter builds a case-insensitive regex anchored with ^...$ from all aliases. Correct and SQL-injection-safe via re.escape().",
+    "customer create endpoint requires 'tower' field — not part of this story but documented for next testing agent (test_bank_filter.py adds tower='Tower A' to TEST seed payloads).",
+    "frontend/src/utils/banks.js mirrors backend canonical list — keep these two in sync; consider a single source served from /banks/registry to avoid drift.",
+    "BookingDetailsCard.jsx:55 — Select value coercion: if current finance_bank is not in CANONICAL_BANKS, defaults the Select to '__other__' and pre-fills the Input with the legacy value. Verified working with empty/'-' state. Good legacy-data handling.",
+    "PaymentStep.jsx — Preferred Bank Select has no free-text Other option (per spec, public form should be locked to canonical names). Field is conditionally rendered when finance_type !== 'self'.",
+    "CustomerFilters.jsx:35-45 — bank dropdown is fed from /api/customers/banks (deduped) — good.",
+    "MINOR: backend /banks endpoint still passes through unknown banks unchanged (line 48 of utils/banks.py returns raw.strip()), so if anyone enters 'hdfc bank ' with a trailing space it would not collapse with 'HDFC Bank' — but _norm handles trailing spaces via .strip() so this is actually fine."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_bank_filter.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6)",
+    "frontend": "100% on Customers list filter + BookingDetailsCard edit + PaymentStep code review"
+  },
+  "test_credentials": {
+    "admin": "crm@rrlbuildersanddevelopers.com / #RRLnew2026",
+    "test_customer": "Ramya test lead (6d902613-5106-4294-bc3e-b907f85127f7)"
+  },
+  "seed_data_creation": "Inserted 3 _TEST_BankFilter_* customers with finance_bank values 'HDFC', 'HDFC BANK', 'hdfc bank' via pytest module fixture; auto-deleted in teardown. Ramya's finance_bank was NOT modified at any point (Cancel was clicked in the edit dialog).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 33 canonical-bank filter feature works end-to-end. Backend regression at /app/backend/tests/test_bank_filter.py (6/6). Customer create POST requires `tower` field — keep in mind for any future seed payloads. PaymentStep was not exercised through full wizard UI flow (multi-step form requires extensive fixture data) but source confirmed to use CANONICAL_BANKS Select with no free-text. No open bugs from this story."
+}
