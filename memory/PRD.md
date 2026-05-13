@@ -334,6 +334,9 @@
 - [x] Payment Schedule doc: now shows slab-wise schedule instead of transactions (May 2026)
 - [x] Code Quality refactor — extracted `documents/generators.py` dispatcher + `documents/templates/transactions_export.py`; reduced `documents/routes.py` from 587→351 lines (Feb 2026)
 - [x] Frontend component split — `DetailsTab` 751→79, `PaymentTrackingTab` 488→129, `CommunicationTab` 310→46 lines; new subfolders `customer/details`, `customer/payment`, `customer/communication`; removed unused `PaymentTrackingCard.jsx` & `TransactionsCard.jsx` (Feb 2026)
+- [x] NOC HDFC/BOB "received by us" field now sums all transactions excluding TDS (was using booking_amount only) (Feb 2026)
+- [x] PDF inline editing — every generated document can be edited in-place via `EditableDocumentDialog` (iframe + contenteditable + save/download) (Feb 2026)
+- [x] Admin Template Editor — Settings → Document Templates tab. Snapshot built-in default → edit HTML with live preview → all future generations of that doc type use the override. Revert restores the built-in default. (Feb 2026)
 
 ---
 
@@ -349,7 +352,7 @@
 
 ### P3 (Low Priority)
 - User-Uploadable Email Attachments
-- Admin Template Editor (UI for editing PDF templates)
+- ~~Admin Template Editor (UI for editing PDF templates)~~ **DONE — Feb 2026**
 
 ---
 
