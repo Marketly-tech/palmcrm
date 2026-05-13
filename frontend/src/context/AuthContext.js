@@ -46,17 +46,17 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token, fetchUser]);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const response = await axios.post(`${API}/auth/login`, { email, password });
     const { access_token, user: userData } = response.data;
-    
+
     sessionStorage.setItem("token", access_token);
     axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
     setToken(access_token);
     setUser(userData);
-    
+
     return userData;
-  };
+  }, []);
 
   const hasRole = useCallback((roles) => {
     if (!user) return false;
@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     user, token, loading, login, logout, hasRole
-  }), [user, token, loading, logout, hasRole]);
+  }), [user, token, loading, login, logout, hasRole]);
 
   return (
     <AuthContext.Provider value={value}>

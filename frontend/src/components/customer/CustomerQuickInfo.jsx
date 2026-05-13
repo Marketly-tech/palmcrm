@@ -4,10 +4,19 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../ui/select";
 
+const AGREEMENT_BADGE_CLASSES = {
+  signed: "bg-green-100 text-green-700 border-green-300",
+  registered: "bg-blue-100 text-blue-700 border-blue-300",
+  sent: "bg-yellow-100 text-yellow-700 border-yellow-300",
+  disbursement: "bg-purple-100 text-purple-700 border-purple-300",
+};
+const DEFAULT_AGREEMENT_BADGE = "bg-slate-100 text-slate-700 border-slate-300";
+
 const CustomerQuickInfo = ({ customer, transactions, formatCurrency, getStatusBadge, onAgreementStatusChange }) => {
   const totalReceived = transactions.reduce((sum, txn) => sum + (txn.amount || 0), 0);
   const totalPrice = customer.total_price || 0;
   const receivedPercentage = totalPrice > 0 ? (totalReceived / totalPrice) * 100 : 0;
+  const agreementBadgeClass = AGREEMENT_BADGE_CLASSES[customer.agreement_status] || DEFAULT_AGREEMENT_BADGE;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -39,13 +48,7 @@ const CustomerQuickInfo = ({ customer, transactions, formatCurrency, getStatusBa
         <CardContent className="p-4">
           <p className="text-sm text-slate-500 mb-2">Agreement Status</p>
           <Select value={customer.agreement_status || "draft"} onValueChange={onAgreementStatusChange}>
-            <SelectTrigger className={`w-full h-8 ${
-              customer.agreement_status === "signed" ? "bg-green-100 text-green-700 border-green-300" :
-              customer.agreement_status === "registered" ? "bg-blue-100 text-blue-700 border-blue-300" :
-              customer.agreement_status === "sent" ? "bg-yellow-100 text-yellow-700 border-yellow-300" :
-              customer.agreement_status === "disbursement" ? "bg-purple-100 text-purple-700 border-purple-300" :
-              "bg-slate-100 text-slate-700 border-slate-300"
-            }`}>
+            <SelectTrigger className={`w-full h-8 ${agreementBadgeClass}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

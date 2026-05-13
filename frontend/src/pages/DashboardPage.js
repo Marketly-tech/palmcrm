@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
+import { logError } from "../utils/logger";
 import {
   StatsCards, RevenueCards, PaymentStageCard, ExportDataCard,
   PaymentStatusChart, UpcomingPayments, DueDateCountdown, RecentActivity,
@@ -38,7 +39,7 @@ const DashboardPage = () => {
       setPaymentsOverview(paymentsRes.data);
       setUpcomingDueDates(dueDatesRes.data || []);
     } catch (error) {
-      console.error("Dashboard data fetch failed:", error);
+      logError("Dashboard data fetch failed:", error);
     } finally {
       setLoading(false);
     }
@@ -53,7 +54,7 @@ const DashboardPage = () => {
       setPaymentStages(stagesRes.data);
       setCurrentStage(currentRes.data);
     } catch (error) {
-      console.error("Failed to fetch payment stages:", error);
+      logError("Failed to fetch payment stages:", error);
     }
   }, []);
 
@@ -62,7 +63,7 @@ const DashboardPage = () => {
       const res = await axios.get(`${API}/dashboard/overdue-by-stage`);
       setStageOverdue(res.data);
     } catch (error) {
-      console.error("Failed to fetch overdue data:", error);
+      logError("Failed to fetch overdue data:", error);
     }
   }, []);
 

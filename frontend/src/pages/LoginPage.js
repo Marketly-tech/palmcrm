@@ -313,14 +313,19 @@ const LoginPage = () => {
                 className="flex-1"
                 data-testid="reset-password-btn"
               >
-                {resetLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {resetStep === 1 ? "Verifying..." : "Resetting..."}
-                  </>
-                ) : (
-                  resetStep === 1 ? "Verify Email" : "Reset Password"
-                )}
+                {(() => {
+                  const verifyLabel = resetStep === 1 ? "Verify Email" : "Reset Password";
+                  const loadingLabel = resetStep === 1 ? "Verifying..." : "Resetting...";
+                  if (resetLoading) {
+                    return (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {loadingLabel}
+                      </>
+                    );
+                  }
+                  return verifyLabel;
+                })()}
               </Button>
             </div>
           </form>

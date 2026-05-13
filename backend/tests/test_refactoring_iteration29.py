@@ -17,8 +17,13 @@ BASE_URL = (
     os.environ.get('REACT_APP_BACKEND_URL')
     or 'https://builder-crm-dev.preview.emergentagent.com'
 ).rstrip('/')
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
+ADMIN_EMAIL = os.environ.get("ADMIN_TEST_EMAIL", "crm@rrlbuildersanddevelopers.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_TEST_PASSWORD")
+if not ADMIN_PASSWORD:
+    raise RuntimeError(
+        "ADMIN_TEST_PASSWORD env var is required to run this integration test. "
+        "See /app/memory/test_credentials.md for the dev credentials."
+    )
 TEST_CUSTOMER_ID = "6d902613-5106-4294-bc3e-b907f85127f7"  # Ramya test lead
 
 

@@ -179,20 +179,33 @@ const LeadsPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : leads.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Booking Amount</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+          {(() => {
+            if (loading) {
+              return (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              );
+            }
+            if (leads.length === 0) {
+              return (
+                <div className="text-center py-16 text-slate-500">
+                  <UserPlus className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                  <p className="text-lg">No new leads</p>
+                  <p className="text-sm mt-1">Leads from the public booking form will appear here</p>
+                </div>
+              );
+            }
+            return (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Unit</TableHead>
+                    <TableHead>Booking Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -246,15 +259,10 @@ const LeadsPage = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-              <UserPlus className="w-12 h-12 mb-4 text-slate-300" />
-              <p className="text-lg font-medium">No pending leads</p>
-              <p className="text-sm">New booking submissions will appear here</p>
-            </div>
-          )}
+                </TableBody>
+              </Table>
+            );
+          })()}
         </CardContent>
       </Card>
 

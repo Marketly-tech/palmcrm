@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { Users, Loader2, Trash2 } from "lucide-react";
 import { CreateCustomerDialog, CustomerFilters, CustomerTable } from "../components/customers";
+import { logError } from "../utils/logger";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -64,12 +65,12 @@ const CustomersPage = () => {
 
   const fetchProjects = async () => {
     try { const response = await axios.get(`${API}/projects`); setProjects(response.data); }
-    catch (error) { console.error("Failed to fetch projects:", error); }
+    catch (error) { logError("Failed to fetch projects:", error); }
   };
 
   const fetchBanks = async () => {
     try { const response = await axios.get(`${API}/customers/banks`); setBanks(response.data); }
-    catch (error) { console.error("Failed to fetch banks:", error); }
+    catch (error) { logError("Failed to fetch banks:", error); }
   };
 
   const handleSubmit = async (e) => {

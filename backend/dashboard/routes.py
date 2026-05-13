@@ -16,83 +16,97 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 
-@router.get("/stats")
-async def get_dashboard_stats(user: dict = Depends(get_current_user)):
-    """Get dashboard statistics."""
-    db = get_database()
-    total_customers = await db.customers.count_documents({})
-    pending_agreements = await db.customers.count_documents({"agreement_status": {"$in": ["draft", "sent"]}})
-    
-    # Calculate payments
-    today = datetime.now(timezone.utc).date()
-    week_end = today + timedelta(days=7)
-    
-    # === REVENUE CALCULATION USING AGGREGATION ===
+async def _calc_revenue_totals(db):
     revenue_pipeline = await db.payment_transactions.aggregate([
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
     ]).to_list(1)
     total_revenue = revenue_pipeline[0]["total"] if revenue_pipeline else 0
-    
-    # Get total flat value using aggregation
+
     flat_value_pipeline = await db.customers.aggregate([
         {"$group": {"_id": None, "total": {"$sum": "$total_price"}}}
     ]).to_list(1)
     total_flat_value = flat_value_pipeline[0]["total"] if flat_value_pipeline else 0
-    
-    # Total revenue = sum of all transactions (booking amounts are already included as transactions)
-    # No need to add booking_amount separately
-    
-    # Total balance = total flat value - total revenue collected
-    total_balance = total_flat_value - total_revenue
-    
-    # Total pending = same as balance
-    total_pending = total_balance
-    
-    # === PAYMENT SCHEDULE ANALYSIS (for due dates) ===
-    schedules = await db.payment_schedules.find({}, {"_id": 0, "items": 1, "customer_id": 1}).to_list(1000)
-    
+
+    return total_revenue, total_flat_value
+
+
+async def _analyze_payment_schedules(db, today, week_end):
+    """Return (payments_due_this_week, overdue_payments, status_counts)."""
+    schedules = await db.payment_schedules.find(
+        {}, {"_id": 0, "items": 1, "customer_id": 1}
+    ).to_list(1000)
     payments_due_this_week = 0
     overdue_payments = 0
     payment_status_counts = {"pending": 0, "paid": 0, "overdue": 0, "partial": 0}
-    
+
     for schedule in schedules:
-        for item in schedule.get('items', []):
-            status = item.get('payment_status', 'pending')
+        for item in schedule.get("items", []):
+            status = item.get("payment_status", "pending")
             payment_status_counts[status] = payment_status_counts.get(status, 0) + 1
-            
-            if status in ['pending', 'partial']:
-                try:
-                    due_date = datetime.strptime(item['due_date'], "%Y-%m-%d").date()
-                    if due_date < today:
-                        overdue_payments += 1
-                    elif due_date <= week_end:
-                        payments_due_this_week += 1
-                except (ValueError, TypeError):
-                    pass
-    
-    # Calculate pending percentage
-    total_amount = total_revenue + total_pending
-    pending_percentage = round((total_pending / total_amount * 100), 2) if total_amount > 0 else 0
-    
-    # Monthly revenue (last 6 months)
-    monthly_revenue = []
+            if status not in ("pending", "partial"):
+                continue
+            try:
+                due_date = datetime.strptime(item["due_date"], "%Y-%m-%d").date()
+            except (ValueError, TypeError, KeyError):
+                continue
+            if due_date < today:
+                overdue_payments += 1
+            elif due_date <= week_end:
+                payments_due_this_week += 1
+    return payments_due_this_week, overdue_payments, payment_status_counts
+
+
+def _build_monthly_revenue(total_revenue):
+    """Approximate monthly revenue distribution over the trailing 6 months."""
+    monthly = []
     for i in range(5, -1, -1):
-        month_date = datetime.now() - timedelta(days=30*i)
-        month_name = month_date.strftime("%b")
-        monthly_revenue.append({"month": month_name, "revenue": total_revenue / 6 if total_revenue > 0 else 0})
-    
+        month_date = datetime.now() - timedelta(days=30 * i)
+        monthly.append({
+            "month": month_date.strftime("%b"),
+            "revenue": total_revenue / 6 if total_revenue > 0 else 0,
+        })
+    return monthly
+
+
+@router.get("/stats")
+async def get_dashboard_stats(user: dict = Depends(get_current_user)):
+    """Get dashboard statistics."""
+    db = get_database()
+    is_admin = user["role"] == "admin"
+    today = datetime.now(timezone.utc).date()
+    week_end = today + timedelta(days=7)
+
+    total_customers = await db.customers.count_documents({})
+    pending_agreements = await db.customers.count_documents(
+        {"agreement_status": {"$in": ["draft", "sent"]}}
+    )
+
+    total_revenue, total_flat_value = await _calc_revenue_totals(db)
+    total_balance = total_flat_value - total_revenue
+    total_pending = total_balance
+
+    payments_due_this_week, overdue_payments, payment_status_counts = (
+        await _analyze_payment_schedules(db, today, week_end)
+    )
+
+    total_amount = total_revenue + total_pending
+    pending_percentage = (
+        round((total_pending / total_amount * 100), 2) if total_amount > 0 else 0
+    )
+    monthly_revenue = _build_monthly_revenue(total_revenue)
+
     return DashboardStats(
         total_customers=total_customers,
         pending_agreements=pending_agreements,
         payments_due_this_week=payments_due_this_week,
         overdue_payments=overdue_payments,
-        total_revenue=total_revenue if user['role'] == 'admin' else 0,
-        total_pending=total_pending if user['role'] == 'admin' else 0,
-        total_flat_value=total_flat_value if user['role'] == 'admin' else 0,
-        total_balance=total_balance if user['role'] == 'admin' else 0,
-        pending_percentage=pending_percentage if user['role'] == 'admin' else 0,
-        monthly_revenue=monthly_revenue if user['role'] == 'admin' else [],
-        payment_status_breakdown=payment_status_counts
+        total_revenue=total_revenue if is_admin else 0,
+        total_pending=total_pending if is_admin else 0,
+        total_flat_value=total_flat_value if is_admin else 0,
+        total_balance=total_balance if is_admin else 0,
+        pending_percentage=pending_percentage if is_admin else 0,
+        monthly_revenue=monthly_revenue if is_admin else [],
+        payment_status_breakdown=payment_status_counts,
     )
 
 

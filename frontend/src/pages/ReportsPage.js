@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { logError } from "../utils/logger";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { ScrollArea } from "../components/ui/scroll-area";
@@ -61,7 +62,7 @@ const ReportsPage = () => {
       setActivities(activitiesRes.data);
       setCustomers(customersRes.data.customers);
     } catch (error) {
-      console.error("Reports data fetch failed:", error);
+      logError("Reports data fetch failed:", error);
     } finally {
       setLoading(false);
     }

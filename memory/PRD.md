@@ -341,6 +341,7 @@
 - [x] **`/payments` page re-linked to sidebar** — orphaned during the April 10 refactor; now appears between Customers and Documents with IndianRupee icon. (Feb 2026)
 - [x] **Disbursement Slab card** — prominent red summary tiles for "Overdue Customers" count + "Total Overdue Amount" added to Dashboard. (Feb 2026)
 - [x] **FEATURE_TIMELINE.md** — chronological audit of every feature built since March 2026, saved at `/app/memory/FEATURE_TIMELINE.md`. (Feb 2026)
+- [x] **Code Quality Round 2** — moved hardcoded test password to env var (`ADMIN_TEST_PASSWORD`); replaced production `console.error` calls with `logError` helper that no-ops in prod; refactored `get_dashboard_stats` into 3 helper functions; flattened nested ternaries in LoginPage / LeadsPage / CustomerQuickInfo; memoized `login` in AuthContext to prevent stale closures. Verified by re-running `tests/test_refactoring_iteration29.py` (19/19 pass). False-positive findings (safePreview, EmailComposerDialog XSS, `att`/`pdf_bytes`/`db` undefined) confirmed safe and skipped. (Feb 2026)
 
 ---
 
