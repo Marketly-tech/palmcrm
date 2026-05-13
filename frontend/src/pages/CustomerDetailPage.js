@@ -134,7 +134,9 @@ const CustomerDetailPage = () => {
                 const res = await axios.post(`${API}/documents/generate`, { customer_id: id, doc_type: docType });
                 h.setDocuments([...h.documents, res.data.document]);
                 toast.success("Document generated");
-              } catch { toast.error("Failed to generate document"); }
+              } catch (error) {
+                toast.error(error.response?.data?.detail || "Failed to generate document");
+              }
             }}
             onPreviewDocument={h.handlePreviewDocument}
             onDownloadDocument={h.handleDownloadDocument}

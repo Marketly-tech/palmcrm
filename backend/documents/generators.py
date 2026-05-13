@@ -4,7 +4,8 @@ Dispatches to the correct HTML template builder based on DocumentType.
 Extracted from documents/routes.py to keep route handlers thin and reduce
 cyclomatic complexity.
 """
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from fastapi import HTTPException
@@ -12,6 +13,7 @@ from fastapi import HTTPException
 from utils.enums import DocumentType
 from utils import format_indian_currency
 from utils.payment_helpers import PAYMENT_STAGES
+from payments.models import DEFAULT_PAYMENT_SCHEDULE
 
 from documents.templates import (
     generate_sales_agreement_html,
@@ -66,16 +68,58 @@ async def _render_sales_agreement(db, customer: dict) -> str:
     return generate_sales_agreement_html(customer, schedule_items, transactions)
 
 
+async def _auto_generate_schedule(db, customer: dict) -> list:
+    """Build a default payment schedule for the customer from the template and
+    persist it. Returns the items list."""
+    total_amount = customer.get("total_price", 0) or 0
+    if total_amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Cannot generate payment schedule: customer has no total price set. "
+                "Please complete the price calculator first."
+            ),
+        )
+    items = []
+    cumulative = 0
+    for item in DEFAULT_PAYMENT_SCHEDULE:
+        amount = total_amount * (item["percentage"] / 100)
+        cumulative += amount
+        items.append({
+            "id": str(uuid.uuid4()),
+            "installment_name": item["installment_name"],
+            "milestone": item["milestone"],
+            "description": item.get("description", ""),
+            "percentage": item["percentage"],
+            "amount": round(amount, 2),
+            "cumulative": round(cumulative, 2),
+            "due_date": "",
+            "payment_status": "pending",
+            "payment_date": None,
+        })
+    schedule_doc = {
+        "id": str(uuid.uuid4()),
+        "customer_id": customer.get("id"),
+        "items": items,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.payment_schedules.update_one(
+        {"customer_id": customer.get("id")},
+        {"$set": schedule_doc},
+        upsert=True,
+    )
+    return items
+
+
 async def _render_payment_schedule(db, customer: dict) -> str:
     schedule = await db.payment_schedules.find_one(
         {"customer_id": customer.get('id')}, {"_id": 0}
     )
     schedule_items = schedule.get('items', []) if schedule else []
     if not schedule_items:
-        raise HTTPException(
-            status_code=404,
-            detail="No payment schedule found. Please generate one first."
-        )
+        # Auto-generate from the default template so document generation is a
+        # one-click action for users who haven't manually built a schedule yet.
+        schedule_items = await _auto_generate_schedule(db, customer)
     return generate_payment_schedule_html(customer, schedule_items)
 
 

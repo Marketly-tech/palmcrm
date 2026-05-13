@@ -171,11 +171,7 @@ async def generate_payment_schedule_pdf(customer_id: str, user: dict = Depends(g
     customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    schedule = await db.payment_schedules.find_one({"customer_id": customer_id}, {"_id": 0})
-    schedule_items = schedule.get('items', []) if schedule else []
-    if not schedule_items:
-        raise HTTPException(status_code=404, detail="No payment schedule found. Please generate one first.")
-    html_content = generate_payment_schedule_html(customer, schedule_items)
+    html_content = await render_document_content(db, customer, DocumentType.PAYMENT_SCHEDULE, {})
     await log_activity(user['id'], user['name'], "generate", "payment_schedule_pdf", customer_id, "Generated Payment Schedule PDF")
     return {"html": html_content, "filename": f"RRL_PaymentSchedule_{customer.get('name', 'Customer').replace(' ', '_')}.pdf"}
 
