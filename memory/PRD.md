@@ -337,6 +337,10 @@
 - [x] NOC HDFC/BOB "received by us" field now sums all transactions excluding TDS (was using booking_amount only) (Feb 2026)
 - [x] PDF inline editing — every generated document can be edited in-place via `EditableDocumentDialog` (iframe + contenteditable + save/download) (Feb 2026)
 - [x] Admin Template Editor — Settings → Document Templates tab. Snapshot built-in default → edit HTML with live preview → all future generations of that doc type use the override. Revert restores the built-in default. (Feb 2026)
+- [x] **Payment Receipt** — new document type matching RRL physical receipt format. Auto-assigned receipt numbers (PAR-001, PAR-002, ...) on every transaction creation. Green Receipt button in Transactions Table generates + opens editable receipt for download. Backfills receipt numbers for legacy transactions. (Feb 2026)
+- [x] **`/payments` page re-linked to sidebar** — orphaned during the April 10 refactor; now appears between Customers and Documents with IndianRupee icon. (Feb 2026)
+- [x] **Disbursement Slab card** — prominent red summary tiles for "Overdue Customers" count + "Total Overdue Amount" added to Dashboard. (Feb 2026)
+- [x] **FEATURE_TIMELINE.md** — chronological audit of every feature built since March 2026, saved at `/app/memory/FEATURE_TIMELINE.md`. (Feb 2026)
 
 ---
 
