@@ -54,6 +54,7 @@ class DocumentType(str, Enum):
     NOC_HDFC = "noc_hdfc"
     NOC_BOB = "noc_bob"
     NOC_TATA = "noc_tata"
+    PAYMENT_RECEIPT = "payment_receipt"
 
 
 class TransactionStage(str, Enum):

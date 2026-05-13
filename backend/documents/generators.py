@@ -23,6 +23,7 @@ from documents.templates import (
     generate_noc_bob_html,
     generate_noc_tata_html,
     generate_demand_letter_html,
+    generate_payment_receipt_html,
     get_default_template,
 )
 
@@ -145,6 +146,21 @@ async def _render_from_template(
     return content
 
 
+async def _render_payment_receipt(db, customer: dict, custom_fields: Dict[str, Any]) -> str:
+    transaction_id = (custom_fields or {}).get("transaction_id")
+    if not transaction_id:
+        raise HTTPException(
+            status_code=400,
+            detail="transaction_id is required in custom_fields for payment_receipt"
+        )
+    transaction = await db.payment_transactions.find_one(
+        {"id": transaction_id, "customer_id": customer.get("id")}, {"_id": 0}
+    )
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return generate_payment_receipt_html(customer, transaction)
+
+
 async def render_document_content(
     db, customer: dict, doc_type: DocumentType, custom_fields: Dict[str, Any] = None
 ) -> str:
@@ -170,6 +186,8 @@ async def render_document_content(
         return await _render_payment_schedule(db, customer)
     if doc_type == DocumentType.DEMAND_LETTER:
         return await _render_demand_letter(db, customer)
+    if doc_type == DocumentType.PAYMENT_RECEIPT:
+        return await _render_payment_receipt(db, customer, custom_fields or {})
     if doc_type in _NOC_GENERATORS:
         return await _render_noc(db, customer, doc_type)
     if doc_type in _SIMPLE_GENERATORS:

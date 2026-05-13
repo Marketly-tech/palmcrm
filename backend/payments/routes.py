@@ -174,7 +174,19 @@ async def create_transaction(customer_id: str, transaction: PaymentTransactionCr
     customer = await db.customers.find_one({"$or": [{"id": customer_id}, {"customer_id": customer_id}]})
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    
+
+    # Auto-assign receipt number (PAR-XXX, sequential across all transactions)
+    counter = await db.settings.find_one_and_update(
+        {"type": "receipt_counter"},
+        {"$inc": {"value": 1}},
+        upsert=True,
+        return_document=True,
+    )
+    if not counter or counter.get("value") is None:
+        counter = await db.settings.find_one({"type": "receipt_counter"})
+    seq = int(counter.get("value", 1)) if counter else 1
+    receipt_number = f"PAR-{seq:03d}"
+
     new_transaction = PaymentTransaction(
         customer_id=customer_id,
         transaction_stage=transaction.transaction_stage,
@@ -182,9 +194,10 @@ async def create_transaction(customer_id: str, transaction: PaymentTransactionCr
         bank_name=transaction.bank_name,
         transaction_number=transaction.transaction_number,
         amount=transaction.amount,
-        notes=transaction.notes
+        notes=transaction.notes,
+        receipt_number=receipt_number,
     )
-    
+
     await db.payment_transactions.insert_one(new_transaction.model_dump())
     
     # Update customer's total_received and balance_amount

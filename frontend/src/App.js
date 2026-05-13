@@ -13,6 +13,7 @@ import ReportsPage from "./pages/ReportsPage";
 import LeadsPage from "./pages/LeadsPage";
 import BookingFormPage from "./pages/BookingFormPage";
 import EmailLogsPage from "./pages/EmailLogsPage";
+import PaymentsPage from "./pages/PaymentsPage";
 import "./App.css";
 
 const ProtectedRoute = ({ children }) => {
@@ -51,6 +52,7 @@ function App() {
                     <Route path="/leads" element={<LeadsPage />} />
                     <Route path="/customers" element={<CustomersPage />} />
                     <Route path="/customers/:id" element={<CustomerDetailPage />} />
+                    <Route path="/payments" element={<PaymentsPage />} />
                     <Route path="/documents" element={<DocumentsPage />} />
                     <Route path="/calculator" element={<CalculatorPage />} />
                     <Route path="/reports" element={<ReportsPage />} />

@@ -37,6 +37,7 @@ const PaymentTrackingTab = ({
   handleSaveTransaction,
   handleEditTransaction,
   handleDeleteTransaction,
+  handleGenerateReceipt,
 }) => {
   const handleExport = async () => {
     try {
@@ -119,6 +120,7 @@ const PaymentTrackingTab = ({
             isAccountsRole={isAccountsRole}
             handleEditTransaction={handleEditTransaction}
             handleDeleteTransaction={handleDeleteTransaction}
+            handleGenerateReceipt={handleGenerateReceipt}
           />
         </CardContent>
       </Card>

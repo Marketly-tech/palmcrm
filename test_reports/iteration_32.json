@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 32 — Payment Receipt feature E2E verified. Backend: 9/9 pytest pass (PAR-XXX auto-assign, receipt HTML fragments, PDF download via WeasyPrint, admin edit + accounts 403, payments/overview regression, transactions list, legacy backfill, doc reuse). Frontend: Customer Detail → Payment Tracking tab shows 'Receipt No.' column with PAR-001/003/005, green Receipt icon opens EditableDocumentDialog rendering the full receipt template (RRL header, address, www link, Invoice Number PAR-001, Received with thanks, A sum of Rupees, For Palm Altezze — Flat No., Towards, AUTHORISED SIGNATURE, Cheque/s subject to realisation). Toast 'Receipt PAR-001 ready' shown. Sidebar Payments nav (IndianRupee icon) loads /payments page (PaymentsPage.js) without errors. Dashboard PaymentStageCard renders the overdue summary tiles conditionally on stageOverdue.length > 0 (data-testid='overdue-customers-summary' + 'overdue-total-summary' present in code; not visible on test data because current stage has zero overdue customers).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PaymentReceipt template (payment_receipt.py)", "issue": "Receipt template renders BOTH an 'Invoice Number: PAR-001' line (top-right) AND a separate 'Receipt No.' label whose value is blank. Looks duplicated/unfilled on the printed receipt. Either populate Receipt No. with the same PAR- value, or drop one of the two labels.", "selector": "Payment Receipt dialog body", "priority": "LOW"},
+      {"component": "PaymentStageCard overdue tiles", "issue": "Tiles only render when stageOverdue.length > 0. On current test data (stage 'On Completion of Podium Slab 40%') no overdue customers exist so tiles are hidden. Spec wording 'now shows two prominent red summary tiles' suggests they should be visible at all times. Consider always rendering them (showing 0 / ₹0) so the user sees the metric even when there is no overdue.", "selector": "[data-testid='overdue-customers-summary']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_payment_receipt.py",
+    "/app/test_reports/pytest/payment_receipt_results.xml"
+  ],
+  "action_items": [
+    "LOW: In templates/payment_receipt.py, fill the 'Receipt No.' field with transaction.receipt_number (currently blank, duplicates Invoice Number row).",
+    "LOW: Consider always rendering the two overdue summary tiles in PaymentStageCard (show 0 / ₹0 when stageOverdue is empty) so the dashboard metric is consistent."
+  ],
+  "critical_code_review_comments": [
+    "payments/routes.py:179-188 — receipt counter via $inc on db.settings is correct and atomic; works for legacy txns via _ensure_receipt_number in documents/routes.py.",
+    "documents/routes.py:299-364 — generate_payment_receipt correctly handles customer lookup by both id and customer_id, reuses existing GeneratedDocument (no duplicates), backfills receipt_number, stores transaction_id link.",
+    "documents/routes.py:230-246 — PUT /documents/html/{doc_id} blocks accounts role with 403 (verified). Admin edit confirmed to persist on subsequent GET.",
+    "WeasyPrint PDF generation tested: 200 OK, content-type application/pdf, %PDF magic bytes, >5KB payload.",
+    "PaymentStageCard.jsx:38 — the entire overdue block (including the 2 summary tiles) is gated behind stageOverdue.length > 0. If main agent wants the tiles to always show, hoist them out of this conditional.",
+    "PaymentsPage loads successfully with no 'customers.slice' or similar runtime errors. Sidebar IndianRupee nav item works.",
+    "DashboardLayout: 'Payments' nav rendered between Customers and Documents as specified."
+  ],
+  "updated_files": ["/app/backend/tests/test_payment_receipt.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% on all requested flows"},
+  "test_credentials": {
+    "admin": "crm@rrlbuildersanddevelopers.com / #RRLnew2026",
+    "accounts": "accounts@rrlbuilders.com / accounts123",
+    "test_customer": "Ramya test lead (6d902613-5106-4294-bc3e-b907f85127f7)"
+  },
+  "seed_data_creation": "Test transactions created on Ramya test lead during pytest were auto-cleaned via module-scoped teardown (DELETE /api/transactions and DELETE /api/documents). No residual TEST_ data left in DB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 32 Payment Receipt feature is fully functional. Backend regression at /app/backend/tests/test_payment_receipt.py (9/9). Two LOW priority cosmetic items: (1) Receipt template has unfilled 'Receipt No.' field next to filled 'Invoice Number', (2) Overdue summary tiles in PaymentStageCard render only when overdue list is non-empty. No blockers."
+}

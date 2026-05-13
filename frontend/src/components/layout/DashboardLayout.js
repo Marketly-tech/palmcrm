@@ -24,12 +24,14 @@ import {
   ChevronDown,
   UserPlus,
   Mail,
+  IndianRupee,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "sales", "support"] },
   { name: "Leads", href: "/leads", icon: UserPlus, roles: ["admin", "manager", "sales"] },
   { name: "Customers", href: "/customers", icon: Users, roles: ["admin", "manager", "accounts", "sales", "support"] },
+  { name: "Payments", href: "/payments", icon: IndianRupee, roles: ["admin", "manager", "accounts"] },
   { name: "Documents", href: "/documents", icon: FileText, roles: ["admin", "manager", "accounts"] },
   { name: "Payment Tracking", href: "/calculator", icon: CreditCard, roles: ["admin", "manager", "accounts"] },
   { name: "Email Tracking", href: "/email-logs", icon: Mail, roles: ["admin", "manager"] },

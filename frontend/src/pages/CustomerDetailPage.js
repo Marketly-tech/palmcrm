@@ -100,6 +100,7 @@ const CustomerDetailPage = () => {
             handleSaveTransaction={h.handleSaveTransaction}
             handleEditTransaction={h.handleEditTransaction}
             handleDeleteTransaction={h.handleDeleteTransaction}
+            handleGenerateReceipt={h.handleGenerateReceipt}
           />
         </TabsContent>
 

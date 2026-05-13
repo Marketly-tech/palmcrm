@@ -37,6 +37,18 @@ const PaymentStageCard = ({
       </div>
       {stageOverdue && stageOverdue.length > 0 && (
         <div className="mt-4">
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200" data-testid="overdue-customers-summary">
+              <p className="text-xs text-red-700/80 uppercase tracking-wide">Overdue Customers</p>
+              <p className="text-2xl font-bold text-red-700" data-testid="overdue-customers-count">{stageOverdue.length}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200" data-testid="overdue-total-summary">
+              <p className="text-xs text-red-700/80 uppercase tracking-wide">Total Overdue Amount</p>
+              <p className="text-2xl font-bold text-red-700" data-testid="overdue-total-amount">
+                {formatCurrency(stageOverdue.reduce((sum, i) => sum + (i.overdue_amount || 0), 0))}
+              </p>
+            </div>
+          </div>
           <p className="text-sm font-medium text-slate-700 mb-2">Overdue Customers ({stageOverdue.length})</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             {stageOverdue.slice(0, 6).map((item) => (

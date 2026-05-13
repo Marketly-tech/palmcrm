@@ -397,6 +397,23 @@ export function useCustomerPage(id) {
     }
   };
 
+  const handleGenerateReceipt = async (txn) => {
+    try {
+      const res = await axios.post(`${API}/documents/payment-receipt/${id}/${txn.id}`);
+      // Open the EditableDocumentDialog with the generated receipt
+      setPreviewDoc({
+        id: res.data.id,
+        doc_type: res.data.doc_type,
+      });
+      setPreviewDialogOpen(true);
+      // refresh transactions so receipt_number is shown on the row
+      await refreshTransactions();
+      toast.success(`Receipt ${res.data.receipt_number} ready — edit if needed, then download`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to generate receipt");
+    }
+  };
+
   // ─── Documents ───────────────────────────────────────────────
   const handlePreviewDocument = async (doc) => {
     setPreviewDoc(doc);
@@ -714,6 +731,7 @@ export function useCustomerPage(id) {
     editingTransaction, setEditingTransaction,
     newTransaction, setNewTransaction,
     handleSaveTransaction, handleEditTransaction, handleDeleteTransaction,
+    handleGenerateReceipt,
     // Documents
     previewDialogOpen, setPreviewDialogOpen, previewContent, previewDoc,
     docDeleteDialogOpen, setDocDeleteDialogOpen, docToDelete,

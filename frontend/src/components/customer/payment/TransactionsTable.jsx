@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../ui/table";
-import { Edit, Trash2, CreditCard } from "lucide-react";
+import { Edit, Trash2, CreditCard, Receipt } from "lucide-react";
 
 const stageClass = (stage) => {
   switch (stage) {
@@ -31,6 +31,7 @@ const TransactionsTable = ({
   isAccountsRole,
   handleEditTransaction,
   handleDeleteTransaction,
+  handleGenerateReceipt,
 }) => {
   if (transactions.length === 0) {
     return (
@@ -46,6 +47,7 @@ const TransactionsTable = ({
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead>Receipt No.</TableHead>
           <TableHead>Stage</TableHead>
           <TableHead>Date</TableHead>
           <TableHead>Bank Name</TableHead>
@@ -58,6 +60,9 @@ const TransactionsTable = ({
       <TableBody>
         {transactions.map((txn) => (
           <TableRow key={txn.id}>
+            <TableCell className="font-mono text-xs text-slate-600">
+              {txn.receipt_number || <span className="text-slate-300">—</span>}
+            </TableCell>
             <TableCell>
               <Badge className={stageClass(txn.transaction_stage)}>
                 {stageLabel(txn.transaction_stage)}
@@ -69,12 +74,23 @@ const TransactionsTable = ({
             <TableCell className="text-right font-medium">{txn.amount ? formatCurrency(txn.amount) : '-'}</TableCell>
             <TableCell className="max-w-xs truncate" title={txn.notes}>{txn.notes || '-'}</TableCell>
             <TableCell className="text-center">
-              <div className="flex justify-center gap-2">
+              <div className="flex justify-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleGenerateReceipt(txn)}
+                  data-testid={`receipt-transaction-${txn.id}`}
+                  title="Generate Payment Receipt"
+                  className="text-emerald-600 hover:text-emerald-700"
+                >
+                  <Receipt className="w-4 h-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleEditTransaction(txn)}
                   data-testid={`edit-transaction-${txn.id}`}
+                  title="Edit Transaction"
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
@@ -85,6 +101,7 @@ const TransactionsTable = ({
                     className="text-red-500 hover:text-red-700"
                     onClick={() => handleDeleteTransaction(txn.id)}
                     data-testid={`delete-transaction-${txn.id}`}
+                    title="Delete Transaction"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

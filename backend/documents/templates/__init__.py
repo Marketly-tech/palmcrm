@@ -16,6 +16,7 @@ from documents.templates.allotment_letter import generate_allotment_letter_html
 from documents.templates.payment_schedule import generate_payment_schedule_pdf_html, generate_payment_schedule_html
 from documents.templates.demand_letter import generate_demand_letter_html
 from documents.templates.transactions_export import generate_transactions_export_html
+from documents.templates.payment_receipt import generate_payment_receipt_html
 
 __all__ = [
     'generate_sales_agreement_template',
@@ -35,4 +36,5 @@ __all__ = [
     'generate_payment_schedule_html',
     'generate_demand_letter_html',
     'generate_transactions_export_html',
+    'generate_payment_receipt_html',
 ]

@@ -276,6 +276,94 @@ async def delete_generated_document(doc_id: str, user: dict = Depends(get_curren
     return {"message": "Document deleted successfully"}
 
 
+# ==================== PAYMENT RECEIPT ====================
+async def _ensure_receipt_number(db, transaction: dict) -> dict:
+    """Backfill a receipt_number on legacy transactions that don't have one."""
+    if transaction.get("receipt_number"):
+        return transaction
+    counter = await db.settings.find_one_and_update(
+        {"type": "receipt_counter"},
+        {"$inc": {"value": 1}},
+        upsert=True,
+        return_document=True,
+    )
+    seq = int((counter or {}).get("value", 1) or 1)
+    receipt_number = f"PAR-{seq:03d}"
+    await db.payment_transactions.update_one(
+        {"id": transaction["id"]}, {"$set": {"receipt_number": receipt_number}}
+    )
+    transaction["receipt_number"] = receipt_number
+    return transaction
+
+
+@router.post("/documents/payment-receipt/{customer_id}/{transaction_id}")
+async def generate_payment_receipt(
+    customer_id: str,
+    transaction_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Generate (or refresh) the Payment Receipt for a single transaction and
+    return both its `doc_id` (for the EditableDocumentDialog) and `content`.
+    Reuses an existing receipt for this transaction if already generated."""
+    db = get_database()
+    customer = await db.customers.find_one(
+        {"$or": [{"id": customer_id}, {"customer_id": customer_id}]}, {"_id": 0}
+    )
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    transaction = await db.payment_transactions.find_one(
+        {"id": transaction_id, "customer_id": customer.get("id")}, {"_id": 0}
+    )
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    transaction = await _ensure_receipt_number(db, transaction)
+
+    # Render fresh receipt HTML
+    from documents.templates import generate_payment_receipt_html
+    content = generate_payment_receipt_html(customer, transaction)
+
+    # Re-use existing generated document for this transaction if present
+    existing = await db.generated_documents.find_one(
+        {
+            "customer_id": customer.get("id"),
+            "doc_type": DocumentType.PAYMENT_RECEIPT.value,
+            "transaction_id": transaction_id,
+        },
+        {"_id": 0},
+    )
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if existing:
+        await db.generated_documents.update_one(
+            {"id": existing["id"]},
+            {"$set": {"content": content, "updated_at": now_iso}},
+        )
+        doc_id = existing["id"]
+    else:
+        gen_doc = GeneratedDocument(
+            customer_id=customer.get("id"),
+            doc_type=DocumentType.PAYMENT_RECEIPT,
+            content=content,
+            generated_by=user["id"],
+        )
+        doc = gen_doc.model_dump()
+        doc["generated_at"] = doc["generated_at"].isoformat()
+        doc["transaction_id"] = transaction_id
+        doc["receipt_number"] = transaction.get("receipt_number")
+        await db.generated_documents.insert_one(doc)
+        doc_id = gen_doc.id
+
+    await log_activity(
+        user["id"], user["name"], "generate", "document", doc_id,
+        f"Generated payment receipt {transaction.get('receipt_number')}"
+    )
+    return {
+        "id": doc_id,
+        "doc_type": DocumentType.PAYMENT_RECEIPT.value,
+        "content": content,
+        "receipt_number": transaction.get("receipt_number"),
+    }
+
+
 @router.get("/documents/download/{doc_id}")
 async def download_document(doc_id: str, user: dict = Depends(get_current_user)):
     db = get_database()

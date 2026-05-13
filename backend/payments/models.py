@@ -43,6 +43,7 @@ class PaymentTransaction(BaseModel):
     transaction_number: str
     amount: Optional[float] = 0
     notes: Optional[str] = ""
+    receipt_number: Optional[str] = None  # e.g. "PAR-182" - assigned on creation
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
