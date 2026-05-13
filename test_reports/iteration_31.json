@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 31 — Retested DocumentTemplatesTab after the customers normalization fix. All requested frontend flows pass. End-to-end override pickup for noc_hdfc on Ramya test lead verified: generated doc content contained the marker saved via UI. Test data cleaned up.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DocumentTemplatesTab (preview iframe)", "issue": "When toggling Code → Preview after a save, the freshly mounted iframe is empty until `content` state changes. The iframe-write useEffect depends only on `content`; on Preview remount the iframe is not re-written. First-render works (content changes from '' to snapshot HTML), but subsequent Code↔Preview toggles can leave the preview blank. Minor: content correctness verified, just UI rendering glitch.", "selector": "iframe[title='Template preview']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "SettingsPage", "issues": ["Document Templates tab trigger is still visible to the 'accounts' role; only the panel content shows the Access Restricted card. Spec said the tab itself should be admin-only — consider hiding TabsTrigger when !hasRole('admin')."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_31.json"],
+  "action_items": [
+    "Optional (LOW): Fix preview iframe re-render on showCode toggle — add `showCode` to the iframe-write useEffect deps OR call the write directly in onClick of the Preview toggle button. Workaround: re-edit content to force a refresh.",
+    "Optional: hide the 'Document Templates' TabsTrigger from non-admin roles in SettingsPage (purely cosmetic since panel correctly blocks access)."
+  ],
+  "critical_code_review_comments": [
+    "Fix verified at lines 90-93 of DocumentTemplatesTab.jsx — Array.isArray check + customers fallback key correctly normalizes the paginated /api/customers response. No more 'customers.slice is not a function' crash.",
+    "Override → generation E2E verified: snapshot noc_hdfc → edit HTML with marker 'OVERRIDE_E2E_MZ9P_MARKER' → Save → POST /api/documents/generate for Ramya test lead → returned content contains the marker (status 200, contentLen 3720 vs default 3695). Override precedence works correctly.",
+    "Customer Select trigger label does not always reflect the freshly clicked option when the dropdown closes quickly (during the first run KONGARA RAMARAO remained in trigger after clicking Ramya text). Did not block snapshot. Could be a Radix Select timing issue or duplicate option text. Worth verifying that 'Ramya test lead' is actually included in /api/customers — she may be a lead, not a customer. Snapshot endpoint works with any valid customer_id.",
+    "Save toast 'Template saved — future generations will use it' shown correctly. Revert toast 'Reverted to built-in default' shown correctly and Customize button restored, confirming DB delete.",
+    "Non-admin 'accounts' role correctly sees the Access Restricted card with shield icon and 'Only administrators can edit document templates' message. No editor controls leak through."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped, already 18/18 in iteration_30)", "frontend": "100% on requested flows (load, customize, save, revert, role gate, E2E override pickup). 1 minor iframe-refresh glitch."},
+  "test_credentials": {
+    "admin": "crm@rrlbuildersanddevelopers.com / #RRLnew2026",
+    "accounts": "accounts@rrlbuilders.com / accounts123",
+    "test_customer": "Ramya test lead (6d902613-5106-4294-bc3e-b907f85127f7)"
+  },
+  "seed_data_creation": "Three noc_hdfc template overrides were created during testing — each was reverted (DELETE /api/templates/{id}) before logout. Three generated docs were created and deleted via DELETE /api/documents/{id}. No residual data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration_30 bug ('customers.slice is not a function') is RESOLVED. The DocumentTemplatesTab editor is fully functional for the admin role and properly blocked for accounts. Only nit: switching Code → Preview after edits sometimes shows blank iframe (re-edit forces re-render). Backend regression tests for this feature are at /app/backend/tests/test_iteration30_doc_editor.py (18/18 last run).",
+  "rca of the issue": "Original bug: /api/customers returns {customers:[...], total:N} but DocumentTemplatesTab was doing setCustomers(custRes.data || []) → customers.slice(...) threw. Fix applied at lines 90-93: Array.isArray(custRes.data) ? custRes.data : (custRes.data?.customers || []). Verified the customers dropdown now populates (e.g., 'JAYANTHI S (RRL-00001)', 'KONGARA RAMARAO (RRL-00016)' visible) and no runtime error overlay appears."
+}

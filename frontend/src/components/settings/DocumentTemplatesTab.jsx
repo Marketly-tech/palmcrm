@@ -87,9 +87,12 @@ const DocumentTemplatesTab = () => {
           axios.get(`${API}/customers`),
         ]);
         setTemplates(tmplRes.data || []);
-        setCustomers(custRes.data || []);
-        if ((custRes.data || []).length > 0) {
-          setSampleCustomerId(custRes.data[0].id);
+        const custList = Array.isArray(custRes.data)
+          ? custRes.data
+          : custRes.data?.customers || [];
+        setCustomers(custList);
+        if (custList.length > 0) {
+          setSampleCustomerId(custList[0].id);
         }
       } catch {
         toast.error("Failed to load templates");
