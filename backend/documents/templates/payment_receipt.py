@@ -82,7 +82,7 @@ def _stage_label(stage: str) -> str:
 def generate_payment_receipt_html(customer: dict, transaction: dict) -> str:
     """Render the payment receipt HTML for a single transaction.
 
-    Layout mirrors the printed RRL receipt: top-right Invoice Number + Date,
+    Layout mirrors the printed RRL receipt: top-right Receipt Number + Date,
     label/value rows for "Received from", amount in words, cheque/draft no.,
     flat number and stage; bottom right amount box + authorised signature.
     """
@@ -257,7 +257,7 @@ def generate_payment_receipt_html(customer: dict, transaction: dict) -> str:
       <div class="left">Receipt No.</div>
       <div class="right">
         <div class="row">
-          <span class="lbl">Invoice Number:</span>
+          <span class="lbl">Receipt Number:</span>
           <span class="val">{receipt_no}</span>
         </div>
         <div class="row">
