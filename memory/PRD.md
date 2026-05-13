@@ -343,6 +343,7 @@
 - [x] **FEATURE_TIMELINE.md** — chronological audit of every feature built since March 2026, saved at `/app/memory/FEATURE_TIMELINE.md`. (Feb 2026)
 - [x] **Code Quality Round 2** — moved hardcoded test password to env var (`ADMIN_TEST_PASSWORD`); replaced production `console.error` calls with `logError` helper that no-ops in prod; refactored `get_dashboard_stats` into 3 helper functions; flattened nested ternaries in LoginPage / LeadsPage / CustomerQuickInfo; memoized `login` in AuthContext to prevent stale closures. Verified by re-running `tests/test_refactoring_iteration29.py` (19/19 pass). False-positive findings (safePreview, EmailComposerDialog XSS, `att`/`pdf_bytes`/`db` undefined) confirmed safe and skipped. (Feb 2026)
 - [x] **Canonical bank registry** — `utils/banks.py` (backend) + `utils/banks.js` (frontend) provide a single source of truth for bank names. `/api/customers/banks` now deduplicates aliases (HDFC + HDFC BANK + hdfc bank → "HDFC Bank"). Customer list filter matches all aliases when filtering by canonical name. BookingDetailsCard edit form and public PaymentStep replaced free-text Input with Select (with "Other" fallback for legacy data). New endpoint `/api/customers/banks/registry`. (Feb 2026)
+- [x] **Bank filter source corrected** — `/api/customers/banks` now sources from the **Bank Opted for Loan** field (`bank_name` + `bank_name_other` for "Others"), NOT the booking-form `finance_bank`. Filter query also follows the same field. The "opted for" bank is the authoritative one. (Feb 2026)
 
 ---
 

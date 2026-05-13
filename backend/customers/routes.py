@@ -20,15 +20,22 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
 
 @router.get("/banks")
 async def get_unique_banks(user: dict = Depends(get_current_user)):
-    """Get canonical bank names for the customer filter dropdown.
+    """Get canonical bank names sourced from the **Bank Opted for Loan** field
+    (`bank_name` + `bank_name_other` for "Others") for the customer filter dropdown.
 
-    Returns each bank exactly once even when the DB has aliases
-    (e.g. "HDFC" + "HDFC Bank" both collapse to "HDFC Bank").
+    Booking-form bank (`finance_bank`) is intentionally NOT used here — the
+    "opted for" bank is the authoritative one customers chose during booking
+    finalization.
     """
     db = get_database()
-    raw_banks = await db.customers.distinct("finance_bank")
+    raw_banks = await db.customers.distinct("bank_name")
+    other_banks = await db.customers.distinct(
+        "bank_name_other", {"bank_name": "Others"}
+    )
     canonical_set = set()
-    for raw in raw_banks:
+    for raw in list(raw_banks) + list(other_banks):
+        if raw == "Others":
+            continue  # placeholder, real value lives in bank_name_other
         canonical = to_canonical(raw)
         if canonical:
             canonical_set.add(canonical)
@@ -81,33 +88,38 @@ async def create_customer(customer_data: CustomerCreate, user: dict = Depends(ge
 
 def _build_customer_query(search, project, agreement_status, finance_bank, agreement_filter):
     """Build MongoDB query from filter parameters."""
-    query = {}
+    and_clauses = []
     if search:
-        query["$or"] = [
+        and_clauses.append({"$or": [
             {"name": {"$regex": search, "$options": "i"}},
             {"email": {"$regex": search, "$options": "i"}},
             {"phone": {"$regex": search, "$options": "i"}},
             {"customer_id": {"$regex": search, "$options": "i"}},
             {"unit_number": {"$regex": search, "$options": "i"}}
-        ]
+        ]})
+    base = {}
     if project:
-        query["project"] = project
+        base["project"] = project
     if agreement_status:
-        query["agreement_status"] = agreement_status
+        base["agreement_status"] = agreement_status
+    if agreement_filter == "pending_agreement":
+        base["agreement_status"] = {"$in": ["draft", "sent"]}
+    elif agreement_filter == "agreement_due":
+        base["agreement_status"] = "sent"
     if finance_bank:
-        # Match any DB alias of the chosen canonical bank, case-insensitive.
-        # e.g. user picks "HDFC Bank" → also matches rows with "HDFC", "HDFC BANK".
+        # NOTE: the query param is still named `finance_bank` for backwards-compat,
+        # but it filters the **Bank Opted for Loan** field (`bank_name` /
+        # `bank_name_other`), not the booking-form bank.
         canonical = to_canonical(finance_bank) or finance_bank
         alias_patterns = [re.escape(a) for a in aliases_for(canonical)]
-        query["finance_bank"] = {
-            "$regex": f"^({'|'.join(alias_patterns)})$",
-            "$options": "i",
-        }
-    if agreement_filter == "pending_agreement":
-        query["agreement_status"] = {"$in": ["draft", "sent"]}
-    elif agreement_filter == "agreement_due":
-        query["agreement_status"] = "sent"
-    return query
+        regex = {"$regex": f"^({'|'.join(alias_patterns)})$", "$options": "i"}
+        and_clauses.append({"$or": [
+            {"bank_name": regex},
+            {"bank_name": "Others", "bank_name_other": regex},
+        ]})
+    if and_clauses:
+        base["$and"] = and_clauses
+    return base
 
 
 def _filter_upcoming_due(customers, limit):
