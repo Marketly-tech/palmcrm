@@ -1,0 +1,25 @@
+{
+  "summary": "Iteration 34 — 3 new dashboard slab stat tiles E2E verified. Backend: 4/4 pytest pass in /app/backend/tests/test_slab_overdue_stats.py (new fields total_expected_at_slab, total_collected_cumulative, total_overdue_amount present + numeric; aggregate math matches per-customer expected_amount sum within 1Re tolerance; overdue_count == len(overdue_customers); total_overdue == sum(overdue_amount) in list; Ramya /api/customers/{id}/overdue endpoint untouched). Live API values match spec exactly at 40% Podium slab: total_expected_at_slab=₹15,50,69,084 (~15.5Cr), total_collected_cumulative=₹9,30,99,063 (~9.31Cr), total_overdue_amount=₹6,31,12,634 (~6.31Cr), 22 overdue customers. Frontend dashboard: PaymentStageCard renders all 3 new tiles with correct data-testids (slab-total-expected blue ₹15.5Cr, slab-total-collected emerald ₹9.31Cr, slab-total-overdue red ₹6.31Cr), '40% slab' label correct, overdue customer count tile=22, overdue customer list shows 6 cards in 3-col grid with '+16 more overdue customers' text below — exactly as spec'd. No regression on existing dashboard.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_slab_overdue_stats.py",
+    "/app/test_reports/pytest/slab_overdue_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/settings/__init__.py:186-245 — _get_overdue_by_stage_data single pass over customers correctly accumulates total_expected_at_slab and total_collected_cumulative for ALL customers (not just overdue ones). Empty-state returns (lines 190-194 & 198-202) include the 3 new fields defaulted to 0. Clean implementation.",
+    "backend uses max(0, expected - received) only when adding to total_overdue_amount via the if overdue_amount > 0 branch (line 226-235) — over-collected customers correctly don't reduce the overdue aggregate. Good.",
+    "PaymentStageCard.jsx:29-36 — correctly treats stageOverdue as object (was the previously reported bug). Uses optional chaining + nullish coalescing (?? 0) so empty/loading state shows ₹0 instead of NaN. data-testid='slab-total-expected/collected/overdue' all present.",
+    "PaymentStageCard.jsx:96-127 — overdue customer list correctly slices first 6 and shows '+{count-6} more' when count > 6. Cards have unique data-testid='overdue-customer-{id}' and are clickable to navigate to customer detail.",
+    "MINOR: PaymentStageCard.jsx shows BOTH the new 'Total Overdue at Slab' tile (red, line 87) AND the older 'Total Overdue Amount' summary tile (line 103-108) which display identical formatCurrency(totalOverdue) values. Slight redundancy but not incorrect — design choice for the main agent to consider.",
+    "MINOR: settings/__init__.py loads all customers + all payment_transactions into memory (lines 204-205, .to_list(10000)/100000). Fine at current scale (40 customers) but consider Mongo aggregation pipeline if customer count grows past a few thousand."
+  ],
+  "updated_files": ["/app/backend/tests/test_slab_overdue_stats.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100%"},
+  "test_credentials": {"admin": "crm@rrlbuildersanddevelopers.com / #RRLnew2026"},
+  "seed_data_creation": "None — read-only verification against live data. current_stage NOT modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 34 slab stat tiles ship complete. Backend regression at /app/backend/tests/test_slab_overdue_stats.py (4/4). Data-testids confirmed: slab-total-expected, slab-total-collected, slab-total-overdue, overdue-customers-count, overdue-customer-{id}. Note minor duplication: the standalone 'Total Overdue at Slab' tile and the older 'Total Overdue Amount' summary tile both display the same totalOverdue value — flag for main agent if cleanup is desired. No open bugs."
+}

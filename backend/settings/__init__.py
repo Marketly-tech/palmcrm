@@ -187,11 +187,19 @@ async def _get_overdue_by_stage_data(user: dict):
     db = get_database()
     settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
     if not settings_doc or not settings_doc.get("current_stage"):
-        return {"current_stage": None, "overdue_count": 0, "total_overdue_amount": 0, "overdue_customers": []}
+        return {
+            "current_stage": None, "overdue_count": 0, "total_overdue_amount": 0,
+            "total_expected_at_slab": 0, "total_collected_cumulative": 0,
+            "overdue_customers": []
+        }
     stage_key = settings_doc.get("current_stage")
     stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
     if not stage_info:
-        return {"current_stage": stage_key, "overdue_count": 0, "total_overdue_amount": 0, "overdue_customers": []}
+        return {
+            "current_stage": stage_key, "overdue_count": 0, "total_overdue_amount": 0,
+            "total_expected_at_slab": 0, "total_collected_cumulative": 0,
+            "overdue_customers": []
+        }
     cumulative_percentage = stage_info["cumulative"]
     customers = await db.customers.find({}, {"_id": 0}).to_list(10000)
     all_transactions = await db.payment_transactions.find({}, {"_id": 0}).to_list(100000)
@@ -204,12 +212,16 @@ async def _get_overdue_by_stage_data(user: dict):
 
     overdue_customers = []
     total_overdue_amount = 0
+    total_expected_at_slab = 0
+    total_collected_cumulative = 0
     for customer in customers:
         customer_id = customer.get("id")
         total_price = customer.get("total_price", 0) or 0
         expected_amount = (total_price * cumulative_percentage) / 100
         customer_txns = txn_by_customer.get(customer_id, [])
         total_received = sum(t.get("amount", 0) or 0 for t in customer_txns)
+        total_expected_at_slab += expected_amount
+        total_collected_cumulative += total_received
         overdue_amount = expected_amount - total_received
         if overdue_amount > 0:
             overdue_customers.append({
@@ -225,7 +237,10 @@ async def _get_overdue_by_stage_data(user: dict):
     return {
         "current_stage": stage_key, "current_stage_name": stage_info["name"],
         "cumulative_percentage": cumulative_percentage,
-        "overdue_count": len(overdue_customers), "total_overdue_amount": round(total_overdue_amount, 2),
+        "overdue_count": len(overdue_customers),
+        "total_overdue_amount": round(total_overdue_amount, 2),
+        "total_expected_at_slab": round(total_expected_at_slab, 2),
+        "total_collected_cumulative": round(total_collected_cumulative, 2),
         "overdue_customers": overdue_customers
     }
 
