@@ -126,21 +126,51 @@ def generate_cost_breakup_html(customer: dict) -> str:
             }}
             
             .header {{
-                text-align: right;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
                 margin-bottom: 30px;
                 padding-bottom: 15px;
                 border-bottom: 3px solid #D4AF37;
             }}
-            
-            .header-title {{
-                font-size: 22px;
+
+            .header-left {{
+                display: flex;
+                align-items: center;
+                gap: 14px;
+            }}
+
+            .header-logo img {{
+                width: 100px !important;
+                height: auto !important;
+            }}
+
+            .header-company {{
+                font-size: 14px;
                 font-weight: 700;
                 color: #1A1A1A;
-                margin-bottom: 5px;
+                line-height: 1.2;
             }}
-            
+
+            .header-tagline {{
+                font-size: 10px;
+                color: #666;
+                margin-top: 2px;
+            }}
+
+            .header-right {{
+                text-align: right;
+            }}
+
+            .header-title {{
+                font-size: 20px;
+                font-weight: 700;
+                color: #1A1A1A;
+                margin-bottom: 4px;
+            }}
+
             .header-subtitle {{
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: 600;
                 color: #D4AF37;
             }}
@@ -250,8 +280,17 @@ def generate_cost_breakup_html(customer: dict) -> str:
     <body>
         <div class="container">
             <div class="header">
-                <div class="header-title">RRL PALM ALTEZZE</div>
-                <div class="header-subtitle">Cost Break Up</div>
+                <div class="header-left">
+                    <div class="header-logo">{get_logo_img_tag(100)}</div>
+                    <div>
+                        <div class="header-company">{COMPANY_NAME}</div>
+                        <div class="header-tagline">Beyond homes. A lifestyle</div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="header-title">RRL PALM ALTEZZE</div>
+                    <div class="header-subtitle">Cost Break Up</div>
+                </div>
             </div>
             
             <div class="customer-info">
