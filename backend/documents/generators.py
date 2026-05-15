@@ -170,6 +170,7 @@ def _build_placeholders(customer: dict, custom_fields: Dict[str, Any]) -> Dict[s
         "{gst_amount}": str(customer.get('gst_amount', 0)),
         "{labour_cess}": str(customer.get('labour_cess', 0)),
         "{club_house_charges}": str(customer.get('club_house_charges', 0)),
+        "{interest_amount}": str(customer.get('interest_amount', 0)),
     }
     for key, value in (custom_fields or {}).items():
         placeholders[f"{{{key}}}"] = value

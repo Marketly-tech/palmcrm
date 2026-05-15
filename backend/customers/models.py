@@ -55,7 +55,8 @@ class CustomerBase(BaseModel):
     labour_cess: float = 0  # 0.70%
     gst_percentage: float = 5
     gst_amount: float = 0
-    total_price: float = 0  # Total including GST
+    interest_amount: float = 0  # Manual entry, added after GST (non GST-taxable)
+    total_price: float = 0  # Total including GST + Interest
     
     # Payment Tracking
     booking_amount: float = 0

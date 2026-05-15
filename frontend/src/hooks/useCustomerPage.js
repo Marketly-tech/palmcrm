@@ -170,7 +170,9 @@ export function useCustomerPage(id) {
     const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges + additionalCharges;
     const labourCess = subtotal * 0.007;
     const gst = subtotal * 0.05;
-    const total = subtotal + labourCess + gst;
+    // Interest is a manual flat add-on AFTER GST (non GST-taxable)
+    const interestAmount = parseFloat(data.interest_amount) || 0;
+    const total = subtotal + labourCess + gst + interestAmount;
     const uds = saleableArea * 0.495046;
     return {
       basePrice: Math.round(basePrice),
@@ -183,6 +185,7 @@ export function useCustomerPage(id) {
       subtotal: Math.round(subtotal),
       labourCess: Math.round(labourCess),
       gst: Math.round(gst),
+      interestAmount: Math.round(interestAmount),
       total: Math.round(total),
       uds: Math.round(uds * 100) / 100,
     };
@@ -210,6 +213,7 @@ export function useCustomerPage(id) {
           additional_parking_charges: liveCalc.parkingCharges,
           labour_cess: liveCalc.labourCess,
           gst_amount: liveCalc.gst,
+          interest_amount: liveCalc.interestAmount,
           total_price: liveCalc.total,
           uds: liveCalc.uds,
           custom_fields: {

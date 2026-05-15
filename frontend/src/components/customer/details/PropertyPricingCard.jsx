@@ -166,6 +166,26 @@ const PropertyPricingCard = ({
               </p>
             </div>
             <div>
+              <Label>Interest Amount</Label>
+              {editing ? (
+                <>
+                  <Input
+                    type="number"
+                    value={editData.interest_amount ?? ""}
+                    onChange={(e) => setEditData({ ...editData, interest_amount: parseFloat(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="mt-1"
+                    data-testid="interest-amount-input"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Manual entry · added after GST (non GST-taxable)</p>
+                </>
+              ) : (
+                <p className="text-slate-700 mt-1" data-testid="interest-amount-value">
+                  {formatCurrency(customer.interest_amount || 0)}
+                </p>
+              )}
+            </div>
+            <div>
               <Label>Total Price</Label>
               <p className={`font-bold mt-1 ${editing && liveCalc ? 'text-green-600' : 'text-primary'}`}>
                 {editing && liveCalc ? formatCurrency(liveCalc.total) : formatCurrency(customer.total_price)}
@@ -203,6 +223,12 @@ const PropertyPricingCard = ({
                 )}
                 <span>Additional Parking:</span>
                 <span className="font-medium text-right">{formatCurrency(liveCalc.parkingCharges)}</span>
+                {liveCalc.interestAmount > 0 && (
+                  <>
+                    <span>Interest Amount (post-GST):</span>
+                    <span className="font-medium text-right">{formatCurrency(liveCalc.interestAmount)}</span>
+                  </>
+                )}
                 <span className="font-semibold pt-2 border-t">New Total:</span>
                 <span className="font-bold text-right text-green-700 pt-2 border-t">{formatCurrency(liveCalc.total)}</span>
               </div>

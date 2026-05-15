@@ -32,7 +32,13 @@ def generate_price_breakup_html(customer: dict) -> str:
             booking_date = dt.strftime("%d/%m/%Y")
         except (ValueError, TypeError):
             pass
-    
+
+    interest_amount = customer.get('interest_amount', 0) or 0
+    interest_row = (
+        f'<tr><td>Interest Amount</td><td class="amount">{format_inr(interest_amount)}</td></tr>'
+        if interest_amount else ''
+    )
+
     html = f'''
     <!DOCTYPE html>
     <html>
@@ -299,6 +305,7 @@ def generate_price_breakup_html(customer: dict) -> str:
                             <td>GST (5%)</td>
                             <td class="amount">{format_inr(customer.get('gst_amount', 0))}</td>
                         </tr>
+                        {interest_row}
                         <tr class="total-row">
                             <td><strong>GRAND TOTAL</strong></td>
                             <td class="amount"><strong>{format_inr(customer.get('total_price', 0))}</strong></td>
