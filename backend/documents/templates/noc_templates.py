@@ -9,59 +9,114 @@ from documents.templates.common import (
 )
 
 
+# Company contact constants used in NOC footer band — match the format used in
+# RRL's existing/legacy NOCs (pre-Feb-2026). Do not change without explicit
+# confirmation from the user — see /app/memory/DOCUMENT_FORMAT_REFERENCE.md.
+RRL_ADDRESS = "4th Floor, RRL TOWERS, Sompura Gate, Sarjapura Road, Bengaluru - 562125"
+RRL_WEBSITE = "www.rrlbuildersanddevelopers.com"
+RRL_EMAIL = "crm@rrlbuildersanddevelopers.com"
+RRL_RERA = "PRM/KA/RERA/1251/308/PR/141025/008167"
+
+
 def _letterhead_styles() -> str:
-    """Shared CSS for the RRL letterhead at the top of all builder NOCs."""
+    """Shared CSS for the RRL letterhead at the top of all builder NOCs.
+
+    Matches the original PDF format: dark charcoal band, gold logo on left,
+    company name + tagline on right (light text on dark)."""
     return """
             .letterhead {
+                background: #1A1A1A;
+                color: #FFFFFF;
+                padding: 18px 20mm;
+                margin: 0 -20mm 22px -20mm;
                 display: flex;
+                align-items: center;
                 justify-content: space-between;
-                align-items: center;
-                border-bottom: 3px solid #D4AF37;
-                padding-bottom: 12px;
-                margin-bottom: 18px;
-            }
-            .letterhead-left {
-                display: flex;
-                align-items: center;
-                gap: 14px;
             }
             .letterhead-logo img {
-                width: 90px !important;
+                width: 70px !important;
                 height: auto !important;
+                display: block;
+            }
+            .letterhead-text {
+                text-align: right;
+                line-height: 1.25;
             }
             .letterhead-company {
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: 700;
-                color: #1A1A1A;
-                line-height: 1.2;
+                color: #FFFFFF;
+                letter-spacing: 0.3px;
             }
             .letterhead-tagline {
-                font-size: 10px;
-                color: #666;
+                font-size: 11px;
+                color: #D4AF37;
                 margin-top: 2px;
+                font-style: italic;
             }
-            .letterhead-right {
-                text-align: right;
-                font-size: 14px;
+            .doc-title {
+                text-align: center;
+                font-size: 15px;
                 font-weight: 700;
                 color: #1A1A1A;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-bottom: 22px;
+                padding-bottom: 6px;
+                border-bottom: 1px solid #D4AF37;
+            }
+            .footer-band {
+                position: fixed;
+                bottom: 0;
+                left: -20mm;
+                right: -20mm;
+                background: #F5F5F5;
+                border-top: 2px solid #D4AF37;
+                padding: 8px 20mm;
+                font-size: 9px;
+                color: #1A1A1A;
+                text-align: center;
+                line-height: 1.5;
+            }
+            .footer-band .sep {
+                color: #D4AF37;
+                margin: 0 6px;
             }
     """
 
 
 def _letterhead_html() -> str:
-    """Shared HTML block for the RRL letterhead — logo + company name on the left,
-    'Builder NOC' label on the right."""
+    """Shared HTML block for the RRL letterhead — gold RRL GROUP logo on the
+    left, company name + tagline on the right, on a dark band."""
     return f"""
         <div class="letterhead">
-            <div class="letterhead-left">
-                <div class="letterhead-logo">{get_logo_img_tag(90)}</div>
-                <div>
-                    <div class="letterhead-company">{COMPANY_NAME}</div>
-                    <div class="letterhead-tagline">Beyond homes. A lifestyle</div>
-                </div>
+            <div class="letterhead-logo">{get_logo_img_tag(70)}</div>
+            <div class="letterhead-text">
+                <div class="letterhead-company">{COMPANY_NAME}</div>
+                <div class="letterhead-tagline">Beyond Homes. A Lifestyle</div>
             </div>
-            <div class="letterhead-right">Builder NOC</div>
+        </div>
+    """
+
+
+def _doc_title_html(bank_label: str) -> str:
+    """Centered document title placed below the dark header band."""
+    return f'<div class="doc-title">Builder NOC &mdash; {bank_label}</div>'
+
+
+def _footer_band_html(customer: dict) -> str:
+    """Bottom footer band with company contact, RERA and reference details."""
+    today = datetime.now().strftime("%d/%m/%y")
+    ref = customer.get('customer_id') or customer.get('id', '')
+    return f"""
+        <div class="footer-band">
+            {RRL_ADDRESS}
+            <span class="sep">|</span> {RRL_WEBSITE}
+            <span class="sep">|</span> {RRL_EMAIL}
+            <br/>
+            RERA: {RRL_RERA}
+            <span class="sep">|</span> Document Generated: {today}
+            <span class="sep">|</span> Ref: {ref}
         </div>
     """
 
@@ -153,7 +208,7 @@ def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
         <meta charset="UTF-8">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-            @page {{ size: A4; margin: 25mm 20mm 25mm 20mm; }}
+            @page {{ size: A4; margin: 0 20mm 30mm 20mm; }}
             body {{ font-family: 'Roboto', sans-serif; font-size: 12px; line-height: 1.8; color: #1A1A1A; }}
             {_letterhead_styles()}
             .header {{ text-align: right; margin-bottom: 20px; }}
@@ -169,6 +224,8 @@ def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
     </head>
     <body>
         {_letterhead_html()}
+
+        {_doc_title_html("HDFC Bank")}
 
         <div class="date">Date: {today_date}</div>
         
@@ -197,6 +254,8 @@ def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
             <p><strong>For {COMPANY_NAME_FULL}</strong></p>
             <p class="signature-line" style="margin-top: 50px;">Authorized Signatory</p>
         </div>
+
+        {_footer_band_html(customer)}
     </body>
     </html>
     '''
@@ -281,7 +340,7 @@ def generate_noc_bob_html(customer: dict, transactions: list = None) -> str:
         <meta charset="UTF-8">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-            @page {{ size: A4; margin: 25mm 20mm 25mm 20mm; }}
+            @page {{ size: A4; margin: 0 20mm 30mm 20mm; }}
             body {{ font-family: 'Roboto', sans-serif; font-size: 12px; line-height: 1.8; color: #1A1A1A; }}
             {_letterhead_styles()}
             .header {{ text-align: right; margin-bottom: 20px; }}
@@ -297,6 +356,8 @@ def generate_noc_bob_html(customer: dict, transactions: list = None) -> str:
     </head>
     <body>
         {_letterhead_html()}
+
+        {_doc_title_html("Bank of Baroda")}
 
         <div class="date">Date: {today_date}</div>
         
@@ -319,6 +380,8 @@ def generate_noc_bob_html(customer: dict, transactions: list = None) -> str:
             <p><strong>For {COMPANY_NAME_FULL}</strong></p>
             <p class="signature-line" style="margin-top: 50px;">Authorized Signatory</p>
         </div>
+
+        {_footer_band_html(customer)}
     </body>
     </html>
     '''
@@ -385,7 +448,7 @@ def generate_noc_tata_html(customer: dict) -> str:
         <meta charset="UTF-8">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-            @page {{ size: A4; margin: 25mm 20mm 25mm 20mm; }}
+            @page {{ size: A4; margin: 0 20mm 30mm 20mm; }}
             body {{ font-family: 'Roboto', sans-serif; font-size: 12px; line-height: 1.8; color: #1A1A1A; }}
             {_letterhead_styles()}
             .header {{ text-align: right; margin-bottom: 20px; }}
@@ -402,6 +465,8 @@ def generate_noc_tata_html(customer: dict) -> str:
     </head>
     <body>
         {_letterhead_html()}
+
+        {_doc_title_html("TATA Capital")}
 
         <div class="date">Date: {today_date}</div>
         
@@ -436,6 +501,8 @@ def generate_noc_tata_html(customer: dict) -> str:
             <p style="margin-top: 15px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
             <p class="signature-line" style="margin-top: 50px;">Authorized Signatory</p>
         </div>
+
+        {_footer_band_html(customer)}
     </body>
     </html>
     '''

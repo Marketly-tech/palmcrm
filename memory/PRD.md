@@ -1,5 +1,11 @@
 # RRL Builders Post-Sales CRM — Comprehensive PRD
 
+> 🚨 **MANDATORY READING FOR ANY AGENT TOUCHING PDF TEMPLATES:**
+> Always read `/app/memory/DOCUMENT_FORMAT_REFERENCE.md` BEFORE modifying any
+> file in `/app/backend/documents/templates/`. It captures the
+> user-approved visual layout (dark header band, footer band, gold accents,
+> etc.) so format is never silently changed across sessions.
+
 ## 1. Product Overview
 **Product Name:** RRL CRM  
 **Domain:** https://rrlcrm.com  
