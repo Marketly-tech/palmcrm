@@ -1,0 +1,44 @@
+{
+  "summary": "Letterhead verification across all 10 document types on Ramya test lead. 12/13 tests pass. NOC letterhead fix (HDFC/BOB/TATA) confirmed working — all 3 contain <div class=\"letterhead\">, #D4AF37 gold border, RRL logo base64, and company name. payment_schedule auto-generate fix verified. interest_amount field persists via PUT /api/customers and renders in price_breakup. One genuine letterhead regression discovered: cost_breakup is silently dropping the RRL logo (HTML ~6.7KB, PDF only 17KB vs ~150KB for other docs).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/documents/generate (doc_type=cost_breakup)",
+        "issue": "cost_breakup HTML does NOT contain the RRL logo base64 (data:image/png;base64,iVBOR...). Template at /app/backend/documents/templates/cost_breakup.py imports get_logo_img_tag from common but never invokes it — the rendered header has only the company name text, no <img> tag. This is the exact 'silently dropping letterhead' regression class the user is worried about. Resulting PDF is ~17KB (other docs are 150KB+), confirming the logo block is missing. Company name 'RRL Builders and Developers Pvt. Ltd.' IS present at line 316 of the template.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_letterhead_iteration36.py",
+    "/app/test_reports/pytest/iteration36_results.xml"
+  ],
+  "action_items": [
+    "Fix cost_breakup template at /app/backend/documents/templates/cost_breakup.py — inject get_logo_img_tag(...) into the header block so cost_breakup matches the letterhead pattern used by allotment_letter, price_breakup, demand_letter, payment_schedule, and NOCs. After fix, re-run test_letterhead_iteration36.py::test_doc_has_letterhead_and_valid_pdf[cost_breakup] — should produce a PDF > 50KB.",
+    "(Optional) Consider extracting a single shared letterhead helper (like noc_templates._letterhead_html()) and reusing it across ALL doc templates so this class of regression cannot recur."
+  ],
+  "critical_code_review_comments": [
+    "documents/templates/cost_breakup.py imports get_logo_img_tag but never calls it — silent dead import that hid the missing logo.",
+    "Each doc template re-implements its own header HTML, increasing risk that future templates also drop the letterhead. NOC templates already have a shared _letterhead_html() helper — the same pattern should be applied to all generators (sales_agreement, allotment_letter, price_breakup, cost_breakup, demand_letter, payment_schedule, payment_receipt).",
+    "documents/generators.py — admin DB override (db.document_templates) at the top of render_document_content silently replaces the built-in generator with whatever HTML is stored. A stale 44-byte template (TEST_refactor_template) left behind by iteration 28 was shadowing the real sales_agreement generator for all users in this preview env. Suggest: (a) add a guard that warns if override content is < some sane minimum, or (b) require explicit opt-in flag on overrides."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_letterhead_iteration36.py (new test file)"
+  ],
+  "success_rate": {
+    "backend": "92% (12/13)",
+    "frontend": "not tested (backend-only review)"
+  },
+  "test_credentials": "Used admin crm@rrlbuildersanddevelopers.com / #RRLnew2026 and test customer Ramya test lead (6d902613-5106-4294-bc3e-b907f85127f7) per /app/memory/test_credentials.md",
+  "seed_data_creation": "None. Cleanup performed: removed 1 stale admin template override 'TEST_refactor_template' (id=4a4971a5-76c6-40f8-b135-edd2a542f0d8, doc_type=sales_agreement, content_len=44) left by iteration 28 that was shadowing the real sales_agreement generator. interest_amount on Ramya test lead is restored to its original value after each test run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 36 confirmed the Builder NOC letterhead fix works end-to-end (all 3 NOCs contain <div class=\"letterhead\">, gold #D4AF37, logo base64, company name). The single open bug is cost_breakup missing the logo (PDF only 17KB). The test file /app/backend/tests/test_letterhead_iteration36.py is parameterised over all 10 doc_types and prints a summary table at the end — re-run after main agent patches cost_breakup. Also note: render_document_content honours admin DB overrides from db.document_templates — if any future test injects a template with name starting 'TEST_', it MUST be deleted via DELETE /api/templates/{id} in teardown.",
+  "rca of the issue": "cost_breakup regression — RCA: /app/backend/documents/templates/cost_breakup.py imports get_logo_img_tag at line 3 but the function is never invoked anywhere in generate_cost_breakup_html. The header in the generated HTML only writes the company name text. Repro: POST /api/documents/generate with doc_type=cost_breakup → HTML has no 'data:image/png;base64' substring and is ~6.7KB. PDF via GET /api/documents/pdf/{doc_id} is ~17KB. Mitigation: add `{get_logo_img_tag(120)}` into the header div in cost_breakup.py (mirror the pattern used in price_breakup.py and demand_letter.py), or refactor to use a shared letterhead helper."
+}
