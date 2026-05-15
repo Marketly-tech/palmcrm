@@ -1,6 +1,69 @@
 """Bank NOC document templates (HDFC, BOB, TATA Capital)."""
 from datetime import datetime
-from documents.templates.common import format_inr, COMPANY_NAME_FULL, format_customer_names
+from documents.templates.common import (
+    format_inr,
+    COMPANY_NAME,
+    COMPANY_NAME_FULL,
+    format_customer_names,
+    get_logo_img_tag,
+)
+
+
+def _letterhead_styles() -> str:
+    """Shared CSS for the RRL letterhead at the top of all builder NOCs."""
+    return """
+            .letterhead {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 3px solid #D4AF37;
+                padding-bottom: 12px;
+                margin-bottom: 18px;
+            }
+            .letterhead-left {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+            }
+            .letterhead-logo img {
+                width: 90px !important;
+                height: auto !important;
+            }
+            .letterhead-company {
+                font-size: 16px;
+                font-weight: 700;
+                color: #1A1A1A;
+                line-height: 1.2;
+            }
+            .letterhead-tagline {
+                font-size: 10px;
+                color: #666;
+                margin-top: 2px;
+            }
+            .letterhead-right {
+                text-align: right;
+                font-size: 14px;
+                font-weight: 700;
+                color: #1A1A1A;
+            }
+    """
+
+
+def _letterhead_html() -> str:
+    """Shared HTML block for the RRL letterhead — logo + company name on the left,
+    'Builder NOC' label on the right."""
+    return f"""
+        <div class="letterhead">
+            <div class="letterhead-left">
+                <div class="letterhead-logo">{get_logo_img_tag(90)}</div>
+                <div>
+                    <div class="letterhead-company">{COMPANY_NAME}</div>
+                    <div class="letterhead-tagline">Beyond homes. A lifestyle</div>
+                </div>
+            </div>
+            <div class="letterhead-right">Builder NOC</div>
+        </div>
+    """
 
 def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
     """Generate HDFC Bank NOC (No Objection Certificate) for disbursement"""
@@ -92,6 +155,7 @@ def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
             @page {{ size: A4; margin: 25mm 20mm 25mm 20mm; }}
             body {{ font-family: 'Roboto', sans-serif; font-size: 12px; line-height: 1.8; color: #1A1A1A; }}
+            {_letterhead_styles()}
             .header {{ text-align: right; margin-bottom: 20px; }}
             .header-title {{ font-size: 16px; font-weight: 700; }}
             .date {{ text-align: right; margin-bottom: 20px; }}
@@ -104,10 +168,8 @@ def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
         </style>
     </head>
     <body>
-        <div class="header">
-            <div class="header-title">Builder NOC</div>
-        </div>
-        
+        {_letterhead_html()}
+
         <div class="date">Date: {today_date}</div>
         
         <div class="addressee">
@@ -221,6 +283,7 @@ def generate_noc_bob_html(customer: dict, transactions: list = None) -> str:
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
             @page {{ size: A4; margin: 25mm 20mm 25mm 20mm; }}
             body {{ font-family: 'Roboto', sans-serif; font-size: 12px; line-height: 1.8; color: #1A1A1A; }}
+            {_letterhead_styles()}
             .header {{ text-align: right; margin-bottom: 20px; }}
             .header-title {{ font-size: 16px; font-weight: 700; }}
             .date {{ text-align: right; margin-bottom: 20px; }}
@@ -233,10 +296,8 @@ def generate_noc_bob_html(customer: dict, transactions: list = None) -> str:
         </style>
     </head>
     <body>
-        <div class="header">
-            <div class="header-title">Builder NOC</div>
-        </div>
-        
+        {_letterhead_html()}
+
         <div class="date">Date: {today_date}</div>
         
         <div class="addressee">
@@ -326,6 +387,7 @@ def generate_noc_tata_html(customer: dict) -> str:
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
             @page {{ size: A4; margin: 25mm 20mm 25mm 20mm; }}
             body {{ font-family: 'Roboto', sans-serif; font-size: 12px; line-height: 1.8; color: #1A1A1A; }}
+            {_letterhead_styles()}
             .header {{ text-align: right; margin-bottom: 20px; }}
             .header-title {{ font-size: 16px; font-weight: 700; }}
             .date {{ text-align: right; margin-bottom: 20px; }}
@@ -339,10 +401,8 @@ def generate_noc_tata_html(customer: dict) -> str:
         </style>
     </head>
     <body>
-        <div class="header">
-            <div class="header-title">Builder NOC</div>
-        </div>
-        
+        {_letterhead_html()}
+
         <div class="date">Date: {today_date}</div>
         
         <div class="addressee">
