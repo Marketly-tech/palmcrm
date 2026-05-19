@@ -101,7 +101,9 @@ const SendMessageDialog = ({
       onOpenChange(false);
       if (onCommunicationSent) onCommunicationSent();
     } catch (error) {
-      toast.error(`Failed to send ${commType}`);
+      const detail = error.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : `Failed to send ${commType}`;
+      toast.error(msg);
     }
   };
 

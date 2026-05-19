@@ -4,7 +4,7 @@ Handles email previews, sending, communication history, and email logs.
 """
 from typing import Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Form, UploadFile, File
 import uuid
 import base64
 import logging
@@ -350,12 +350,13 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
 
 @router.post("/communication/email")
 async def send_email_notification(
-    customer_id: str,
-    subject: str,
-    message: str,
-    attachment_doc_id: Optional[str] = None,
-    attachment_ids: Optional[str] = None,
-    user: dict = Depends(get_current_user)
+    customer_id: str = Form(...),
+    subject: str = Form(...),
+    message: str = Form(...),
+    attachment_doc_id: Optional[str] = Form(None),
+    attachment_ids: Optional[str] = Form(None),
+    local_file: Optional[UploadFile] = File(None),
+    user: dict = Depends(get_current_user),
 ):
     db = get_database()
     customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
@@ -363,20 +364,69 @@ async def send_email_notification(
         raise HTTPException(status_code=404, detail="Customer not found")
 
     recipient_email = customer.get('email')
+    if not recipient_email:
+        raise HTTPException(status_code=400, detail="Customer has no email address on file")
     email_status = "pending"
     sendgrid_response = None
     attachments_info = []
+    sg_attachments = []  # SendGrid Attachment objects to include in the email
 
+    # Parse attachment_ids (frontend sends JSON array string, legacy callers send CSV)
+    doc_ids = []
     if attachment_ids:
-        doc_ids = [id.strip() for id in attachment_ids.split(",") if id.strip()]
-        for doc_id in doc_ids:
-            doc = await db.generated_documents.find_one({"id": doc_id}, {"_id": 0})
-            if doc:
-                attachments_info.append(f"Generated: {doc.get('doc_type', 'document')}")
-            else:
-                doc = await db.customer_documents.find_one({"id": doc_id}, {"_id": 0})
-                if doc:
-                    attachments_info.append(f"Uploaded: {doc.get('filename', doc.get('doc_type', 'document'))}")
+        try:
+            import json as _json
+            parsed = _json.loads(attachment_ids)
+            if isinstance(parsed, list):
+                doc_ids = [str(x).strip() for x in parsed if str(x).strip()]
+        except (ValueError, TypeError):
+            doc_ids = [i.strip() for i in attachment_ids.split(",") if i.strip()]
+
+    for doc_id in doc_ids:
+        gen = await db.generated_documents.find_one({"id": doc_id}, {"_id": 0})
+        if gen:
+            doc_type = gen.get('doc_type', 'document')
+            attachments_info.append(f"Generated: {doc_type}")
+            try:
+                pdf_bytes = HTML(string=gen.get('content', '')).write_pdf()
+                customer_name_safe = customer.get('name', 'Customer').replace(' ', '_')
+                fname = f"RRL_{doc_type.replace('_', ' ').title().replace(' ', '_')}_{customer_name_safe}.pdf"
+                sg_attachments.append(Attachment(
+                    FileContent(base64.b64encode(pdf_bytes).decode()),
+                    FileName(fname),
+                    FileType('application/pdf'),
+                    Disposition('attachment'),
+                ))
+            except Exception as e:
+                logger.error(f"Failed to attach generated doc {doc_id}: {e}")
+            continue
+        uploaded = await db.customer_documents.find_one({"id": doc_id}, {"_id": 0})
+        if uploaded:
+            fname = uploaded.get('filename') or f"{uploaded.get('doc_type', 'document')}.bin"
+            attachments_info.append(f"Uploaded: {fname}")
+            content_b64 = uploaded.get('content_base64')
+            if content_b64:
+                sg_attachments.append(Attachment(
+                    FileContent(content_b64),
+                    FileName(fname),
+                    FileType(uploaded.get('content_type', 'application/octet-stream')),
+                    Disposition('attachment'),
+                ))
+
+    # Handle local-file upload from the email composer
+    if local_file is not None:
+        try:
+            file_bytes = await local_file.read()
+            if file_bytes:
+                attachments_info.append(f"Uploaded: {local_file.filename}")
+                sg_attachments.append(Attachment(
+                    FileContent(base64.b64encode(file_bytes).decode()),
+                    FileName(local_file.filename or "attachment.bin"),
+                    FileType(local_file.content_type or "application/octet-stream"),
+                    Disposition('attachment'),
+                ))
+        except Exception as e:
+            logger.error(f"Failed to attach local_file: {e}")
 
     html_content = f"""
     <!DOCTYPE html>
@@ -415,11 +465,13 @@ async def send_email_notification(
     if SENDGRID_API_KEY:
         try:
             sg_message = Mail(from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME), to_emails=recipient_email, subject=subject, html_content=html_content)
+            for att in sg_attachments:
+                sg_message.add_attachment(att)
             sg = SendGridAPIClient(SENDGRID_API_KEY)
             response = sg.send(sg_message)
             if response.status_code in [200, 201, 202]:
                 email_status = "sent"
-                sendgrid_response = {"status_code": response.status_code}
+                sendgrid_response = {"status_code": response.status_code, "attachments": len(sg_attachments)}
             else:
                 email_status = "failed"
                 sendgrid_response = {"status_code": response.status_code}
