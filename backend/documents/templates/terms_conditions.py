@@ -195,10 +195,11 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
                 <span class="term-number">2</span>
                 <span class="term-text">All payments to be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) mode drawn in favor of/to the account of <strong>"{COMPANY_NAME_UPPER}"</strong></span>
                 <div class="bank-details">
-                    <p><strong>Bank:</strong> Axis Bank</p>
-                    <p><strong>Account No:</strong> 922020009963054</p>
-                    <p><strong>IFSC:</strong> UTIB0001504</p>
-                    <p><strong>Branch:</strong> Kudlu Gate, Bangalore</p>
+                    <p><strong>Account Holder's Name:</strong> RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED</p>
+                    <p><strong>Bank Name:</strong> HDFC BANK</p>
+                    <p><strong>Branch Name:</strong> SOMPURA</p>
+                    <p><strong>Account No.:</strong> 57500001802063</p>
+                    <p><strong>IFSC:</strong> HDFC0009590</p>
                 </div>
             </div>
             
@@ -219,7 +220,7 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
             
             <div class="term-item">
                 <span class="term-number">6</span>
-                <span class="term-text">Taxation particulars of Developer: PAN - AADCR1969A | GST - 29AADCR1969A1ZW</span>
+                <span class="term-text">Taxation particulars of Developer: PAN - AAKCR4125J | GST - 29AAKCR4125J1Z2</span>
             </div>
             
             <div class="term-item">

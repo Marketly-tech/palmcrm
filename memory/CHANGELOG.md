@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-02-15 — Terms & Conditions Bank/Tax Details Corrected
+- **Update**: Replaced developer's bank-account and tax particulars across the T&C and Allotment-letter PDFs (the one bundled with the Welcome email).
+- **Old (incorrect)** → **New**:
+  - Bank: `Axis Bank` (Kudlu Gate, 922020009963054, UTIB0001504) → **HDFC BANK · SOMPURA · 57500001802063 · IFSC HDFC0009590**
+  - Account Holder's Name: `RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED`
+  - PAN: `AADCR1969A` → **AAKCR4125J**
+  - GST: `29AADCR1969A1ZW` → **29AAKCR4125J1Z2**
+- Labels aligned to user's exact wording: *Account Holder's Name*, *Bank Name*, *Branch Name*, *Account No.*, *IFSC*.
+- Verified end-to-end on the rendered Allotment Letter HTML AND directly on `generate_terms_and_conditions_html()`: 9/9 assertions pass (new values present, all old values absent).
+- All 13 letterhead/document regression tests pass.
+- Files: `/app/backend/documents/templates/terms_conditions.py`, `/app/backend/documents/templates/default_template.py`. Lint clean.
+
 ## 2026-02-15 — Sales Role Can Approve/Reject Leads
 - **Feature**: The `sales` role can now approve & reject leads (previously only `admin`/`manager` could). Reject requires a non-empty reason — enforced on both client and server.
 - **Backend** (`booking/__init__.py`): Added `UserRole.SALES` to `check_role(...)` on both `PUT /api/leads/{id}/approve` and `PUT /api/leads/{id}/reject`. Backend now returns HTTP 400 "Rejection reason is required" if reason is blank.

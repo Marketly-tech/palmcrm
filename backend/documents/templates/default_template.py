@@ -274,11 +274,11 @@ def get_default_template(doc_type: DocumentType) -> str:
         <p><span class="terms-number">2.</span> All payments to be made by A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft at Bangalore only or through Electronic Fund Transfer (EFT) mode drawn in favor of/to the account of """ + '"' + COMPANY_NAME_FULL + '"' + """</p>
         
         <div class="bank-details">
-            <p><strong>Account Holder Name:</strong> """ + COMPANY_NAME_FULL + """</p>
-            <p><strong>Bank:</strong> HDFC BANK</p>
-            <p><strong>Branch:</strong> SOMPURA</p>
-            <p><strong>Account Number:</strong> 57500001802063</p>
-            <p><strong>IFSC Number:</strong> HDFC0009590</p>
+            <p><strong>Account Holder's Name:</strong> RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED</p>
+            <p><strong>Bank Name:</strong> HDFC BANK</p>
+            <p><strong>Branch Name:</strong> SOMPURA</p>
+            <p><strong>Account No.:</strong> 57500001802063</p>
+            <p><strong>IFSC:</strong> HDFC0009590</p>
         </div>
         
         <p><span class="terms-number">3.</span> The Allottee shall be liable to pay the total sale consideration (more fully described in the cost sheet) and other charges as specified herein together with the applicable government taxes and levies as per the payment plan annexed herewith, time being of the essence.</p>
