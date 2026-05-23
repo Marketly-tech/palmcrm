@@ -22,7 +22,9 @@ const PaymentSummaryCard = ({
   const receivedPercentage = totalPrice > 0 ? (totalReceived / totalPrice) * 100 : 0;
   const pendingPercentage = totalPrice > 0 ? (balanceAmount / totalPrice) * 100 : 100;
 
-  const tdsPayable = Math.round((overdueInfo?.expected_amount || 0) * 0.01);
+  // TDS u/s 194-IA: the displayed amount is gross-inclusive of 1% TDS, so
+  // TDS payable = gross / 101 (same formula used in the demand letter PDF).
+  const tdsPayable = Math.round((overdueInfo?.expected_amount || 0) / 101);
   const tdsPaid = transactions
     .filter((t) => t.transaction_stage === 'tds')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
@@ -111,7 +113,7 @@ const PaymentSummaryCard = ({
                 <p className="font-bold text-blue-700" data-testid="tds-payable">
                   {formatCurrency(tdsPayable)}
                 </p>
-                <p className="text-xs text-slate-400">1% of demand raised</p>
+                <p className="text-xs text-slate-400">Demand ÷ 101</p>
               </div>
               <div className="p-3 bg-green-50 rounded-lg text-center">
                 <p className="text-xs text-slate-500">TDS Paid</p>
