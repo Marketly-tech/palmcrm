@@ -294,6 +294,10 @@ def generate_terms_and_conditions_html(customer: dict) -> str:
                 <div class="signature-line">For {COMPANY_NAME}</div>
             </div>
         </div>
+
+        <div style="margin-top: 18px; padding: 10px 14px; background: #FFF8E1; border-left: 3px solid #D4AF37; font-size: 11px; font-style: italic; color: #555; text-align: center;">
+            This document is digitally generated and signed by {COMPANY_NAME_FULL}. No physical signature is required. Once issued, it stands officially recorded.
+        </div>
         
         <div class="footer">
             <p><strong>{COMPANY_NAME}</strong></p>

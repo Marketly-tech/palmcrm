@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-02-15 — Digital-signature Note Added to T&C PDF
+- **Update**: Added a paraphrased digital-signature notice to the Terms & Conditions PDF (the one sent with the Welcome email), right below the signature block.
+- **Text rendered**: *"This document is digitally generated and signed by RRL Builders and Developers Pvt. Ltd. No physical signature is required. Once issued, it stands officially recorded."*
+- **Styling**: Cream background, gold left-border accent, italic centered text — matches the existing dark/gold theme.
+- File: `/app/backend/documents/templates/terms_conditions.py`. Lint clean. Verified via direct render.
+
 ## 2026-02-15 — Terms & Conditions Bank/Tax Details Corrected
 - **Update**: Replaced developer's bank-account and tax particulars across the T&C and Allotment-letter PDFs (the one bundled with the Welcome email).
 - **Old (incorrect)** → **New**:
