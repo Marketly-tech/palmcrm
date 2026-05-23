@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-15 — Save Document Edits as Master Template (Admin)
+- **Feature**: Customer Profile → Documents → open any generated doc → click **"Save as Master"** (admin/manager only). The edited content becomes the active master template for that doc_type — all future generations across all customers will start from it. Existing generated docs are not affected.
+- **Backend**: New endpoint `POST /api/templates/save-from-document/{doc_id}` (admin/manager only). Upserts the doc_type's row in `document_templates` with `is_active=true`. Returns the template id. Activity logged.
+- **Frontend**: `EditableDocumentDialog` gains a "Save as Master" button (visible only when `user.role` is `admin` / `manager`) + confirmation AlertDialog warning about the global effect. If the user is in edit mode, per-customer changes are persisted first, then promoted to master. Surfaces backend errors in toast.
+- **Revert**: Settings → Document Templates → delete the template row → system reverts to the built-in default.
+- Verified: master save replaces existing template; subsequent generations use master content; accounts-role user receives HTTP 403.
+- Files: `/app/backend/documents/routes.py`, `/app/frontend/src/components/customer/documents/EditableDocumentDialog.jsx`. Lint clean.
+
 ## 2026-02-15 — Payment Tracking TDS Calculation Fix
 - **Bug**: Customer Profile → Payments tab → "Stage-wise TDS" card showed `TDS Payable = expected × 1%` (e.g. ₹10,000 on ₹10L), but the Demand Letter PDF correctly uses `TDS Payable = expected ÷ 101` (₹9,901). The two screens disagreed.
 - **Fix**: Aligned `PaymentSummaryCard.jsx` to use the same `÷ 101` formula as `documents/templates/demand_letter.py` (Section 194-IA: the demand amount is gross-inclusive of the 1% TDS). Helper text below the figure updated from "1% of demand raised" → "Demand ÷ 101".

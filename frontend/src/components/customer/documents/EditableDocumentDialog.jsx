@@ -17,8 +17,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../ui/alert-dialog";
 import { Button } from "../../ui/button";
-import { Edit, Save, Download, X, Loader2 } from "lucide-react";
+import { Edit, Save, Download, X, Loader2, BookmarkPlus } from "lucide-react";
+import { useAuth } from "../../../context/AuthContext";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
@@ -29,11 +40,15 @@ const EditableDocumentDialog = ({
   customerName,
   onSaved,
 }) => {
+  const { user } = useAuth();
+  const canSaveMaster = user?.role === "admin" || user?.role === "manager";
   const iframeRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [savingMaster, setSavingMaster] = useState(false);
+  const [confirmMasterOpen, setConfirmMasterOpen] = useState(false);
   const [content, setContent] = useState("");
 
   // Load HTML when dialog opens
@@ -92,6 +107,34 @@ const EditableDocumentDialog = ({
       toast.error(e?.response?.data?.detail || "Failed to save changes");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveAsMaster = async () => {
+    setSavingMaster(true);
+    try {
+      // If user is currently editing, persist the per-customer changes first
+      // so the generated doc's `content` is up-to-date before we promote it.
+      if (editing) {
+        const docu = iframeRef.current?.contentDocument;
+        if (docu) {
+          const updated = "<!DOCTYPE html>\n" + docu.documentElement.outerHTML;
+          await axios.put(`${API}/documents/html/${doc.id}`, { content: updated });
+          setContent(updated);
+          setEditing(false);
+        }
+      }
+      const res = await axios.post(`${API}/templates/save-from-document/${doc.id}`);
+      toast.success(
+        res.data?.message
+          ? `${res.data.message} — applies to all future ${prettyTitle.toLowerCase()}s`
+          : "Saved as master template"
+      );
+      setConfirmMasterOpen(false);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to save master template");
+    } finally {
+      setSavingMaster(false);
     }
   };
 
@@ -200,6 +243,23 @@ const EditableDocumentDialog = ({
                 )}
                 Download PDF
               </Button>
+              {canSaveMaster && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setConfirmMasterOpen(true)}
+                  disabled={loading || saving || savingMaster}
+                  title="Save current content as the master template for all future generations"
+                  data-testid="save-master-btn"
+                >
+                  {savingMaster ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <BookmarkPlus className="w-4 h-4 mr-1" />
+                  )}
+                  Save as Master
+                </Button>
+              )}
             </div>
           </div>
           {editing && (
@@ -226,6 +286,37 @@ const EditableDocumentDialog = ({
           )}
         </div>
       </DialogContent>
+      <AlertDialog open={confirmMasterOpen} onOpenChange={setConfirmMasterOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save as master template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              All <strong>future</strong> <em>{prettyTitle}</em> documents will
+              start from this content (with customer-specific fields filled in
+              automatically). Existing generated documents are not affected.
+              <br />
+              <br />
+              You can revert to the system default later from Settings → Document
+              Templates.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={savingMaster} data-testid="confirm-master-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSaveAsMaster}
+              disabled={savingMaster}
+              data-testid="confirm-master-save"
+            >
+              {savingMaster ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <BookmarkPlus className="w-4 h-4 mr-1" />
+              )}
+              Save as Master
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

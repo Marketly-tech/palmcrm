@@ -120,6 +120,56 @@ async def snapshot_default_template(doc_type: DocumentType, body: Dict[str, Any]
     return saved
 
 
+@router.post("/templates/save-from-document/{doc_id}")
+async def save_master_from_document(
+    doc_id: str,
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER])),
+):
+    """Promote a generated, customer-edited document into the active master
+    template for its doc_type. Future generations of the same doc_type will
+    start from this content (with customer-specific placeholders re-substituted
+    via the standard render pipeline)."""
+    db = get_database()
+    gen_doc = await db.generated_documents.find_one({"id": doc_id}, {"_id": 0})
+    if not gen_doc:
+        raise HTTPException(status_code=404, detail="Generated document not found")
+    doc_type_value = gen_doc.get('doc_type')
+    content = gen_doc.get('content') or ''
+    if not content:
+        raise HTTPException(status_code=400, detail="Document has no content to save")
+
+    existing = await db.document_templates.find_one({"doc_type": doc_type_value}, {"_id": 0})
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if existing:
+        await db.document_templates.update_one(
+            {"id": existing['id']},
+            {"$set": {
+                "content": content,
+                "is_active": True,
+                "updated_at": now_iso,
+            }},
+        )
+        tmpl_id = existing['id']
+    else:
+        new_tmpl = DocumentTemplate(
+            name=f"{doc_type_value} (master)",
+            doc_type=DocumentType(doc_type_value),
+            content=content,
+            is_active=True,
+        )
+        doc = new_tmpl.model_dump()
+        doc['doc_type'] = doc_type_value
+        doc['created_at'] = doc['created_at'].isoformat()
+        doc['updated_at'] = doc['updated_at'].isoformat()
+        await db.document_templates.insert_one(doc)
+        tmpl_id = new_tmpl.id
+    await log_activity(
+        user['id'], user['name'], "save_master", "template", tmpl_id,
+        f"Saved {doc_type_value} as master template from doc {doc_id}",
+    )
+    return {"message": "Saved as master template", "template_id": tmpl_id, "doc_type": doc_type_value}
+
+
 # ==================== DOCUMENT GENERATION ====================
 @router.post("/documents/generate")
 async def generate_document(data: DocumentGenerate, user: dict = Depends(get_current_user)):
