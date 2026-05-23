@@ -10,6 +10,12 @@
 - **Password:** accounts123
 - **Role:** accounts
 
+## Sales Account
+- **Email:** sales@rrlrprojects.com
+- **Password:** sales123
+- **Role:** sales
+- Note: Sales role can approve/reject leads (with mandatory reason on reject) but cannot manage users/templates.
+
 ## Default Admin (legacy)
 - **Email:** admin@rrlbuilders.com
 - **Password:** admin123

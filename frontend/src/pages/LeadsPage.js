@@ -81,7 +81,7 @@ const LeadsPage = () => {
       fetchLeads();
       setViewDialogOpen(false);
     } catch (error) {
-      toast.error("Failed to approve lead");
+      toast.error(error?.response?.data?.detail || "Failed to approve lead");
     } finally {
       setProcessing(false);
     }
@@ -457,7 +457,7 @@ const LeadsPage = () => {
           </DialogHeader>
           <div className="space-y-2">
             <label htmlFor="reject-reason" className="text-sm font-medium">
-              Reason (optional)
+              Reason <span className="text-red-600">*</span>
             </label>
             <Input
               id="reject-reason"
@@ -465,7 +465,9 @@ const LeadsPage = () => {
               placeholder="e.g. Duplicate submission, customer withdrew, etc."
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
+              required
             />
+            <p className="text-xs text-slate-500">A reason is required so the rejection is auditable.</p>
           </div>
           <DialogFooter>
             <Button
@@ -479,7 +481,7 @@ const LeadsPage = () => {
             <Button
               variant="destructive"
               onClick={handleReject}
-              disabled={processing}
+              disabled={processing || !rejectReason.trim()}
               data-testid="reject-confirm-btn"
             >
               {processing ? (

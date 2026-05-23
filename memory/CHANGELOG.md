@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-15 — Sales Role Can Approve/Reject Leads
+- **Feature**: The `sales` role can now approve & reject leads (previously only `admin`/`manager` could). Reject requires a non-empty reason — enforced on both client and server.
+- **Backend** (`booking/__init__.py`): Added `UserRole.SALES` to `check_role(...)` on both `PUT /api/leads/{id}/approve` and `PUT /api/leads/{id}/reject`. Backend now returns HTTP 400 "Rejection reason is required" if reason is blank.
+- **Frontend** (`pages/LeadsPage.js`): Reject dialog: reason marked required with red asterisk + helper text; Confirm Reject button is disabled until a reason is entered. Approve handler now surfaces backend detail in toast.
+- **Verified**: Accounts → 403 (still excluded); Sales + no reason → 400 with clear message; Sales + reason → 200, lead deleted, unit released; Sales approve → 200, stage→`qualified`.
+- **Credentials**: `sales@rrlrprojects.com / sales123` added to `test_credentials.md`.
+- Files: `/app/backend/booking/__init__.py`, `/app/frontend/src/pages/LeadsPage.js`. Lint clean.
+
 ## 2026-02-15 — Save Document Edits as Master Template (Admin)
 - **Feature**: Customer Profile → Documents → open any generated doc → click **"Save as Master"** (admin/manager only). The edited content becomes the active master template for that doc_type — all future generations across all customers will start from it. Existing generated docs are not affected.
 - **Backend**: New endpoint `POST /api/templates/save-from-document/{doc_id}` (admin/manager only). Upserts the doc_type's row in `document_templates` with `is_active=true`. Returns the template id. Activity logged.

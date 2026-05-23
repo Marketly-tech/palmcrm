@@ -297,7 +297,7 @@ async def get_pending_leads(user: dict = Depends(get_current_user)):
 
 
 @router.put("/leads/{customer_id}/approve")
-async def approve_lead(customer_id: str, user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER]))):
+async def approve_lead(customer_id: str, user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES]))):
     db = get_database()
     result = await db.customers.update_one(
         {"id": customer_id, "stage": "pending_approval"},
@@ -310,8 +310,10 @@ async def approve_lead(customer_id: str, user: dict = Depends(check_role([UserRo
 
 
 @router.put("/leads/{customer_id}/reject")
-async def reject_lead(customer_id: str, reason: str = "", user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER]))):
+async def reject_lead(customer_id: str, reason: str = "", user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES]))):
     db = get_database()
+    if not reason or not reason.strip():
+        raise HTTPException(status_code=400, detail="Rejection reason is required")
     customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
     if not customer:
         raise HTTPException(status_code=404, detail="Lead not found")
