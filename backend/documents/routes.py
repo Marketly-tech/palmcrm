@@ -26,8 +26,103 @@ from documents.templates import (
     generate_transactions_export_html,
 )
 from documents.generators import render_document_content
+from utils import format_indian_currency
 
 logger = logging.getLogger(__name__)
+
+
+def _scrub_customer_values_to_placeholders(content: str, customer: dict) -> str:
+    """Reverse the placeholder substitution: replace literal customer-specific
+    values in the HTML back with their {placeholder} tokens, so the saved
+    master template renders correctly for ANY future customer.
+
+    Only the document *format* (layout, styling, static legal text) is preserved.
+    Customer-specific fields (name, unit, address, prices, dates, etc.) become
+    placeholders again.
+    """
+    # Field name -> placeholder token. Order matters: long/specific first so
+    # we don't partially-match a short value that's a prefix of a longer one.
+    field_to_placeholder = [
+        # Full names first (longest, most specific)
+        ("co_applicant_address", "{co_applicant_address}"),
+        ("co_applicant_father_name", "{co_applicant_father_name}"),
+        ("co_applicant_aadhar", "{co_applicant_aadhar}"),
+        ("co_applicant_email", "{co_applicant_email}"),
+        ("co_applicant_phone", "{co_applicant_phone}"),
+        ("co_applicant_name", "{co_applicant_name}"),
+        ("co_applicant_pan", "{co_applicant_pan}"),
+        # Applicant
+        ("address", "{address}"),
+        ("father_name", "{father_name}"),
+        ("aadhar_number", "{aadhar_number}"),
+        ("pan_number", "{pan_number}"),
+        ("email", "{email}"),
+        ("phone", "{phone}"),
+        ("name", "{customer_name}"),
+        # Property
+        ("project", "{project}"),
+        ("bhk_type", "{bhk_type}"),
+        ("unit_number", "{unit_number}"),
+        ("tower", "{tower}"),
+        ("customer_id", "{customer_id}"),
+        ("booking_date", "{booking_date}"),
+    ]
+    # Numeric/computed fields — replace both raw and formatted-indian forms
+    numeric_fields = [
+        ("total_price", "{total_price}"),
+        ("saleable_area", "{saleable_area}"),
+        ("uds", "{uds}"),
+        ("booking_amount", "{booking_amount}"),
+        ("rate_per_sqft", "{rate_per_sqft}"),
+        ("base_price", "{base_price}"),
+        ("gst_amount", "{gst_amount}"),
+        ("labour_cess", "{labour_cess}"),
+        ("club_house_charges", "{club_house_charges}"),
+        ("interest_amount", "{interest_amount}"),
+        ("floor", "{floor}"),
+    ]
+
+    pairs = []  # (literal, placeholder)
+    for field, token in field_to_placeholder:
+        val = customer.get(field)
+        if not val or not isinstance(val, str):
+            continue
+        val = val.strip()
+        # Skip tiny strings (1-2 chars) — high chance of corrupting layout
+        if len(val) < 3:
+            continue
+        pairs.append((val, token))
+
+    for field, token in numeric_fields:
+        raw = customer.get(field)
+        if raw in (None, 0, "0", "", "0.0"):
+            continue
+        try:
+            num = float(raw)
+        except (ValueError, TypeError):
+            continue
+        # Raw integer/float representations
+        if num == int(num):
+            pairs.append((str(int(num)), token))
+        pairs.append((str(num), token))
+        # Indian-format with and without ₹
+        try:
+            formatted = format_indian_currency(num, decimals=False)
+            if formatted and len(formatted) >= 3:
+                pairs.append((formatted, token))
+                pairs.append((f"₹{formatted}", token))
+                pairs.append((f"Rs. {formatted}", token))
+                pairs.append((f"Rs.{formatted}", token))
+        except (TypeError, ValueError):
+            pass
+
+    # Replace longest values first so "Ramya test lead" is replaced before "test"
+    pairs.sort(key=lambda p: len(p[0]), reverse=True)
+    scrubbed = content
+    for literal, token in pairs:
+        if literal and literal in scrubbed:
+            scrubbed = scrubbed.replace(literal, token)
+    return scrubbed
 
 router = APIRouter(tags=["Documents"])
 checklist_router = APIRouter(tags=["Document Checklist"])
@@ -137,6 +232,17 @@ async def save_master_from_document(
     content = gen_doc.get('content') or ''
     if not content:
         raise HTTPException(status_code=400, detail="Document has no content to save")
+
+    # CRITICAL: scrub the source customer's specific values (name, unit, prices,
+    # dates, etc.) back to {placeholder} tokens, so the saved master template is
+    # truly a FORMAT template — future customers' details get filled in by the
+    # standard render pipeline. Only the document's structure/styling/legal text
+    # is preserved.
+    source_customer = await db.customers.find_one(
+        {"id": gen_doc.get('customer_id')}, {"_id": 0}
+    )
+    if source_customer:
+        content = _scrub_customer_values_to_placeholders(content, source_customer)
 
     existing = await db.document_templates.find_one({"doc_type": doc_type_value}, {"_id": 0})
     now_iso = datetime.now(timezone.utc).isoformat()

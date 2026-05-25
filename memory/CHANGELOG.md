@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-02-15 — Master Template Save: Auto-Scrub Customer Values
+- **Fix**: When admin clicked "Save as Master", the entire HTML (including the **source** customer's name, unit, address, prices, dates) was being persisted. Future customers' docs ended up showing Ramya's name instead of their own.
+- **Fix**: Backend `_scrub_customer_values_to_placeholders()` now scans the saved HTML and replaces each literal value (e.g., "Ramya test lead", "0701", "Tower 1", `211655.79`, `2,11,655`) with its corresponding `{placeholder}` token before persisting. Only the document **format** (layout, styling, legal text) is preserved.
+- Replaces both raw numerics (`211655.79`, `211656`) **and** Indian-formatted variants (`2,11,656`, `₹2,11,656`, `Rs.2,11,656`). Skips strings shorter than 3 chars to avoid corrupting layout. Longest values are replaced first to prevent partial-match corruption.
+- Frontend confirmation dialog updated to clearly state: *"All future documents will use this format. Customer-specific fields are automatically refilled from each customer's profile."*
+- **Verified end-to-end**:
+  - Saved Ramya's allotment letter as master → master template now contains `{customer_name}`, `{unit_number}`, `{tower}`, `{customer_id}` placeholders instead of literal values
+  - Generated allotment letter for NANDAKUMAR → contains "NANDAKUMAR T V AND PRIYADHARSHINI NANDAKUMAR" (not Ramya), correctly using the master format with NANDAKUMAR's data
+- Files: `/app/backend/documents/routes.py`, `/app/frontend/src/components/customer/documents/EditableDocumentDialog.jsx`. Lint clean.
+
 ## 2026-02-15 — Digital-signature Note Added to T&C PDF
 - **Update**: Added a paraphrased digital-signature notice to the Terms & Conditions PDF (the one sent with the Welcome email), right below the signature block.
 - **Text rendered**: *"This document is digitally generated and signed by RRL Builders and Developers Pvt. Ltd. No physical signature is required. Once issued, it stands officially recorded."*

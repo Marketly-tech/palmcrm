@@ -292,8 +292,12 @@ const EditableDocumentDialog = ({
             <AlertDialogTitle>Save as master template?</AlertDialogTitle>
             <AlertDialogDescription>
               All <strong>future</strong> <em>{prettyTitle}</em> documents will
-              start from this content (with customer-specific fields filled in
-              automatically). Existing generated documents are not affected.
+              use this format (layout, styling, legal text). Customer-specific
+              fields — name, unit number, prices, address, dates — are
+              automatically refilled from each customer's profile, so any
+              values currently shown in this document are{" "}
+              <strong>NOT</strong> baked into the master. Existing generated
+              documents are not affected.
               <br />
               <br />
               You can revert to the system default later from Settings → Document
