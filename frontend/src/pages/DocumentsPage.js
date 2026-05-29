@@ -139,7 +139,6 @@ const DocumentsPage = () => {
     const styles = {
       sales_agreement: "bg-blue-100 text-blue-700",
       allotment_letter: "bg-green-100 text-green-700",
-      disbursement_letter: "bg-purple-100 text-purple-700",
     };
     return styles[type] || "bg-slate-100 text-slate-700";
   };
@@ -203,7 +202,6 @@ const DocumentsPage = () => {
                     <SelectContent>
                       <SelectItem value="sales_agreement">Sales Agreement</SelectItem>
                       <SelectItem value="allotment_letter">Allotment Letter</SelectItem>
-                      <SelectItem value="disbursement_letter">Disbursement Letter</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -266,7 +264,6 @@ const DocumentsPage = () => {
                       <SelectContent>
                         <SelectItem value="sales_agreement">Sales Agreement</SelectItem>
                         <SelectItem value="allotment_letter">Allotment Letter</SelectItem>
-                        <SelectItem value="disbursement_letter">Disbursement Letter</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -302,7 +299,7 @@ const DocumentsPage = () => {
           <Card className="mb-6 bg-blue-50 border-blue-200">
             <CardContent className="p-4">
               <p className="text-sm text-blue-700">
-                <strong>Note:</strong> Default templates are available for Sales Agreement, Allotment Letter, and Disbursement Letter.
+                <strong>Note:</strong> Default templates are available for Sales Agreement and Allotment Letter.
                 Create custom templates to override the defaults.
               </p>
             </CardContent>
@@ -310,7 +307,7 @@ const DocumentsPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Default Templates */}
-            {["sales_agreement", "allotment_letter", "disbursement_letter"].map((type) => {
+            {["sales_agreement", "allotment_letter"].map((type) => {
               const customTemplate = templates.find((t) => t.doc_type === type);
               return (
                 <Card key={type} className="hover:shadow-md transition-shadow">

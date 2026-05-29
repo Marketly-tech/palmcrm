@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-02-15 — Removed Disbursement Letter Document Type
+- **Feature**: Disbursement Letter removed entirely from the system at user request (option b — full removal, not just hiding).
+- **Backend**: Removed `DISBURSEMENT_LETTER` from `utils/enums.py::DocumentType`. Removed default template body from `documents/templates/default_template.py`. Backend now returns HTTP 422 for any `doc_type: "disbursement_letter"` request — enum validation rejects it.
+- **Frontend**: Removed from 4 places:
+  - `components/customer/DocumentsTab.jsx` — Generate Document dropdown
+  - `pages/DocumentsPage.js` — getDocTypeBadge() styles, Generate dropdown, Create Template dropdown
+  - `pages/DocumentsPage.js` — Default Templates info banner ("Available for Sales Agreement and Allotment Letter")
+  - `pages/DocumentsPage.js` — Default Templates grid (only renders 2 cards now)
+- **Verified**: Backend rejects disbursement_letter with 422; allotment_letter still works (200); 13/13 regression tests pass; backend restart clean. Lint clean.
+- Files: `backend/utils/enums.py`, `backend/documents/templates/default_template.py`, `frontend/src/components/customer/DocumentsTab.jsx`, `frontend/src/pages/DocumentsPage.js`.
+
 ## 2026-02-15 — TDS Calculation Fixed in Demand Letter (matches UI now)
 - **Bug**: Demand Letter PDF computed `tds_paid = amount_paid / 101` — i.e., 1% of **all** payments (booking + agreement + disbursements + everything). That's wrong: TDS Paid must be the sum of **actual TDS challans only** (transactions where `transaction_stage == "tds"`).
 - **Fix** (`documents/templates/demand_letter.py`): `tds_paid` is now `sum(t.amount for t in transactions if t.transaction_stage == 'tds')`. `tds_payable` and `tds_to_be_paid` formulas unchanged.

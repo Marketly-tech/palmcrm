@@ -96,7 +96,6 @@ const DocumentsTab = ({
                       <SelectItem value="price_breakup">Price Breakup</SelectItem>
                       <SelectItem value="cost_breakup">Cost Breakup</SelectItem>
                       <SelectItem value="demand_letter">Demand Letter</SelectItem>
-                      <SelectItem value="disbursement_letter">Disbursement Letter</SelectItem>
                       <SelectItem value="payment_schedule">Payment Schedule</SelectItem>
                     </SelectContent>
                   </Select>

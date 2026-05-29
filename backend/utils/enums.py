@@ -45,7 +45,6 @@ class PaymentStatus(str, Enum):
 class DocumentType(str, Enum):
     SALES_AGREEMENT = "sales_agreement"
     ALLOTMENT_LETTER = "allotment_letter"
-    DISBURSEMENT_LETTER = "disbursement_letter"
     PRICE_BREAKUP = "price_breakup"
     COST_BREAKUP = "cost_breakup"
     WELCOME_LETTER = "welcome_letter"

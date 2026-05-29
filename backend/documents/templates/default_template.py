@@ -341,39 +341,6 @@ def get_default_template(doc_type: DocumentType) -> str:
 </body>
 </html>
 """,
-        DocumentType.DISBURSEMENT_LETTER: """
-BANK DISBURSEMENT REQUEST LETTER
-
-Date: {date}
-To,
-The Manager
-[Bank Name]
-[Branch Address]
-
-Subject: Request for Disbursement of Home Loan for {customer_names}
-
-Dear Sir/Madam,
-
-We hereby request the disbursement of the following amount towards the purchase of property by the below mentioned applicant:
-
-APPLICANT DETAILS:
-Name: {customer_names}
-PAN: {pan_number}
-Phone: {phone}
-
-PROPERTY DETAILS:
-Project: {project}
-Tower: {tower}
-Unit Number: {unit_number}
-Agreement Value: Rs. {total_price}/-
-
-The construction has reached the required stage and we request you to process the disbursement.
-
-For """ + COMPANY_NAME + """
-
-_______________________
-Authorized Signatory
-"""
     }
     return templates.get(doc_type, "Template not found")
 
