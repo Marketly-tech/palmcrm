@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-02-15 — TDS Calculation Fixed in Demand Letter (matches UI now)
+- **Bug**: Demand Letter PDF computed `tds_paid = amount_paid / 101` — i.e., 1% of **all** payments (booking + agreement + disbursements + everything). That's wrong: TDS Paid must be the sum of **actual TDS challans only** (transactions where `transaction_stage == "tds"`).
+- **Fix** (`documents/templates/demand_letter.py`): `tds_paid` is now `sum(t.amount for t in transactions if t.transaction_stage == 'tds')`. `tds_payable` and `tds_to_be_paid` formulas unchanged.
+- **Verified**: On total ₹1Cr / 50% cumulative + booking 5L + agreement 10L + TDS 5K + TDS 7.5K + disbursement 20L:
+  - TDS Payable = ₹49,505 (50L ÷ 101) ✓
+  - TDS Paid    = ₹12,500 (only TDS-stage txns) ✓
+  - TDS To Be Paid = ₹37,005 ✓
+- **Memory locked**: New file `/app/memory/TDS_CALCULATION_LOGIC.md` captures the formulas, common mistakes, and reference test case. PRD.md now mandates reading it before any TDS code change.
+- All 13 regression tests still pass.
+- File: `/app/backend/documents/templates/demand_letter.py`.
+
 ## 2026-02-15 — Master Template Save: Auto-Scrub Customer Values
 - **Fix**: When admin clicked "Save as Master", the entire HTML (including the **source** customer's name, unit, address, prices, dates) was being persisted. Future customers' docs ended up showing Ramya's name instead of their own.
 - **Fix**: Backend `_scrub_customer_values_to_placeholders()` now scans the saved HTML and replaces each literal value (e.g., "Ramya test lead", "0701", "Tower 1", `211655.79`, `2,11,655`) with its corresponding `{placeholder}` token before persisting. Only the document **format** (layout, styling, legal text) is preserved.

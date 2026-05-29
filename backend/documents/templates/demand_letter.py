@@ -66,9 +66,21 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
     # Outstanding
     total_outstanding = max(0, round(demand_raised - amount_paid, 2))
 
-    # TDS calculation: TDS = demand_raised / 101 (stage-wise)
+    # ─── TDS Calculation (Section 194-IA) ───────────────────────────────
+    # TDS Payable    = Total TDS owed up to current stage = demand_raised / 101
+    #                  (demand_raised is gross-inclusive of the 1% TDS)
+    # TDS Paid       = Sum of all transactions where transaction_stage == "tds"
+    #                  (actual TDS challans submitted by the customer)
+    # TDS To Be Paid = TDS Payable − TDS Paid
     tds_payable = round(demand_raised / 101, 2) if demand_raised else 0
-    tds_paid = round(amount_paid / 101, 2) if amount_paid else 0
+    tds_paid = round(
+        sum(
+            float(t.get('amount', 0) or 0)
+            for t in transactions
+            if (t.get('transaction_stage') or '').lower() == 'tds'
+        ),
+        2,
+    )
     tds_to_be_paid = max(0, round(tds_payable - tds_paid, 2))
 
     # Net amount payable

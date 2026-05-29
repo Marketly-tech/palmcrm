@@ -6,6 +6,10 @@
 > user-approved visual layout (dark header band, footer band, gold accents,
 > etc.) so format is never silently changed across sessions.
 
+> 🚨 **MANDATORY READING FOR ANY AGENT TOUCHING TDS LOGIC:**
+> Always read `/app/memory/TDS_CALCULATION_LOGIC.md` BEFORE modifying TDS
+> Payable / TDS Paid / TDS To Be Paid in any file. Formulas are locked.
+
 ## 1. Product Overview
 **Product Name:** RRL CRM  
 **Domain:** https://rrlcrm.com  
