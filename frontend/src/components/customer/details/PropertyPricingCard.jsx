@@ -102,16 +102,18 @@ const PropertyPricingCard = ({
               )}
             </div>
             <div>
-              <Label>Additional Parking</Label>
+              <Label>Car Parking Charges</Label>
               {editing ? (
                 <Input
                   type="number"
                   min="0"
-                  value={editData.additional_parking || "0"}
-                  onChange={(e) => handleEditChange('additional_parking', parseInt(e.target.value) || 0)}
+                  value={editData.additional_parking_charges ?? 200000}
+                  onChange={(e) => setEditData({ ...editData, additional_parking_charges: parseFloat(e.target.value) || 0 })}
+                  className="mt-1"
+                  data-testid="car-parking-charges-input"
                 />
               ) : (
-                <p className="text-slate-700 mt-1">{customer.additional_parking || 0}</p>
+                <p className="text-slate-700 mt-1">{formatCurrency(customer.additional_parking_charges ?? 200000)}</p>
               )}
             </div>
             <div>
@@ -131,7 +133,7 @@ const PropertyPricingCard = ({
               {editing ? (
                 <Input
                   type="number"
-                  value={editData.club_house_charges || 200000}
+                  value={editData.club_house_charges ?? 300000}
                   onChange={(e) => setEditData({ ...editData, club_house_charges: parseFloat(e.target.value) || 0 })}
                   className="mt-1"
                 />
@@ -221,7 +223,7 @@ const PropertyPricingCard = ({
                     <span className="font-medium text-right">{formatCurrency(liveCalc.additionalCharges)}</span>
                   </>
                 )}
-                <span>Additional Parking:</span>
+                <span>Car Parking:</span>
                 <span className="font-medium text-right">{formatCurrency(liveCalc.parkingCharges)}</span>
                 {liveCalc.interestAmount > 0 && (
                   <>

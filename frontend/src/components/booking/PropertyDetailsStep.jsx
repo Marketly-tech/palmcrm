@@ -61,9 +61,16 @@ const PropertyDetailsStep = ({ formData, onInputChange, onSelectChange, priceCal
           <Label htmlFor="parking">Covered Car Parking</Label>
           <Input id="parking" name="parking" value={formData.parking} onChange={onInputChange} placeholder="1" />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="club_house_charges">Club House Charges (&#8377;)</Label>
-          <Input id="club_house_charges" name="club_house_charges" type="number" min="0" value={formData.club_house_charges} onChange={onInputChange} placeholder="200000" />
+        <div className="space-y-2 col-span-2 grid grid-cols-2 gap-3">
+          <div className="p-3 bg-slate-50 rounded-md border">
+            <Label className="text-xs text-slate-600">Club House Charges</Label>
+            <p className="font-semibold text-slate-800 mt-1">&#8377;3,00,000 <span className="text-xs font-normal text-slate-500">(fixed)</span></p>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-md border">
+            <Label className="text-xs text-slate-600">Car Parking Charges</Label>
+            <p className="font-semibold text-slate-800 mt-1">&#8377;2,00,000 <span className="text-xs font-normal text-slate-500">(fixed)</span></p>
+          </div>
+          <p className="col-span-2 text-xs text-slate-500">These are fixed at booking. Admin can edit them later from the customer profile if required.</p>
         </div>
         <div className="space-y-2 col-span-2">
           <Label htmlFor="additional_charges">Additional Charges (&#8377;) - Manual Entry</Label>
@@ -87,6 +94,8 @@ const PropertyDetailsStep = ({ formData, onInputChange, onSelectChange, priceCal
             )}
             <span className="text-slate-600">Club House & Infrastructure:</span>
             <span className="font-medium text-right">{formatCurrency(priceCalc.clubHouse)}</span>
+            <span className="text-slate-600">Car Parking:</span>
+            <span className="font-medium text-right">{formatCurrency(priceCalc.carParking)}</span>
             {priceCalc.additionalCharges > 0 && (
               <>
                 <span className="text-slate-600">Additional Charges:</span>

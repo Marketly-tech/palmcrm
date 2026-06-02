@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-02-15 — Fixed Charges on Booking: Car Parking ₹2L + Club House ₹3L
+- **Feature**: For all **new** bookings, two charges are now fixed: **Club House ₹3,00,000** (was ₹2L) and **Car Parking ₹2,00,000** (replaces the old "additional_parking × ₹3L" formula). The "Additional Parking count" input is removed from both the booking form and the customer profile. Existing customers' values are preserved as stored.
+- **Customer profile editability**: Admin can still edit both **Club House** and **Car Parking Charges** per customer from the Property & Pricing card — preserved by user request.
+- **Backend**:
+  - `customers/models.py::Customer`: `club_house_charges` default 200000 → **300000**; `additional_parking_charges` default 0 → **200000**
+  - `booking/__init__.py::BookingFormData`: same default changes
+  - `_calculate_pricing()`: `parking_charges = 200000` (fixed), no longer `data.additional_parking × 300000`. `data.additional_parking` kept on the model for backward compat but ignored in pricing.
+- **Frontend**:
+  - `components/booking/constants.js`: `initialFormData.club_house_charges = "300000"` + new `car_parking_charges = "200000"`. `calculatePrice` now adds both.
+  - `components/booking/PropertyDetailsStep.jsx`: Removed editable Club House input; replaced with two **read-only "fixed" tiles** (Club House ₹3,00,000 + Car Parking ₹2,00,000) + a one-line note that admin can edit per-customer later. Price preview shows both as separate rows.
+  - `components/customer/details/PropertyPricingCard.jsx`: Removed "Additional Parking" count input; added editable "Car Parking Charges" amount field (₹ default 200000). Club House default in editor → 300000. Live-preview row relabeled "Additional Parking" → "Car Parking".
+  - `hooks/useCustomerPage.js::calculateLivePrice`: removed `additionalParking × 300000`. Now uses `data.additional_parking_charges || 200000`; `clubHouse` reads from edited data with fallback 300000.
+- **Verified**: Backend pricing test → club ₹3L + car ₹2L applied; `additional_parking=5` is correctly ignored. 13/13 regression tests pass. Backend restart clean. Lint clean.
+- Files: `backend/booking/__init__.py`, `backend/customers/models.py`, `frontend/src/components/booking/constants.js`, `frontend/src/components/booking/PropertyDetailsStep.jsx`, `frontend/src/components/customer/details/PropertyPricingCard.jsx`, `frontend/src/hooks/useCustomerPage.js`.
+
 ## 2026-02-15 — Removed Disbursement Letter Document Type
 - **Feature**: Disbursement Letter removed entirely from the system at user request (option b — full removal, not just hiding).
 - **Backend**: Removed `DISBURSEMENT_LETTER` from `utils/enums.py::DocumentType`. Removed default template body from `documents/templates/default_template.py`. Backend now returns HTTP 422 for any `doc_type: "disbursement_letter"` request — enum validation rejects it.

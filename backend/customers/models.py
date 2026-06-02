@@ -48,10 +48,10 @@ class CustomerBase(BaseModel):
     # Pricing
     rate_per_sqft: float = 0
     base_price: float = 0  # rate * saleable_area
-    club_house_charges: float = 200000  # Default 200000, editable
+    club_house_charges: float = 300000  # Fixed ₹3L default; editable in customer profile
     infrastructure_charges: float = 0
     additional_charges: float = 0  # Manual additional charges
-    additional_parking_charges: float = 0  # Legacy field
+    additional_parking_charges: float = 200000  # Fixed ₹2L car parking; editable in customer profile
     labour_cess: float = 0  # 0.70%
     gst_percentage: float = 5
     gst_amount: float = 0

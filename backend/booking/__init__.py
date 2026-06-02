@@ -67,12 +67,12 @@ class BookingFormData(BaseModel):
     rate_per_sqft: float = 0
     floor_rise_cost: float = 0
     parking: Optional[str] = "1"
-    additional_parking: int = 0
+    additional_parking: int = 0  # Legacy — kept for backward compat, not used in pricing
     total_price: float = 0
     base_price: float = 0
     floor_rise_total: float = 0
-    club_house_charges: float = 200000
-    additional_parking_charges: float = 0
+    club_house_charges: float = 300000  # Fixed ₹3L on booking; editable in customer profile
+    additional_parking_charges: float = 200000  # Fixed ₹2L car parking on booking; editable in customer profile
     labour_cess: float = 0
     gst_amount: float = 0
     booking_amount: float = 0
@@ -107,8 +107,9 @@ def _calculate_pricing(data, fields):
         }
     base_price = fields["rate_per_sqft"] * sa
     floor_rise_total = frc * sa
-    club_house = 200000
-    parking_charges = data.additional_parking * 300000
+    # Fixed charges on every new booking — editable later in customer profile.
+    club_house = 300000     # ₹3L
+    parking_charges = 200000  # ₹2L fixed car parking (was: additional_parking * 300000)
     subtotal = base_price + floor_rise_total + club_house + parking_charges
     return {
         "base_price": base_price, "floor_rise_total": floor_rise_total,

@@ -30,7 +30,8 @@ export const initialFormData = {
   // Property
   project: "", tower: "", unit_number: "", bhk_type: "", floor: "",
   saleable_area: "", rate_per_sqft: "6600", floor_rise_cost: "0",
-  parking: "1", club_house_charges: "200000", additional_charges: "0",
+  parking: "1", club_house_charges: "300000", car_parking_charges: "200000",
+  additional_charges: "0",
   // Payment
   booking_amount: "", transaction_details: "", transaction_date: "", transaction_bank: "",
   // Finance
@@ -54,12 +55,13 @@ export const calculatePrice = (formData) => {
   const saleableArea = parseFloat(formData.saleable_area) || 0;
   const ratePerSqft = parseFloat(formData.rate_per_sqft) || 0;
   const floorRiseCost = parseFloat(formData.floor_rise_cost) || 0;
-  const clubHouseCharges = parseFloat(formData.club_house_charges) || 200000;
+  const clubHouseCharges = parseFloat(formData.club_house_charges) || 300000;
+  const carParkingCharges = parseFloat(formData.car_parking_charges) || 200000;
   const additionalCharges = parseFloat(formData.additional_charges) || 0;
 
   const basePrice = saleableArea * ratePerSqft;
   const floorRiseTotal = saleableArea * floorRiseCost;
-  const subtotal = basePrice + floorRiseTotal + clubHouseCharges + additionalCharges;
+  const subtotal = basePrice + floorRiseTotal + clubHouseCharges + carParkingCharges + additionalCharges;
   const labourCess = subtotal * 0.007;
   const gst = subtotal * 0.05;
   const total = subtotal + labourCess + gst;
@@ -67,7 +69,7 @@ export const calculatePrice = (formData) => {
   return {
     basePrice, floorRiseCost, floorRiseTotal,
     effectiveRate: ratePerSqft + floorRiseCost,
-    clubHouse: clubHouseCharges, additionalCharges,
+    clubHouse: clubHouseCharges, carParking: carParkingCharges, additionalCharges,
     subtotal, labourCess, gst, total,
   };
 };

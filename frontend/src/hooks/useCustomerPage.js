@@ -161,12 +161,13 @@ export function useCustomerPage(id) {
     const saleableArea = parseFloat(data.saleable_area) || 0;
     const ratePerSqft = parseFloat(data.rate_per_sqft) || 0;
     const floorRiseCost = parseFloat(data.floor_rise_cost) || 0;
-    const additionalParking = parseInt(data.additional_parking) || 0;
     const basePrice = saleableArea * ratePerSqft;
     const floorRiseTotal = saleableArea * floorRiseCost;
-    const clubHouse = parseFloat(editData?.club_house_charges) || 200000;
-    const additionalCharges = parseFloat(editData?.additional_charges) || 0;
-    const parkingCharges = additionalParking * 300000;
+    const clubHouse = parseFloat(data.club_house_charges) || 300000;
+    const additionalCharges = parseFloat(data.additional_charges) || 0;
+    // Car parking is now a fixed editable amount on the customer (default ₹2L),
+    // NOT a count multiplied by ₹3L per slot.
+    const parkingCharges = parseFloat(data.additional_parking_charges) || 200000;
     const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges + additionalCharges;
     const labourCess = subtotal * 0.007;
     const gst = subtotal * 0.05;
