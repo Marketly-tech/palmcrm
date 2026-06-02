@@ -10,6 +10,10 @@
 > Always read `/app/memory/TDS_CALCULATION_LOGIC.md` BEFORE modifying TDS
 > Payable / TDS Paid / TDS To Be Paid in any file. Formulas are locked.
 
+> 🚨 **MANDATORY READING FOR ANY AGENT TOUCHING BESCOM CHARGES:**
+> Always read `/app/memory/BESCOM_LOGIC.md` BEFORE modifying BESCOM in
+> any template / live calc / model. Formula and tax treatment are locked.
+
 ## 1. Product Overview
 **Product Name:** RRL CRM  
 **Domain:** https://rrlcrm.com  

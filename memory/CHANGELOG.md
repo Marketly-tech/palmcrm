@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-15 — BESCOM Charges (Per-Sqft Rate Input)
+- **Feature**: New BESCOM Charges line in Customer Profile → Property & Pricing. Admin enters a rate (e.g. ₹50/sq.ft); system auto-calculates `amount = rate × saleable_area`, includes it in subtotal (so labour cess + GST apply on top), and shows it in the Price Breakup PDF.
+- **Storage**: `Customer.bescom_rate: float = 0` (sqft rate). The amount is derived, not stored — keeps it consistent if saleable_area is later edited.
+- **Live calc updated** (`useCustomerPage.js`): subtotal now includes BESCOM; live preview shows `BESCOM (₹50/sq.ft): ₹75,000` row when > 0.
+- **PDF updated** (`price_breakup.py`): conditional BESCOM row rendered between Additional Parking and Grand Total. Hidden when 0.
+- **Memory locked**: New file `/app/memory/BESCOM_LOGIC.md` captures formula, tax treatment (pre-GST), storage rule, common mistakes, reference implementations, and verified test case. PRD.md now mandates reading it.
+- **Verified end-to-end**: rate ₹50/sqft × 11 sqft → ₹550 rendered correctly in price_breakup HTML.
+- Files: `backend/customers/models.py`, `backend/documents/templates/price_breakup.py`, `frontend/src/hooks/useCustomerPage.js`, `frontend/src/components/customer/details/PropertyPricingCard.jsx`, `/app/memory/BESCOM_LOGIC.md`, `/app/memory/PRD.md`.
+
 ## 2026-02-15 — Fixed Charges on Booking: Car Parking ₹2L + Club House ₹3L
 - **Feature**: For all **new** bookings, two charges are now fixed: **Club House ₹3,00,000** (was ₹2L) and **Car Parking ₹2,00,000** (replaces the old "additional_parking × ₹3L" formula). The "Additional Parking count" input is removed from both the booking form and the customer profile. Existing customers' values are preserved as stored.
 - **Customer profile editability**: Admin can still edit both **Club House** and **Car Parking Charges** per customer from the Property & Pricing card — preserved by user request.

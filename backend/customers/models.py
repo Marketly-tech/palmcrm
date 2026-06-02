@@ -52,6 +52,7 @@ class CustomerBase(BaseModel):
     infrastructure_charges: float = 0
     additional_charges: float = 0  # Manual additional charges
     additional_parking_charges: float = 200000  # Fixed ₹2L car parking; editable in customer profile
+    bescom_rate: float = 0  # ₹ per saleable sqft. BESCOM total = bescom_rate × saleable_area. Goes into subtotal (before GST + labour cess).
     labour_cess: float = 0  # 0.70%
     gst_percentage: float = 5
     gst_amount: float = 0

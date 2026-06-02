@@ -168,7 +168,10 @@ export function useCustomerPage(id) {
     // Car parking is now a fixed editable amount on the customer (default ₹2L),
     // NOT a count multiplied by ₹3L per slot.
     const parkingCharges = parseFloat(data.additional_parking_charges) || 200000;
-    const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges + additionalCharges;
+    // BESCOM: rate per sqft × saleable area → adds to subtotal (before GST/labour cess)
+    const bescomRate = parseFloat(data.bescom_rate) || 0;
+    const bescomAmount = bescomRate * saleableArea;
+    const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges + additionalCharges + bescomAmount;
     const labourCess = subtotal * 0.007;
     const gst = subtotal * 0.05;
     // Interest is a manual flat add-on AFTER GST (non GST-taxable)
@@ -183,6 +186,8 @@ export function useCustomerPage(id) {
       clubHouse: Math.round(clubHouse),
       additionalCharges: Math.round(additionalCharges),
       parkingCharges: Math.round(parkingCharges),
+      bescomRate,
+      bescomAmount: Math.round(bescomAmount),
       subtotal: Math.round(subtotal),
       labourCess: Math.round(labourCess),
       gst: Math.round(gst),
@@ -212,6 +217,8 @@ export function useCustomerPage(id) {
           club_house_charges: liveCalc.clubHouse,
           additional_charges: liveCalc.additionalCharges,
           additional_parking_charges: liveCalc.parkingCharges,
+          bescom_rate: liveCalc.bescomRate,
+          bescom_amount: liveCalc.bescomAmount,
           labour_cess: liveCalc.labourCess,
           gst_amount: liveCalc.gst,
           interest_amount: liveCalc.interestAmount,

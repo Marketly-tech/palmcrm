@@ -39,6 +39,16 @@ def generate_price_breakup_html(customer: dict) -> str:
         if interest_amount else ''
     )
 
+    # BESCOM = rate × saleable area; shown in subtotal (before GST + labour cess)
+    bescom_rate = float(customer.get('bescom_rate', 0) or 0)
+    saleable_area = float(customer.get('saleable_area', 0) or 0)
+    bescom_amount = round(bescom_rate * saleable_area)
+    bescom_row = (
+        f'<tr><td>BESCOM Charges (&#8377;{bescom_rate:g}/sq.ft &times; {saleable_area:g})</td>'
+        f'<td class="amount">{format_inr(bescom_amount)}</td></tr>'
+        if bescom_amount else ''
+    )
+
     html = f'''
     <!DOCTYPE html>
     <html>
@@ -297,6 +307,7 @@ def generate_price_breakup_html(customer: dict) -> str:
                             <td>Additional Car Parking ({customer.get('additional_parking', 0)} nos.)</td>
                             <td class="amount">{format_inr(customer.get('additional_parking_charges', 0))}</td>
                         </tr>
+                        {bescom_row}
                         <tr>
                             <td>Labour Cess (0.70%)</td>
                             <td class="amount">{format_inr(customer.get('labour_cess', 0))}</td>

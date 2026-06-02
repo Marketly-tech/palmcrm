@@ -117,6 +117,34 @@ const PropertyPricingCard = ({
               )}
             </div>
             <div>
+              <Label>BESCOM Rate (&#8377;/sq.ft)</Label>
+              {editing ? (
+                <>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editData.bescom_rate ?? 0}
+                    onChange={(e) => setEditData({ ...editData, bescom_rate: parseFloat(e.target.value) || 0 })}
+                    placeholder="e.g. 50"
+                    className="mt-1"
+                    data-testid="bescom-rate-input"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {(editData.bescom_rate || 0) > 0 && (editData.saleable_area || 0) > 0
+                      ? `Total: ${formatCurrency(Math.round((parseFloat(editData.bescom_rate) || 0) * (parseFloat(editData.saleable_area) || 0)))} (rate × ${editData.saleable_area} sq.ft)`
+                      : "Manual entry · multiplied by saleable area · included in subtotal (before GST)"}
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-700 mt-1" data-testid="bescom-amount-value">
+                  {formatCurrency(Math.round((customer.bescom_rate || 0) * (customer.saleable_area || 0)))}
+                  {(customer.bescom_rate || 0) > 0 && (
+                    <span className="text-xs text-slate-500 ml-2">(&#8377;{customer.bescom_rate}/sq.ft &times; {customer.saleable_area || 0})</span>
+                  )}
+                </p>
+              )}
+            </div>
+            <div>
               <Label>Base Price</Label>
               <p className="text-slate-700 mt-1">
                 {editing && liveCalc ? formatCurrency(liveCalc.basePrice) : formatCurrency(customer.base_price)}
@@ -225,6 +253,12 @@ const PropertyPricingCard = ({
                 )}
                 <span>Car Parking:</span>
                 <span className="font-medium text-right">{formatCurrency(liveCalc.parkingCharges)}</span>
+                {liveCalc.bescomAmount > 0 && (
+                  <>
+                    <span>BESCOM (&#8377;{liveCalc.bescomRate}/sq.ft):</span>
+                    <span className="font-medium text-right">{formatCurrency(liveCalc.bescomAmount)}</span>
+                  </>
+                )}
                 {liveCalc.interestAmount > 0 && (
                   <>
                     <span>Interest Amount (post-GST):</span>
