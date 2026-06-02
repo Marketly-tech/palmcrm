@@ -57,10 +57,6 @@ const PropertyDetailsStep = ({ formData, onInputChange, onSelectChange, priceCal
           <Input id="floor_rise_cost" name="floor_rise_cost" type="number" value={formData.floor_rise_cost} onChange={onInputChange} placeholder="e.g., 50" data-testid="floor-rise-input" />
           <p className="text-xs text-slate-500">Additional cost per sq.ft based on floor (enter 0 if not applicable)</p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="parking">Covered Car Parking</Label>
-          <Input id="parking" name="parking" value={formData.parking} onChange={onInputChange} placeholder="1" />
-        </div>
         <div className="space-y-2 col-span-2 grid grid-cols-2 gap-3">
           <div className="p-3 bg-slate-50 rounded-md border">
             <Label className="text-xs text-slate-600">Club House Charges</Label>
