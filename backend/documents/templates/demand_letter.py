@@ -63,8 +63,14 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
     txn_total = sum(float(t.get('amount', 0) or 0) for t in transactions)
     amount_paid = txn_total if txn_total >= booking_amount else booking_amount + txn_total
 
-    # Outstanding
-    total_outstanding = max(0, round(demand_raised - amount_paid, 2))
+    # Interest Amount — flat post-GST add-on owed by the customer (per
+    # /app/memory/PRD.md: Interest Amount is added to Total Price after GST).
+    # It is NOT part of cumulative-stage demand; the entire interest sits in
+    # outstanding until the customer pays it.
+    interest_amount = float(customer.get('interest_amount', 0) or 0)
+
+    # Outstanding = stage-wise demand outstanding + any unpaid interest
+    total_outstanding = max(0, round((demand_raised - amount_paid) + interest_amount, 2))
 
     # ─── TDS Calculation (Section 194-IA) ───────────────────────────────
     # TDS Payable    = Total TDS owed up to current stage = demand_raised / 101
@@ -363,10 +369,10 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                     </tr>
                     <tr>
                         <th>Interest (D)</th>
-                        <td>0</td>
+                        <td>{fmt(interest_amount)}</td>
                     </tr>
                     <tr class="highlight">
-                        <th>Total Outstanding as on date (A)-(C)</th>
+                        <th>Total Outstanding as on date <small>(A)-(C)+(D)</small></th>
                         <td>{fmt(total_outstanding)}</td>
                     </tr>
                     <tr>

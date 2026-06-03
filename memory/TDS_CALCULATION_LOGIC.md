@@ -80,6 +80,27 @@ const tdsBalance = Math.max(0, tdsPayable - Math.round(tdsPaid));
 
 ---
 
+## Interest Amount handling in Demand Letter (added 2026-02-15)
+
+`customer.interest_amount` is a flat amount the customer owes outside the
+cumulative slab demand (it's a post-GST add-on per `PRD.md`). It is **added
+to Total Outstanding** in the demand letter:
+
+```
+Total Outstanding = (Demand Raised − Amount Paid) + Interest Amount
+                  =  (A)            − (C)          + (D)
+```
+
+The "Interest (D)" row in the demand-letter table renders
+`customer.interest_amount`, NOT a hardcoded `0`.
+
+`Net Amount Payable = Total Outstanding − TDS Payable` (unchanged).
+
+✅ Verified: total_price ₹1Cr, 50% cumulative, paid ₹30L, interest ₹25K →
+Outstanding = ₹20,25,000.
+
+---
+
 ## How to add a TDS transaction (data integrity)
 
 When a TDS challan is submitted by the customer, accounts team must:

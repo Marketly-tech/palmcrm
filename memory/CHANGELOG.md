@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-02-15 — Demand Letter: customer.interest_amount Now Mapped to Outstanding
+- **Feature**: `customer.interest_amount` is now included in the Demand Letter's "Total Outstanding" calculation. Previously the "Interest (D)" row was hardcoded to `0`.
+- **Formula** (updated in `documents/templates/demand_letter.py`):
+  ```
+  Total Outstanding = (Demand Raised − Amount Paid) + Interest Amount
+                    =  (A)            − (C)          + (D)
+  ```
+- "Interest (D)" row now renders `customer.interest_amount`. Row label updated to `(A)-(C)+(D)`.
+- `Net Amount Payable = Total Outstanding − TDS Payable` (unchanged — TDS still computed on demand_raised ÷ 101, not on outstanding).
+- **Verified**: total_price ₹1Cr, 50% cumulative, paid ₹30L, interest ₹25K → Outstanding renders **₹20,25,000** ✓.
+- Memory file `TDS_CALCULATION_LOGIC.md` updated with the new interest-handling section.
+- 13/13 regression tests still pass.
+
 ## 2026-02-15 — Code Quality Pass: Critical Items
 **Real fixes applied:**
 - **Hardcoded test credentials → env vars**: `test_slab_overdue_stats.py`, `test_iteration35_booking_reject.py`, `test_bank_filter.py` now read `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD` / `TEST_CUSTOMER_ID` from env, falling back to documented defaults so CI doesn't break.
