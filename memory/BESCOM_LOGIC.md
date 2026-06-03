@@ -40,6 +40,7 @@ The **amount** is NOT stored separately — always derived on the fly from `besc
 | Customer Profile → Property & Pricing card | Editable input "BESCOM Rate (₹/sq.ft)". Live preview shows `rate × sqft` total. Saved on Save Changes. |
 | Live Price Calculator preview | Shows `BESCOM (₹50/sq.ft): ₹75,000` row when rate > 0. Included in subtotal. |
 | Price Breakup PDF (`documents/templates/price_breakup.py`) | Conditional `bescom_row` rendered between Additional Parking and Grand Total. Hidden if amount = 0. |
+| Cost Breakup PDF (`documents/templates/cost_breakup.py`) | Dynamic BESCOM row uses `bescom_rate × saleable_area`. Label shows derivation: "BESCOM (₹50/sq.ft × 1500)". Reverse-calc `basic_cost = total_price − bescom − car_parking − amenities − tds` picks this up automatically. |
 | Other PDFs (allotment, demand, NOCs) | Not shown explicitly — they consume `total_price` only. |
 
 ---

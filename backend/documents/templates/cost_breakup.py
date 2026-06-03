@@ -67,18 +67,22 @@ def generate_cost_breakup_html(customer: dict) -> str:
     # Estimate carpet area (approx 62.5% of saleable area)
     carpet_area = round(saleable_area * 0.625, 2) if saleable_area else 0
     
-    # Pricing components mapping to cost breakup
-    bescom = 200000  # Fixed BESCOM charges Rs. 2,00,000
-    car_parking = customer.get('additional_charges', 200000)  # Default 2L for car parking
-    amenities = customer.get('club_house_charges', 150000)  # Amenities
+    # Pricing components mapping to cost breakup — pulled from the customer
+    # record so admin-edited values flow through correctly (see PropertyPricingCard).
+    bescom_rate = float(customer.get('bescom_rate', 0) or 0)
+    bescom = round(bescom_rate * saleable_area) if (bescom_rate and saleable_area) else 0
+    car_parking = customer.get('additional_parking_charges', 200000)
+    amenities = customer.get('club_house_charges', 300000)  # Amenities / Club House
     
-    # Total - use stored total price
+    # Total — use stored total price
     total_value = customer.get('total_price', 0)
     
     # TDS = Total flat value / 101
     tds = round(total_value / 101) if total_value else 0
     
     # Basic cost = reverse calculated so total stays the same
+    # (subtract all known line-items from the gross total to derive the implied
+    # basic-cost figure for the cost-breakup display)
     basic_cost = total_value - bescom - car_parking - amenities - tds
     if basic_cost < 0:
         basic_cost = customer.get('base_price', 0)
@@ -317,7 +321,7 @@ def generate_cost_breakup_html(customer: dict) -> str:
                         <td class="amount">{format_inr(basic_cost)}</td>
                     </tr>
                     <tr>
-                        <td>BESCOM</td>
+                        <td>BESCOM{f' (&#8377;{bescom_rate:g}/sq.ft &times; {saleable_area:g})' if bescom else ''}</td>
                         <td class="amount">{format_inr(bescom)}</td>
                     </tr>
                     <tr>

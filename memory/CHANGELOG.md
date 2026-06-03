@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-02-15 — Cost Breakup BESCOM Now Dynamic (Was Hardcoded ₹2L)
+- **Bug**: Cost Breakup PDF had `bescom = 200000` hardcoded — ignored the user-entered `bescom_rate`. Also used `customer.additional_charges` for car parking (wrong field) and `club_house_charges` defaulted to 150000 (wrong default).
+- **Fix** (`cost_breakup.py`):
+  - `bescom = bescom_rate × saleable_area` (derived, matches Price Breakup)
+  - `car_parking = customer.additional_parking_charges` default 200000 (correct field)
+  - `amenities = customer.club_house_charges` default 300000 (correct default)
+  - Reverse-calc `basic_cost = total_price − bescom − car_parking − amenities − tds` automatically picks up the dynamic values
+  - BESCOM row label now shows `BESCOM (₹50/sq.ft × 1500)` derivation when amount > 0
+- **Verified**: rate=0 → BESCOM = ₹0 (no longer ₹2L); rate=50 × 11 sqft → ₹550 with derivation label "(₹50/sq.ft × 11)".
+- File: `/app/backend/documents/templates/cost_breakup.py`.
+
 ## 2026-02-15 — BESCOM Charges (Per-Sqft Rate Input)
 - **Feature**: New BESCOM Charges line in Customer Profile → Property & Pricing. Admin enters a rate (e.g. ₹50/sq.ft); system auto-calculates `amount = rate × saleable_area`, includes it in subtotal (so labour cess + GST apply on top), and shows it in the Price Breakup PDF.
 - **Storage**: `Customer.bescom_rate: float = 0` (sqft rate). The amount is derived, not stored — keeps it consistent if saleable_area is later edited.
