@@ -29,8 +29,8 @@ def _load_backend_url():
 BASE_URL = _load_backend_url()
 API = f"{BASE_URL}/api"
 
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
+ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "crm@rrlbuildersanddevelopers.com")
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "#RRLnew2026")
 
 
 @pytest.fixture(scope="module")

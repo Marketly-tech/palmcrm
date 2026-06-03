@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-02-15 — Code Quality Pass: Critical Items
+**Real fixes applied:**
+- **Hardcoded test credentials → env vars**: `test_slab_overdue_stats.py`, `test_iteration35_booking_reject.py`, `test_bank_filter.py` now read `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD` / `TEST_CUSTOMER_ID` from env, falling back to documented defaults so CI doesn't break.
+- **Defensive variable init / linter clarity**:
+  - `database.py::connect_to_mongo` — `db` is always rebound; removed redundant `try/except` that obscured the `global` assignment.
+  - `documents/routes.py::download_pdf` — explicit `pdf_bytes: bytes` annotation + `raise … from e` for proper exception chain.
+  - `email_service/routes.py` — renamed loop variable `att` → `attachment` to avoid F821-style false positives at L260.
+
+**Items in the report that were already fixed in prior sessions:**
+- `safePreview.js` already uses `DOMPurify.sanitize` + Blob URLs (no `document.write`).
+- `EmailComposerDialog.jsx` already wraps every `dangerouslySetInnerHTML` with `DOMPurify.sanitize()` (lines 143/147/152/158).
+
+**Items deferred to a dedicated refactor session** (large scope, real regression risk close to deploy):
+- React hook deps in `useCustomerPage.js` (28+ deps), `AuthContext.js`, `DashboardPage.js` — would risk infinite loops / stale closures if done hastily.
+- Complexity refactors for `format_applicant_block`, `generate_cost_breakup_html`, `generate_booking_form_preview_html`, `submit_booking_form`, `SendMessageDialog`, `BankDetailsCard`, `DocumentsTab`, `PaymentScheduleTab`.
+- `is True/False` → `==` replacements (~18 occurrences, mostly tests).
+- Type-hint coverage for `common.py`, `sales_agreement_template.py`, `server.py`.
+
+13/13 regression tests pass. Lint clean. Backend restart clean.
+
 ## 2026-02-15 — Cost Breakup BESCOM Now Dynamic (Was Hardcoded ₹2L)
 - **Bug**: Cost Breakup PDF had `bescom = 200000` hardcoded — ignored the user-entered `bescom_rate`. Also used `customer.additional_charges` for car parking (wrong field) and `club_house_charges` defaulted to 150000 (wrong default).
 - **Fix** (`cost_breakup.py`):

@@ -465,8 +465,8 @@ async def send_email_notification(
     if SENDGRID_API_KEY:
         try:
             sg_message = Mail(from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME), to_emails=recipient_email, subject=subject, html_content=html_content)
-            for att in sg_attachments:
-                sg_message.add_attachment(att)
+            for attachment in sg_attachments:
+                sg_message.add_attachment(attachment)
             sg = SendGridAPIClient(SENDGRID_API_KEY)
             response = sg.send(sg_message)
             if response.status_code in [200, 201, 202]:

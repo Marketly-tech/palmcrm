@@ -5,7 +5,8 @@ Handles MongoDB connection and provides database/collection references.
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import settings
 
-# MongoDB client instance - initialized immediately for import compatibility
+# MongoDB client instance — initialized eagerly at import time so the module-
+# level `db` is always bound. Failure here is fatal (raised in startup).
 try:
     client: AsyncIOMotorClient = AsyncIOMotorClient(settings.MONGO_URL)
     db = client[settings.DB_NAME]
@@ -14,16 +15,12 @@ except Exception as e:
 
 
 async def connect_to_mongo():
-    """Initialize MongoDB connection (for explicit startup if needed)."""
+    """(Re)initialize MongoDB connection. Always returns a bound `db`."""
     global client, db
-    try:
-        if client is None:
-            client = AsyncIOMotorClient(settings.MONGO_URL)
-        db = client[settings.DB_NAME]
-        print(f"Connected to MongoDB: {settings.DB_NAME}")
-    except Exception as e:
-        print(f"Failed to connect to MongoDB: {e}")
-        raise
+    if client is None:
+        client = AsyncIOMotorClient(settings.MONGO_URL)
+    db = client[settings.DB_NAME]
+    print(f"Connected to MongoDB: {settings.DB_NAME}")
     return db
 
 

@@ -7,9 +7,9 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
-ADMIN_EMAIL = "crm@rrlbuildersanddevelopers.com"
-ADMIN_PASSWORD = "#RRLnew2026"
-RAMYA_ID = "6d902613-5106-4294-bc3e-b907f85127f7"
+ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "crm@rrlbuildersanddevelopers.com")
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "#RRLnew2026")
+RAMYA_ID = os.environ.get("TEST_CUSTOMER_ID", "6d902613-5106-4294-bc3e-b907f85127f7")
 
 
 @pytest.fixture(scope="module")

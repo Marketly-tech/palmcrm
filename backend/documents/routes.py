@@ -358,10 +358,10 @@ async def download_document_as_pdf(doc_id: str, user: dict = Depends(get_current
     filename = f"RRL_{doc_type_label}_{customer_name}.pdf"
 
     try:
-        pdf_bytes = HTML(string=doc["content"]).write_pdf()
+        pdf_bytes: bytes = HTML(string=doc["content"]).write_pdf()
     except Exception as e:
         logger.error(f"PDF generation failed for doc {doc_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate PDF")
+        raise HTTPException(status_code=500, detail="Failed to generate PDF") from e
 
     return Response(
         content=pdf_bytes,
