@@ -62,20 +62,23 @@ def generate_cost_breakup_html(customer: dict) -> str:
     # Property details
     flat_no = customer.get('unit_number', '-')
     tower = customer.get('tower', '1')
-    saleable_area = customer.get('saleable_area', 0)
+    saleable_area = float(customer.get('saleable_area') or 0)
     uds = customer.get('uds', 0)
     # Estimate carpet area (approx 62.5% of saleable area)
     carpet_area = round(saleable_area * 0.625, 2) if saleable_area else 0
     
     # Pricing components mapping to cost breakup — pulled from the customer
     # record so admin-edited values flow through correctly (see PropertyPricingCard).
-    bescom_rate = float(customer.get('bescom_rate', 0) or 0)
+    # NB: use `or default` (not dict.get(key, default)) because legacy customers
+    # may have 0/None stored explicitly — `.get()` only falls back when the key
+    # is missing, not when it's falsy.
+    bescom_rate = float(customer.get('bescom_rate') or 0)
     bescom = round(bescom_rate * saleable_area) if (bescom_rate and saleable_area) else 0
-    car_parking = customer.get('additional_parking_charges', 200000)
-    amenities = customer.get('club_house_charges', 300000)  # Amenities / Club House
+    car_parking = float(customer.get('additional_parking_charges') or 200000)
+    amenities = float(customer.get('club_house_charges') or 300000)  # Amenities / Club House
     
     # Total — use stored total price
-    total_value = customer.get('total_price', 0)
+    total_value = float(customer.get('total_price') or 0)
     
     # TDS = Total flat value / 101
     tds = round(total_value / 101) if total_value else 0

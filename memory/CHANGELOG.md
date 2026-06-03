@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-02-15 — Cost Breakup: Car Parking & Amenities ₹0 Bug Fixed
+- **Bug**: For legacy customers whose `additional_parking_charges` / `club_house_charges` were stored as `0` (or `None`) in MongoDB, the Cost Breakup PDF rendered both as ₹0 even though defaults of ₹2L / ₹3L should kick in.
+- **Root cause**: `dict.get(key, default)` returns the default **only when the key is missing**. Legacy records had the key with a falsy value, so `.get()` returned 0 instead of the default.
+- **Fix** (`documents/templates/cost_breakup.py`): switched to `float(customer.get(key) or default)` for `additional_parking_charges` (200000), `club_house_charges` (300000), `saleable_area`, `bescom_rate`, `total_price`. Now `0`, `None`, missing key, and empty string all fall back to the right default; explicit non-zero values are honoured.
+- **Verified end-to-end**:
+  - Legacy customer (zero stored) → Car Parking **₹2,00,000**, Amenities **₹3,00,000**, BESCOM correctly computed from rate × area ✓
+  - New customer (explicit ₹2.5L / ₹3.5L) → values render as stored ✓
+  - Reverse-calc balances: Basic Cost + BESCOM + Parking + Amenities + TDS = total_price exactly ✓
+- 13/13 regression tests pass. Backend restart clean.
+- File: `/app/backend/documents/templates/cost_breakup.py`.
+
 ## 2026-02-15 — Demand Letter: customer.interest_amount Now Mapped to Outstanding
 - **Feature**: `customer.interest_amount` is now included in the Demand Letter's "Total Outstanding" calculation. Previously the "Interest (D)" row was hardcoded to `0`.
 - **Formula** (updated in `documents/templates/demand_letter.py`):
