@@ -2,37 +2,87 @@
 Email/Communication routes for RRL CRM.
 Handles email previews, sending, communication history, and email logs.
 """
-from typing import Optional
-from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends, Form, UploadFile, File
-import uuid
+import asyncio
 import base64
 import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
 
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
+import resend
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from weasyprint import HTML
 
-from database import get_database
-from config import settings
-from utils.enums import DocumentType
 from auth import get_current_user, log_activity
-from documents.models import GeneratedDocument, CommunicationLog
+from config import settings
 from dashboard.models import EmailSendRequest
+from database import get_database
+from documents.models import CommunicationLog, GeneratedDocument
 from documents.templates import (
-    generate_price_breakup_html, generate_booking_form_preview_html,
-    generate_terms_and_conditions_html, generate_welcome_email_html,
-    generate_document_email_html, generate_sales_agreement_html,
-    generate_allotment_letter_html, generate_demand_letter_html
+    generate_allotment_letter_html,
+    generate_booking_form_preview_html,
+    generate_demand_letter_html,
+    generate_document_email_html,
+    generate_price_breakup_html,
+    generate_sales_agreement_html,
+    generate_terms_and_conditions_html,
+    generate_welcome_email_html,
 )
+from utils.enums import DocumentType
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Communication"])
 
-SENDGRID_API_KEY = settings.SENDGRID_API_KEY
-SENDGRID_FROM_EMAIL = settings.SENDGRID_FROM_EMAIL
-SENDGRID_FROM_NAME = settings.SENDGRID_FROM_NAME
+RESEND_API_KEY = settings.RESEND_API_KEY
+RESEND_FROM_EMAIL = settings.RESEND_FROM_EMAIL
+RESEND_FROM_NAME = settings.RESEND_FROM_NAME
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+
+
+async def _resend_send(
+    *,
+    to_email: str,
+    subject: str,
+    html_content: str,
+    attachments: Optional[list] = None,
+) -> dict:
+    """Send an email via Resend. Attachments: list of dicts shaped
+    {"filename": str, "content": <bytes>, "content_type": str}.
+    Resend expects raw bytes (or base64 string); we pass base64 strings.
+
+    Resend SDK is sync — runs in a thread to keep the FastAPI loop free.
+    Returns {"status": "sent"|"failed", "id": str|None, "error": str|None}.
+    """
+    if not RESEND_API_KEY:
+        return {"status": "mocked (no API key)", "id": None, "error": None}
+
+    params: dict = {
+        "from": f"{RESEND_FROM_NAME} <{RESEND_FROM_EMAIL}>",
+        "to": [to_email],
+        "subject": subject,
+        "html": html_content,
+    }
+    if attachments:
+        params["attachments"] = [
+            {
+                "filename": a["filename"],
+                "content": (
+                    a["content"]
+                    if isinstance(a["content"], str)
+                    else base64.b64encode(a["content"]).decode()
+                ),
+            }
+            for a in attachments
+            if a.get("filename") and a.get("content") is not None
+        ]
+    try:
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        return {"status": "sent", "id": result.get("id"), "error": None}
+    except Exception as e:
+        logger.error(f"Resend error: {e}")
+        return {"status": "failed", "id": None, "error": str(e)}
 
 
 # ==================== EMAIL PREVIEWS ====================
@@ -83,7 +133,7 @@ Your dedicated Relationship Director will connect with you personally to ensure 
         "attachment_html_3": price_breakup_html,
         "attachment_filename_3": filename_price,
         "attachments": [filename_form, filename_terms, filename_price],
-        "has_sendgrid": bool(SENDGRID_API_KEY)
+        "has_sendgrid": bool(RESEND_API_KEY)
     }
 
 
@@ -133,7 +183,7 @@ Looking forward to your confirmation."""
         "attachment_html_2": price_breakup_html,
         "attachment_filename": f"RRL_SaleAgreement_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
         "attachment_filename_2": f"RRL_PriceBreakup_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
-        "has_sendgrid": bool(SENDGRID_API_KEY)
+        "has_sendgrid": bool(RESEND_API_KEY)
     }
 
 
@@ -169,7 +219,7 @@ Kindly review the terms and conditions mentioned in the letter and let us know i
         "email_html": email_html,
         "attachment_html": allotment_letter_html,
         "attachment_filename": f"RRL_AllotmentLetter_{customer.get('name', 'Customer').replace(' ', '_')}.pdf",
-        "has_sendgrid": bool(SENDGRID_API_KEY)
+        "has_sendgrid": bool(RESEND_API_KEY)
     }
 
 
@@ -213,28 +263,25 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
 
     email_status = "pending"
 
-    if SENDGRID_API_KEY:
-        try:
-            message = Mail(from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME), to_emails=recipient_email, subject=data.subject, html_content=email_html)
-            if hasattr(data, 'cc') and data.cc:
-                message.add_cc(data.cc)
-            for att in attachments_data:
-                try:
-                    pdf_bytes = HTML(string=att['html']).write_pdf()
-                    encoded_pdf = base64.b64encode(pdf_bytes).decode()
-                    attachment = Attachment(FileContent(encoded_pdf), FileName(att['filename']), FileType('application/pdf'), Disposition('attachment'))
-                    message.add_attachment(attachment)
-                except Exception as pdf_error:
-                    logger.error(f"Error generating PDF attachment {att['filename']}: {str(pdf_error)}")
-            sg = SendGridAPIClient(SENDGRID_API_KEY)
-            response = sg.send(message)
-            if response.status_code in [200, 201, 202]:
-                email_status = "sent"
-            else:
-                email_status = "failed"
-        except Exception as e:
-            email_status = "error"
-            logger.error(f"SendGrid error: {str(e)}")
+    if RESEND_API_KEY:
+        # Build attachment list for Resend (filename + base64 content)
+        resend_attachments = []
+        for att in attachments_data:
+            try:
+                pdf_bytes = HTML(string=att['html']).write_pdf()
+                resend_attachments.append({
+                    "filename": att['filename'],
+                    "content": base64.b64encode(pdf_bytes).decode(),
+                })
+            except Exception as pdf_error:
+                logger.error(f"Error generating PDF attachment {att['filename']}: {pdf_error}")
+        result = await _resend_send(
+            to_email=recipient_email,
+            subject=data.subject,
+            html_content=email_html,
+            attachments=resend_attachments,
+        )
+        email_status = result["status"]
     else:
         email_status = "simulated"
 
@@ -295,30 +342,28 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
     sendgrid_response = None
     attachments_added = []
 
-    if SENDGRID_API_KEY:
-        try:
-            message = Mail(from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME), to_emails=recipient_email, subject=subject, html_content=welcome_html)
-            for html_str, fname in [(form_preview_html, filename_form_preview), (terms_conditions_html, filename_terms), (price_breakup_html, filename_price)]:
-                try:
-                    pdf_bytes = HTML(string=html_str).write_pdf()
-                    encoded_pdf = base64.b64encode(pdf_bytes).decode()
-                    attachment = Attachment(FileContent(encoded_pdf), FileName(fname), FileType('application/pdf'), Disposition('attachment'))
-                    message.add_attachment(attachment)
-                    attachments_added.append(fname)
-                except Exception as pdf_error:
-                    logger.error(f"Error generating PDF {fname}: {str(pdf_error)}")
-            sg = SendGridAPIClient(SENDGRID_API_KEY)
-            response = sg.send(message)
-            if response.status_code in [200, 201, 202]:
-                email_status = "sent"
-                sendgrid_response = {"status_code": response.status_code, "body": f"Email sent successfully with {len(attachments_added)} attachments"}
-            else:
-                email_status = "failed"
-                sendgrid_response = {"status_code": response.status_code, "error": "Unexpected status code"}
-        except Exception as e:
-            email_status = "failed"
-            sendgrid_response = {"error": str(e)}
-            logger.error(f"SendGrid error: {str(e)}")
+    if RESEND_API_KEY:
+        resend_attachments = []
+        for html_str, fname in [(form_preview_html, filename_form_preview), (terms_conditions_html, filename_terms), (price_breakup_html, filename_price)]:
+            try:
+                pdf_bytes = HTML(string=html_str).write_pdf()
+                resend_attachments.append({"filename": fname, "content": base64.b64encode(pdf_bytes).decode()})
+                attachments_added.append(fname)
+            except Exception as pdf_error:
+                logger.error(f"Error generating PDF {fname}: {pdf_error}")
+        result = await _resend_send(
+            to_email=recipient_email,
+            subject=subject,
+            html_content=welcome_html,
+            attachments=resend_attachments,
+        )
+        email_status = result["status"]
+        sendgrid_response = {
+            "provider": "resend",
+            "id": result.get("id"),
+            "error": result.get("error"),
+            "attachments": len(attachments_added),
+        }
     else:
         email_status = "mocked (no API key)"
         attachments_added = [filename_form_preview, filename_terms, filename_price]
@@ -369,7 +414,7 @@ async def send_email_notification(
     email_status = "pending"
     sendgrid_response = None
     attachments_info = []
-    sg_attachments = []  # SendGrid Attachment objects to include in the email
+    sg_attachments = []  # List of {filename, content (base64)} dicts for Resend
 
     # Parse attachment_ids (frontend sends JSON array string, legacy callers send CSV)
     doc_ids = []
@@ -391,12 +436,10 @@ async def send_email_notification(
                 pdf_bytes = HTML(string=gen.get('content', '')).write_pdf()
                 customer_name_safe = customer.get('name', 'Customer').replace(' ', '_')
                 fname = f"RRL_{doc_type.replace('_', ' ').title().replace(' ', '_')}_{customer_name_safe}.pdf"
-                sg_attachments.append(Attachment(
-                    FileContent(base64.b64encode(pdf_bytes).decode()),
-                    FileName(fname),
-                    FileType('application/pdf'),
-                    Disposition('attachment'),
-                ))
+                sg_attachments.append({
+                    "filename": fname,
+                    "content": base64.b64encode(pdf_bytes).decode(),
+                })
             except Exception as e:
                 logger.error(f"Failed to attach generated doc {doc_id}: {e}")
             continue
@@ -406,12 +449,7 @@ async def send_email_notification(
             attachments_info.append(f"Uploaded: {fname}")
             content_b64 = uploaded.get('content_base64')
             if content_b64:
-                sg_attachments.append(Attachment(
-                    FileContent(content_b64),
-                    FileName(fname),
-                    FileType(uploaded.get('content_type', 'application/octet-stream')),
-                    Disposition('attachment'),
-                ))
+                sg_attachments.append({"filename": fname, "content": content_b64})
 
     # Handle local-file upload from the email composer
     if local_file is not None:
@@ -419,12 +457,10 @@ async def send_email_notification(
             file_bytes = await local_file.read()
             if file_bytes:
                 attachments_info.append(f"Uploaded: {local_file.filename}")
-                sg_attachments.append(Attachment(
-                    FileContent(base64.b64encode(file_bytes).decode()),
-                    FileName(local_file.filename or "attachment.bin"),
-                    FileType(local_file.content_type or "application/octet-stream"),
-                    Disposition('attachment'),
-                ))
+                sg_attachments.append({
+                    "filename": local_file.filename or "attachment.bin",
+                    "content": base64.b64encode(file_bytes).decode(),
+                })
         except Exception as e:
             logger.error(f"Failed to attach local_file: {e}")
 
@@ -462,23 +498,20 @@ async def send_email_notification(
     </body>
     </html>"""
 
-    if SENDGRID_API_KEY:
-        try:
-            sg_message = Mail(from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME), to_emails=recipient_email, subject=subject, html_content=html_content)
-            for attachment in sg_attachments:
-                sg_message.add_attachment(attachment)
-            sg = SendGridAPIClient(SENDGRID_API_KEY)
-            response = sg.send(sg_message)
-            if response.status_code in [200, 201, 202]:
-                email_status = "sent"
-                sendgrid_response = {"status_code": response.status_code, "attachments": len(sg_attachments)}
-            else:
-                email_status = "failed"
-                sendgrid_response = {"status_code": response.status_code}
-        except Exception as e:
-            email_status = "failed"
-            sendgrid_response = {"error": str(e)}
-            logger.error(f"SendGrid error: {str(e)}")
+    if RESEND_API_KEY:
+        result = await _resend_send(
+            to_email=recipient_email,
+            subject=subject,
+            html_content=html_content,
+            attachments=sg_attachments,
+        )
+        email_status = result["status"]
+        sendgrid_response = {
+            "provider": "resend",
+            "id": result.get("id"),
+            "error": result.get("error"),
+            "attachments": len(sg_attachments),
+        }
     else:
         email_status = "mocked (no API key)"
 

@@ -6,12 +6,12 @@ from typing import Optional
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, UploadFile, File, Form
 from pydantic import BaseModel, EmailStr
+import asyncio
 import uuid
 import base64
 import logging
 
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
+import resend
 from weasyprint import HTML
 
 from database import get_database
@@ -28,9 +28,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Booking & Leads"])
 
-SENDGRID_API_KEY = settings.SENDGRID_API_KEY
-SENDGRID_FROM_EMAIL = settings.SENDGRID_FROM_EMAIL
-SENDGRID_FROM_NAME = settings.SENDGRID_FROM_NAME
+RESEND_API_KEY = settings.RESEND_API_KEY
+RESEND_FROM_EMAIL = settings.RESEND_FROM_EMAIL
+RESEND_FROM_NAME = settings.RESEND_FROM_NAME
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 
 class BookingFormData(BaseModel):
@@ -121,23 +123,31 @@ def _calculate_pricing(data, fields):
 
 async def _send_booking_welcome_email(customer, doc):
     """Send auto welcome email on booking submission."""
-    if not customer.email or not SENDGRID_API_KEY:
+    if not customer.email or not RESEND_API_KEY:
         return "not_sent"
     try:
         welcome_html = generate_welcome_email_html(doc)
         price_breakup_html = generate_price_breakup_html(doc)
         subject = f"Welcome to {customer.project} - Booking Confirmation & Terms"
-        message = Mail(from_email=(SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME), to_emails=customer.email, subject=subject, html_content=welcome_html)
+        attachments = []
         try:
             pdf_bytes = HTML(string=price_breakup_html).write_pdf()
-            encoded_pdf = base64.b64encode(pdf_bytes).decode()
-            attachment = Attachment(FileContent(encoded_pdf), FileName(f"RRL_PriceBreakup_{customer.name.replace(' ', '_')}.pdf"), FileType('application/pdf'), Disposition('attachment'))
-            message.add_attachment(attachment)
+            attachments.append({
+                "filename": f"RRL_PriceBreakup_{customer.name.replace(' ', '_')}.pdf",
+                "content": base64.b64encode(pdf_bytes).decode(),
+            })
         except Exception as pdf_error:
             logger.error(f"Error generating PDF for auto-email: {str(pdf_error)}")
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        response = sg.send(message)
-        if response.status_code in [200, 201, 202]:
+        params = {
+            "from": f"{RESEND_FROM_NAME} <{RESEND_FROM_EMAIL}>",
+            "to": [customer.email],
+            "subject": subject,
+            "html": welcome_html,
+        }
+        if attachments:
+            params["attachments"] = attachments
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        if result.get("id"):
             db = get_database()
             log = CommunicationLog(customer_id=customer.id, channel="email", message_type="Auto Welcome Email",
                 content=f"To: {customer.email}\nSubject: {subject}\n\n[Auto-sent on booking submission with Price Breakup PDF]",

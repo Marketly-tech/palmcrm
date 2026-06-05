@@ -24,9 +24,9 @@ class Settings:
     JWT_EXPIRATION_HOURS: int = 24
     
     # SendGrid
-    SENDGRID_API_KEY: str = os.environ.get("SENDGRID_API_KEY", "")
-    SENDGRID_FROM_EMAIL: str = os.environ.get("SENDGRID_FROM_EMAIL", "crm@rrlbuildersanddevelopers.com")
-    SENDGRID_FROM_NAME: str = os.environ.get("SENDGRID_FROM_NAME", "RRL Group")
+    RESEND_API_KEY: str = os.environ.get("RESEND_API_KEY", "")
+    RESEND_FROM_EMAIL: str = os.environ.get("RESEND_FROM_EMAIL", "crm@rrlbuildersanddevelopers.com")
+    RESEND_FROM_NAME: str = os.environ.get("RESEND_FROM_NAME", "RRL Group")
     
     # CORS
     CORS_ORIGINS: str = os.environ.get("CORS_ORIGINS", "*")

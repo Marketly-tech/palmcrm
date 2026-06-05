@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-02-15 — Email Migration: SendGrid → Resend (Hard Swap)
+- **Why**: Better deliverability + cleaner API.
+- **Backend code** (`email_service/routes.py` + `booking/__init__.py` + `config.py`):
+  - Removed `sendgrid` SDK + all `Mail/Attachment/FileContent/FileName/FileType/Disposition` imports
+  - Installed `resend==2.30.1` (pip freeze → requirements.txt)
+  - New helper `_resend_send(to, subject, html, attachments)` runs the sync Resend SDK in a thread via `asyncio.to_thread` so the FastAPI loop stays free
+  - All 4 send sites migrated: customer-facing welcome email, booking auto-email, `/communication/email` admin sender, document-attached emails
+  - Attachments now sent as `[{filename, content(base64)}]` — same payload shape that worked across all 4 sites
+- **Config** (`backend/.env`):
+  - Removed `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`
+  - Added `RESEND_API_KEY`, `RESEND_FROM_EMAIL=crm@rrlbuildersanddevelopers.com`, `RESEND_FROM_NAME=RRL Group`
+- **API contract preserved**: response field `email_status` ("sent"/"failed"/"mocked") unchanged. The `sendgrid_response` field name kept (legacy frontend reads it) but value now contains `{provider: "resend", id, error, attachments}`.
+- **Verified end-to-end**: live POST `/api/communication/email` → HTTP 200, Resend message id `2b752b54-...` returned. Backend boot clean. 13/13 regression tests pass.
+- Files: `backend/email_service/routes.py`, `backend/booking/__init__.py`, `backend/config.py`, `backend/.env`, `backend/requirements.txt`.
+
 ## 2026-02-15 — Cost Breakup: Car Parking & Amenities ₹0 Bug Fixed
 - **Bug**: For legacy customers whose `additional_parking_charges` / `club_house_charges` were stored as `0` (or `None`) in MongoDB, the Cost Breakup PDF rendered both as ₹0 even though defaults of ₹2L / ₹3L should kick in.
 - **Root cause**: `dict.get(key, default)` returns the default **only when the key is missing**. Legacy records had the key with a falsy value, so `.get()` returned 0 instead of the default.
