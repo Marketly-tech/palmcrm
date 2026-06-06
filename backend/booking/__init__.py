@@ -75,6 +75,8 @@ class BookingFormData(BaseModel):
     floor_rise_total: float = 0
     club_house_charges: float = 300000  # Fixed ₹3L on booking; editable in customer profile
     additional_parking_charges: float = 200000  # Fixed ₹2L car parking on booking; editable in customer profile
+    additional_charges: float = 0
+    bescom_rate: float = 0  # ₹ per saleable sqft; total = bescom_rate × saleable_area
     labour_cess: float = 0
     gst_amount: float = 0
     booking_amount: float = 0
@@ -101,10 +103,13 @@ def _calculate_pricing(data, fields):
     """Calculate pricing from form data or auto-calculate from unit fields."""
     sa = fields["saleable_area"]
     frc = fields["floor_rise_cost"]
+    bescom_amount = (data.bescom_rate or 0) * sa
     if data.total_price > 0:
         return {
             "base_price": data.base_price, "floor_rise_total": data.floor_rise_total,
             "club_house": data.club_house_charges, "parking_charges": data.additional_parking_charges,
+            "additional_charges": data.additional_charges,
+            "bescom_amount": bescom_amount,
             "labour_cess": data.labour_cess, "gst": data.gst_amount, "total_price": data.total_price,
         }
     base_price = fields["rate_per_sqft"] * sa
@@ -112,10 +117,13 @@ def _calculate_pricing(data, fields):
     # Fixed charges on every new booking — editable later in customer profile.
     club_house = 300000     # ₹3L
     parking_charges = 200000  # ₹2L fixed car parking (was: additional_parking * 300000)
-    subtotal = base_price + floor_rise_total + club_house + parking_charges
+    additional_charges = data.additional_charges or 0
+    subtotal = base_price + floor_rise_total + club_house + parking_charges + additional_charges + bescom_amount
     return {
         "base_price": base_price, "floor_rise_total": floor_rise_total,
         "club_house": club_house, "parking_charges": parking_charges,
+        "additional_charges": additional_charges,
+        "bescom_amount": bescom_amount,
         "labour_cess": subtotal * 0.007, "gst": subtotal * 0.05,
         "total_price": subtotal + subtotal * 0.007 + subtotal * 0.05,
     }
@@ -189,6 +197,8 @@ async def submit_booking_form(data: BookingFormData):
         parking=data.parking, additional_parking=data.additional_parking,
         rate_per_sqft=fields["rate_per_sqft"], base_price=round(pricing["base_price"], 2),
         club_house_charges=round(pricing["club_house"], 2), additional_parking_charges=round(pricing["parking_charges"], 2),
+        additional_charges=round(pricing.get("additional_charges", 0), 2),
+        bescom_rate=data.bescom_rate or 0,
         labour_cess=round(pricing["labour_cess"], 2), gst_percentage=5, gst_amount=round(pricing["gst"], 2),
         total_price=total_price, booking_amount=data.booking_amount,
         booking_date=data.transaction_date or datetime.now().strftime("%Y-%m-%d"),

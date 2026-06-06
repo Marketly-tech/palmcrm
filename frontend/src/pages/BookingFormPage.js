@@ -76,6 +76,7 @@ const BookingFormPage = () => {
         floor_rise_cost: parseFloat(formData.floor_rise_cost) || 0,
         club_house_charges: parseFloat(formData.club_house_charges) || 200000,
         additional_charges: parseFloat(formData.additional_charges) || 0,
+        bescom_rate: parseFloat(formData.bescom_rate) || 0,
         booking_amount: parseFloat(formData.booking_amount) || 0,
         total_price: priceCalc.total,
         base_price: priceCalc.basePrice,

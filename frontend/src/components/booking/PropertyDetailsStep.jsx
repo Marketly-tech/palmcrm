@@ -73,6 +73,11 @@ const PropertyDetailsStep = ({ formData, onInputChange, onSelectChange, priceCal
           <Input id="additional_charges" name="additional_charges" type="number" min="0" value={formData.additional_charges} onChange={onInputChange} placeholder="Enter any additional charges" />
           <p className="text-xs text-slate-500">Enter any extra charges like parking, amenities, etc.</p>
         </div>
+        <div className="space-y-2 col-span-2">
+          <Label htmlFor="bescom_rate">BESCOM Charges (&#8377; per sq.ft)</Label>
+          <Input id="bescom_rate" name="bescom_rate" type="number" min="0" step="0.01" value={formData.bescom_rate} onChange={onInputChange} placeholder="e.g., 50" data-testid="bescom-rate-input" />
+          <p className="text-xs text-slate-500">BESCOM (electricity) charges per sq.ft. Total = rate &times; saleable area. Added to subtotal before GST &amp; Labour Cess.</p>
+        </div>
       </div>
 
       {/* Live Price Calculator */}
@@ -96,6 +101,12 @@ const PropertyDetailsStep = ({ formData, onInputChange, onSelectChange, priceCal
               <>
                 <span className="text-slate-600">Additional Charges:</span>
                 <span className="font-medium text-right">{formatCurrency(priceCalc.additionalCharges)}</span>
+              </>
+            )}
+            {priceCalc.bescomAmount > 0 && (
+              <>
+                <span className="text-slate-600">BESCOM Charges (&#8377;{priceCalc.bescomRate}/sq.ft &times; {formData.saleable_area}):</span>
+                <span className="font-medium text-right">{formatCurrency(priceCalc.bescomAmount)}</span>
               </>
             )}
             <span className="text-slate-600">Labour Cess (0.70%):</span>

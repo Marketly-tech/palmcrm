@@ -31,7 +31,7 @@ export const initialFormData = {
   project: "", tower: "", unit_number: "", bhk_type: "", floor: "",
   saleable_area: "", rate_per_sqft: "6600", floor_rise_cost: "0",
   parking: "1", club_house_charges: "300000", car_parking_charges: "200000",
-  additional_charges: "0",
+  additional_charges: "0", bescom_rate: "0",
   // Payment
   booking_amount: "", transaction_details: "", transaction_date: "", transaction_bank: "",
   // Finance
@@ -58,10 +58,12 @@ export const calculatePrice = (formData) => {
   const clubHouseCharges = parseFloat(formData.club_house_charges) || 300000;
   const carParkingCharges = parseFloat(formData.car_parking_charges) || 200000;
   const additionalCharges = parseFloat(formData.additional_charges) || 0;
+  const bescomRate = parseFloat(formData.bescom_rate) || 0;
 
   const basePrice = saleableArea * ratePerSqft;
   const floorRiseTotal = saleableArea * floorRiseCost;
-  const subtotal = basePrice + floorRiseTotal + clubHouseCharges + carParkingCharges + additionalCharges;
+  const bescomAmount = bescomRate * saleableArea;
+  const subtotal = basePrice + floorRiseTotal + clubHouseCharges + carParkingCharges + additionalCharges + bescomAmount;
   const labourCess = subtotal * 0.007;
   const gst = subtotal * 0.05;
   const total = subtotal + labourCess + gst;
@@ -70,6 +72,7 @@ export const calculatePrice = (formData) => {
     basePrice, floorRiseCost, floorRiseTotal,
     effectiveRate: ratePerSqft + floorRiseCost,
     clubHouse: clubHouseCharges, carParking: carParkingCharges, additionalCharges,
+    bescomRate, bescomAmount,
     subtotal, labourCess, gst, total,
   };
 };

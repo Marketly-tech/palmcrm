@@ -56,6 +56,9 @@ const ReviewStep = ({ formData, priceCalc, uploadedFiles, termsAccepted, setTerm
           {priceCalc.additionalCharges > 0 && (
             <><p className="text-slate-600">Additional Charges:</p><p className="font-medium text-right">{formatCurrency(priceCalc.additionalCharges)}</p></>
           )}
+          {priceCalc.bescomAmount > 0 && (
+            <><p className="text-slate-600">BESCOM Charges (&#8377;{priceCalc.bescomRate}/sq.ft):</p><p className="font-medium text-right">{formatCurrency(priceCalc.bescomAmount)}</p></>
+          )}
           <p className="text-slate-600">Labour Cess (0.70%):</p>
           <p className="font-medium text-right">{formatCurrency(priceCalc.labourCess)}</p>
           <p className="text-slate-600">GST (5%):</p>
@@ -97,7 +100,7 @@ const ReviewStep = ({ formData, priceCalc, uploadedFiles, termsAccepted, setTerm
         <h3 className="font-semibold text-slate-700 mb-3">Terms and Conditions</h3>
         <div className="text-sm text-slate-600 space-y-2">
           <p>1. This booking is subject to verification by RRL Builders and Developers Pvt. Ltd.</p>
-          <p>2. All payments must be made via A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft or through Electronic Fund Transfer (EFT) to "RRL BUILDERS AND DEVELOPERS PVT LTD".</p>
+          <p>2. All payments must be made via A/c Payee Cheque/Banker Cheque/Pay order/Demand Draft or through Electronic Fund Transfer (EFT) to &quot;RRL BUILDERS AND DEVELOPERS PVT LTD&quot;.</p>
           <p>3. The buyer is responsible for paying applicable stamp duty, registration charges, and other statutory levies.</p>
           <p>4. Any delay or default in payment will attract penal interest as per the Rules on the Outstanding amount.</p>
           <p>5. This booking is neither transferable nor assignable without prior written consent from the Developer.</p>
