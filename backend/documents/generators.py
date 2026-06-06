@@ -24,6 +24,7 @@ from documents.templates import (
     generate_noc_hdfc_html,
     generate_noc_bob_html,
     generate_noc_tata_html,
+    generate_noc_bajaj_html,
     generate_demand_letter_html,
     generate_payment_receipt_html,
     get_default_template,
@@ -43,6 +44,7 @@ _NOC_GENERATORS = {
     DocumentType.NOC_HDFC: generate_noc_hdfc_html,
     DocumentType.NOC_BOB: generate_noc_bob_html,
     DocumentType.NOC_TATA: generate_noc_tata_html,
+    DocumentType.NOC_BAJAJ: generate_noc_bajaj_html,
 }
 
 
@@ -51,8 +53,8 @@ async def _render_noc(db, customer: dict, doc_type: DocumentType) -> str:
         {"customer_id": customer.get('id')}, {"_id": 0}
     ).sort("transaction_date", 1).to_list(1000)
     generator = _NOC_GENERATORS[doc_type]
-    # TATA NOC doesn't include the received-amount line; call without transactions
-    if doc_type == DocumentType.NOC_TATA:
+    # TATA and Bajaj NOCs don't include the received-amount line; call without transactions
+    if doc_type in (DocumentType.NOC_TATA, DocumentType.NOC_BAJAJ):
         return generator(customer)
     return generator(customer, transactions)
 

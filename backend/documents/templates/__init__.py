@@ -7,7 +7,7 @@ from documents.templates.sales_agreement_template import generate_sales_agreemen
 from documents.templates.default_template import get_default_template
 from documents.templates.price_breakup import generate_price_breakup_html
 from documents.templates.cost_breakup import generate_cost_breakup_html
-from documents.templates.noc_templates import generate_noc_hdfc_html, generate_noc_bob_html, generate_noc_tata_html
+from documents.templates.noc_templates import generate_noc_hdfc_html, generate_noc_bob_html, generate_noc_tata_html, generate_noc_bajaj_html
 from documents.templates.booking_form import generate_booking_form_preview_html
 from documents.templates.terms_conditions import generate_terms_and_conditions_html
 from documents.templates.email_templates import generate_welcome_email_html, generate_document_email_html
@@ -26,6 +26,7 @@ __all__ = [
     'generate_noc_hdfc_html',
     'generate_noc_bob_html',
     'generate_noc_tata_html',
+    'generate_noc_bajaj_html',
     'generate_booking_form_preview_html',
     'generate_terms_and_conditions_html',
     'generate_welcome_email_html',

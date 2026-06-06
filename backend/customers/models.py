@@ -51,6 +51,7 @@ class CustomerBase(BaseModel):
     club_house_charges: float = 300000  # Fixed ₹3L default; editable in customer profile
     infrastructure_charges: float = 0
     additional_charges: float = 0  # Manual additional charges
+    additional_charges_description: str = ""  # Optional label shown in PDF row when amount > 0
     additional_parking_charges: float = 200000  # Fixed ₹2L car parking; editable in customer profile
     bescom_rate: float = 0  # ₹ per saleable sqft. BESCOM total = bescom_rate × saleable_area. Goes into subtotal (before GST + labour cess).
     labour_cess: float = 0  # 0.70%

@@ -54,8 +54,9 @@ def generate_price_breakup_html(customer: dict) -> str:
     # MUST be shown in the breakup — otherwise it looks like a phantom ₹X being
     # added to the totals (see /app/memory/CHANGELOG.md 2026-02-15 phantom-2L fix).
     additional_charges = float(customer.get('additional_charges', 0) or 0)
+    additional_charges_label = (customer.get('additional_charges_description') or '').strip() or 'Additional Charges'
     additional_charges_row = (
-        f'<tr><td>Additional Charges</td>'
+        f'<tr><td>{additional_charges_label}</td>'
         f'<td class="amount">{format_inr(additional_charges)}</td></tr>'
         if additional_charges else ''
     )
@@ -311,12 +312,12 @@ def generate_price_breakup_html(customer: dict) -> str:
                             <td class="amount">{format_inr(customer.get('base_price', 0))}</td>
                         </tr>
                         <tr>
-                            <td>Club House, Infrastructure & One Covered Car Parking</td>
-                            <td class="amount">{format_inr(customer.get('club_house_charges', 200000))}</td>
+                            <td>Amenities</td>
+                            <td class="amount">{format_inr(customer.get('club_house_charges', 300000))}</td>
                         </tr>
                         <tr>
-                            <td>Additional Car Parking ({customer.get('additional_parking', 0)} nos.)</td>
-                            <td class="amount">{format_inr(customer.get('additional_parking_charges', 0))}</td>
+                            <td>Car Parking</td>
+                            <td class="amount">{format_inr(customer.get('additional_parking_charges', 200000))}</td>
                         </tr>
                         {additional_charges_row}
                         {bescom_row}

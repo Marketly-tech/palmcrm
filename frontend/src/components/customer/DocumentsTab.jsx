@@ -27,6 +27,7 @@ const NOC_TYPES = [
   { key: "noc_hdfc", label: "HDFC Bank", color: "red" },
   { key: "noc_bob", label: "Bank of Baroda", color: "orange" },
   { key: "noc_tata", label: "TATA Capital", color: "blue" },
+  { key: "noc_bajaj", label: "Bajaj Housing Finance", color: "violet" },
 ];
 
 const DocumentsTab = ({
@@ -49,7 +50,7 @@ const DocumentsTab = ({
     setDialogOpen(false);
   };
 
-  const nocDocTypes = ["noc_hdfc", "noc_bob", "noc_tata"];
+  const nocDocTypes = ["noc_hdfc", "noc_bob", "noc_tata", "noc_bajaj"];
 
   const nocDocuments = documents.filter(doc =>
     nocDocTypes.includes(doc.doc_type)
@@ -60,7 +61,7 @@ const DocumentsTab = ({
   );
 
   const getNocLabel = (type) => {
-    const labels = { noc_hdfc: "HDFC Bank NOC", noc_bob: "Bank of Baroda NOC", noc_tata: "TATA Capital NOC" };
+    const labels = { noc_hdfc: "HDFC Bank NOC", noc_bob: "Bank of Baroda NOC", noc_tata: "TATA Capital NOC", noc_bajaj: "Bajaj Housing Finance NOC" };
     return labels[type] || type;
   };
 
@@ -175,7 +176,7 @@ const DocumentsTab = ({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             {NOC_TYPES.map((noc) => (
               <Button
                 key={noc.key}

@@ -509,3 +509,184 @@ def generate_noc_tata_html(customer: dict) -> str:
     return html
 
 
+
+
+def _fmt_ddmmyyyy(date_str: str) -> str:
+    """Convert YYYY-MM-DD (or any parseable date string) to DD-MM-YYYY.
+    Returns empty string if not parseable."""
+    if not date_str:
+        return ""
+    s = str(date_str)
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(s.split("T")[0], fmt).strftime("%d-%m-%Y")
+        except ValueError:
+            continue
+    return s
+
+
+def generate_noc_bajaj_html(customer: dict) -> str:
+    """Generate the Bajaj Housing Finance NOC-cum-Release request letter.
+
+    Unlike the HDFC/BOB/TATA NOCs (which are NOCs issued *by* RRL to the
+    purchaser's lender), this is a request *from* RRL *to* Bajaj Housing
+    Finance (RRL's construction-finance lender) asking them to release the
+    flat from their mortgage so the purchaser's bank can disburse the loan.
+    """
+    customer_names = format_customer_names(customer)
+
+    flat_no = customer.get('unit_number', '') or ''
+    tower_raw = (customer.get('tower') or '1').strip()
+    # Normalize: if user already entered "Tower 1" / "Tower-1", keep as-is; else prefix
+    if tower_raw.lower().startswith('tower'):
+        tower_display = tower_raw
+    else:
+        tower_display = f"Tower-{tower_raw}"
+    saleable_area = customer.get('saleable_area', 0) or 0
+    try:
+        saleable_area_display = f"{int(round(float(saleable_area)))}"
+    except (TypeError, ValueError):
+        saleable_area_display = str(saleable_area)
+
+    total_price = float(customer.get('total_price', 0) or 0)
+    loan_amount = float(customer.get('loan_amount', 0) or 0)
+    own_contribution = float(customer.get('self_contribution', 0) or 0)
+    if own_contribution <= 0 and total_price > 0:
+        own_contribution = max(total_price - loan_amount, 0)
+
+    purchaser_phone = customer.get('phone', '') or ''
+    lender_name = (customer.get('finance_bank') or '').strip() or 'HDFC BANK LTD'
+
+    booking_date_disp = _fmt_ddmmyyyy(customer.get('booking_date', ''))
+    agreement_date_disp = _fmt_ddmmyyyy(customer.get('agreement_date', ''))
+    today_date = datetime.now().strftime("%d-%m-%Y")
+
+    # Bajaj sanction date / ref — allow override via custom_fields, fallback to "as on record"
+    bajaj_sanction_date = (
+        (customer.get('custom_fields') or {}).get('bajaj_sanction_date')
+        or 'as on record'
+    )
+
+    ref_no = customer.get('customer_id') or customer.get('id', '')[:8]
+
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+            @page {{ size: A4; margin: 0 20mm 30mm 20mm; }}
+            body {{ font-family: 'Roboto', sans-serif; font-size: 12px; line-height: 1.6; color: #1A1A1A; }}
+            {_letterhead_styles()}
+            .meta-row {{ display: flex; justify-content: space-between; margin-bottom: 16px; }}
+            .meta-row .ref {{ font-weight: 500; }}
+            .addressee {{ margin-bottom: 14px; }}
+            .addressee p {{ margin: 0; }}
+            .attn {{ margin-bottom: 14px; font-weight: 600; }}
+            .subject {{ margin-bottom: 12px; text-align: justify; }}
+            .subject strong {{ font-weight: 700; }}
+            .ref-section {{ margin-bottom: 14px; }}
+            .salutation {{ margin-bottom: 10px; }}
+            .content {{ text-align: justify; margin-bottom: 14px; }}
+            .details-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin: 12px 0 18px 0;
+                font-size: 11.5px;
+            }}
+            .details-table th {{
+                background: #F5F5F5;
+                text-align: left;
+                padding: 8px 10px;
+                border: 1px solid #D4AF37;
+                font-weight: 700;
+                color: #1A1A1A;
+                width: 42%;
+            }}
+            .details-table td {{
+                padding: 8px 10px;
+                border: 1px solid #E5E5E5;
+                color: #1A1A1A;
+            }}
+            .details-table .section-header td {{
+                background: #1A1A1A;
+                color: #FFFFFF;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                padding: 8px 10px;
+                text-align: center;
+                border: 1px solid #1A1A1A;
+            }}
+            .signature {{ margin-top: 36px; }}
+            .signature-line {{ margin-top: 50px; font-weight: 500; }}
+        </style>
+    </head>
+    <body>
+        {_letterhead_html()}
+
+        {_doc_title_html("Bajaj Housing Finance")}
+
+        <div class="meta-row">
+            <div class="ref">Ref. No.: RRL/BAJAJ/{ref_no}</div>
+            <div>Date: {today_date}</div>
+        </div>
+
+        <div class="addressee">
+            <p>To,</p>
+            <p><strong>M/s. Bajaj Housing Finance Ltd.</strong></p>
+            <p>4<sup>th</sup> Floor, Bajaj Finserv Corporate Office,</p>
+            <p>Off Pune-Ahmednagar Road,</p>
+            <p>Viman Nagar, Pune &mdash; 411 014.</p>
+        </div>
+
+        <div class="attn">Kind Attention: Mr. Naveen Kumar</div>
+
+        <div class="subject">
+            <strong>Subject:</strong> Issue of <strong>NOC-cum-Release letter</strong> of Flat No. {flat_no} in &lsquo;{tower_display}&rsquo; of the building known as &lsquo;<strong>RRL PALM ALTEZZE</strong>&rsquo; situated at SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN &mdash; 560087.
+        </div>
+
+        <div class="ref-section">
+            <strong>Ref.:</strong> 1. Bajaj Housing Finance Sanction Letter dated {bajaj_sanction_date}
+        </div>
+
+        <div class="salutation">Respected Sir / Madam,</div>
+
+        <div class="content">
+            <p>We have sold the following Flat and you are requested to issue the <strong>NOC-cum-Release letter</strong> for the said unit at the earliest. The Purchaser/s has taken a loan from <strong>{lender_name}</strong> and their disbursement is pending. Hence, you are requested to issue the <strong>NOC-cum-Release letter</strong> at the earliest.</p>
+        </div>
+
+        <table class="details-table">
+            <tr class="section-header"><td colspan="2">Details of Purchaser</td></tr>
+            <tr><th>Purchaser&rsquo;s Full Name</th><td>{customer_names}</td></tr>
+            <tr><th>Purchaser&rsquo;s Mobile No.</th><td>{purchaser_phone}</td></tr>
+            <tr><th>Flat No.</th><td>{flat_no}</td></tr>
+            <tr><th>Wing / Tower</th><td>{tower_display}</td></tr>
+            <tr><th>Area (in Sq.ft)</th><td>{saleable_area_display}</td></tr>
+            <tr><th>Project Name</th><td>RRL PALM ALTEZZE</td></tr>
+            <tr><th>Project Location / Address</th><td>SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN &mdash; 560087</td></tr>
+            <tr><th>Consideration / Agreement Value</th><td>Rs. {format_inr(total_price)}/-</td></tr>
+            <tr><th>Loan Amount</th><td>Rs. {format_inr(loan_amount)}/-</td></tr>
+            <tr><th>Lender&rsquo;s Name</th><td>{lender_name}</td></tr>
+            <tr><th>Own Contribution given to us</th><td>Rs. {format_inr(own_contribution)}/-</td></tr>
+            <tr><th>Booking Date</th><td>{booking_date_disp or '-'}</td></tr>
+            <tr><th>Agreement for Sale Date</th><td>{agreement_date_disp or '-'}</td></tr>
+        </table>
+
+        <div class="content">
+            <p>Kindly do the needful at the earliest.</p>
+            <p>Thanking you in anticipation.</p>
+        </div>
+
+        <div class="signature">
+            <p>Yours faithfully,</p>
+            <p style="margin-top: 12px;"><strong>For {COMPANY_NAME_FULL}</strong></p>
+            <p class="signature-line">Authorized Signatory</p>
+        </div>
+
+        {_footer_band_html(customer)}
+    </body>
+    </html>
+    '''
+    return html

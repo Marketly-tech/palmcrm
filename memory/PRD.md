@@ -122,6 +122,7 @@
   - **Bank NOC — HDFC**
   - **Bank NOC — Bank of Baroda (BOB)**
   - **Bank NOC — TATA Capital**
+  - **Bank NOC — Bajaj Housing Finance** (request to construction-finance lender for NOC-cum-Release)
 - [x] **Disbursement Documents** subsection for NOCs
 
 #### 3.3.5 Uploads Tab
@@ -337,6 +338,7 @@
 - [x] Email System: Welcome, Sales Agreement, Allotment Letter emails (Mar 2026)
 - [x] Public Booking Form with multi-step wizard (Mar 2026)
 - [x] Bank NOC documents: HDFC, BOB, TATA Capital (Apr 2026)
+- [x] Bank NOC document: Bajaj Housing Finance — request letter to construction-finance lender with mapped Purchaser/Property/Loan details (Feb 2026)
 - [x] Frontend refactoring: All 4 major pages modularized (Apr 2026)
 - [x] Backend refactoring: server.py 4200→232 lines (Apr 2026)
 - [x] Bank-wise overdue tracking with cumulative totals (May 2026)

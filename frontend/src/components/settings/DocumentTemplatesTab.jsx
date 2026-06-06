@@ -53,6 +53,7 @@ const DOC_TYPES = [
   { value: "noc_hdfc", label: "HDFC Bank NOC" },
   { value: "noc_bob", label: "Bank of Baroda NOC" },
   { value: "noc_tata", label: "TATA Capital NOC" },
+  { value: "noc_bajaj", label: "Bajaj Housing Finance NOC" },
 ];
 
 const PLACEHOLDERS = [
