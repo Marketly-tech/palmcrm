@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Plus, FileText, Eye, Download, Trash2, Loader2, Building2 } from "lucide-react";
+import { Plus, FileText, Eye, Download, Loader2, Building2 } from "lucide-react";
 import { getStatusBadge } from "./utils";
 
 const NOC_TYPES = [
@@ -32,11 +32,9 @@ const NOC_TYPES = [
 
 const DocumentsTab = ({
   documents,
-  isAccountsRole,
   onGenerateDocument,
   onPreviewDocument,
   onDownloadDocument,
-  onDeleteDocument,
   onGenerateNoc,
   generatingNoc,
 }) => {
@@ -140,17 +138,6 @@ const DocumentsTab = ({
                     >
                       <Download className="w-4 h-4" />
                     </Button>
-                    {!isAccountsRole && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => onDeleteDocument(doc, "generated")}
-                        data-testid={`delete-doc-${doc.id}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}
@@ -220,17 +207,6 @@ const DocumentsTab = ({
                       <Button variant="outline" size="sm" onClick={() => onDownloadDocument(doc)} data-testid={`download-noc-${doc.id}`}>
                         <Download className="w-4 h-4" />
                       </Button>
-                      {!isAccountsRole && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => onDeleteDocument(doc, "generated")}
-                          data-testid={`delete-noc-${doc.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
                     </div>
                   </div>
                 ))}
