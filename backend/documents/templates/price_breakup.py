@@ -49,6 +49,17 @@ def generate_price_breakup_html(customer: dict) -> str:
         if bescom_amount else ''
     )
 
+    # Additional Charges — admin-entered free-form amount (e.g. discounts/upgrades).
+    # IMPORTANT: this is part of subtotal (labour cess + GST apply on top), so it
+    # MUST be shown in the breakup — otherwise it looks like a phantom ₹X being
+    # added to the totals (see /app/memory/CHANGELOG.md 2026-02-15 phantom-2L fix).
+    additional_charges = float(customer.get('additional_charges', 0) or 0)
+    additional_charges_row = (
+        f'<tr><td>Additional Charges</td>'
+        f'<td class="amount">{format_inr(additional_charges)}</td></tr>'
+        if additional_charges else ''
+    )
+
     html = f'''
     <!DOCTYPE html>
     <html>
@@ -307,6 +318,7 @@ def generate_price_breakup_html(customer: dict) -> str:
                             <td>Additional Car Parking ({customer.get('additional_parking', 0)} nos.)</td>
                             <td class="amount">{format_inr(customer.get('additional_parking_charges', 0))}</td>
                         </tr>
+                        {additional_charges_row}
                         {bescom_row}
                         <tr>
                             <td>Labour Cess (0.70%)</td>

@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-15 — Price Breakup Phantom ₹2L Fixed (Additional Charges Now Visible)
+- **Bug**: Customer reported a ₹2,00,000 "phantom" being added to the Grand Total with no visible row in the Price Breakup PDF. Math didn't reconcile.
+- **Root cause**: `useCustomerPage.js::calculateLivePrice` includes `customer.additional_charges` in the subtotal that drives labour cess (0.7%) and GST (5%) — but `documents/templates/price_breakup.py` never rendered a row for it. So any non-zero value (admin-entered or legacy from old booking flow) was silently baked into the totals.
+- **Fix** (`price_breakup.py`): Added a conditional "Additional Charges" row between Car Parking and BESCOM. Renders when amount > 0, hidden otherwise.
+- **Math now reconciles**: For the customer in the screenshot — base 1,09,21,000 + club 3L + parking 2L + **additional 2L** (now visible) + bescom 1,630 = subtotal ₹1,16,22,630 → cess ₹81,358 + GST ₹5,81,132 → Grand Total **₹1,22,85,120** ✓
+- 13/13 regression tests pass.
+- Files: `/app/backend/documents/templates/price_breakup.py`.
+
 ## 2026-02-15 — Email Migration: SendGrid → Resend (Hard Swap)
 - **Why**: Better deliverability + cleaner API.
 - **Backend code** (`email_service/routes.py` + `booking/__init__.py` + `config.py`):
