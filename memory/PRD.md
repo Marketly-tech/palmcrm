@@ -1,5 +1,10 @@
 # RRL Builders Post-Sales CRM — Comprehensive PRD
 
+> 🚨 **MANDATORY READING BEFORE ANY DEPLOY OR REFACTOR:**
+> Open `/app/memory/DEPLOYMENT_INVARIANTS.md` first — it's the single-page
+> consolidation of every locked-in rule (pricing math, BESCOM, TDS,
+> doc formats, roles, endpoints, pre-deploy checklist). Last revised 2026-06-06.
+
 > 🚨 **MANDATORY READING FOR ANY AGENT TOUCHING PDF TEMPLATES:**
 > Always read `/app/memory/DOCUMENT_FORMAT_REFERENCE.md` BEFORE modifying any
 > file in `/app/backend/documents/templates/`. It captures the
