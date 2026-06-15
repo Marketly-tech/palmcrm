@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-06 (later) — Demand Letter TDS Split into Per-Slab + Lifetime
+- **Renamed** "TDS Payable" → **"Total TDS Payable"** (lifetime cumulative, = `demand_raised ÷ 101`).
+- **Added** new row above Total TDS Payable: **"Current TDS due for Slab {X%}"** where `X = int(cumulative_percentage)`. Formula: `current_due ÷ 101` (TDS owed on the current installment only).
+- **Changed Net Amount Payable formula** from `Total Outstanding − Total TDS Payable` (over-credits prior-slab TDS) to `max(0, Total Outstanding − Current TDS due for Slab X%)`. Sub-label updated to match.
+- **Verified end-to-end** on Ramya test lead at 40% slab: Current Due ₹84,662 ÷ 101 = ₹838 → Current TDS due for Slab 40% = ₹838, Total TDS Payable = ₹838, Net Amount Payable = ₹0 ✓.
+- Files: `backend/documents/templates/demand_letter.py`; memory: `TDS_CALCULATION_LOGIC.md`, `DEPLOYMENT_INVARIANTS.md`.
+
 ## 2026-06-06 — Bajaj NOC Added + BESCOM in Booking Form + Doc-Delete Rollback
 - **Bajaj Housing Finance NOC** added as 11th document type (`noc_bajaj` enum). NOC-cum-Release **request letter from RRL to Bajaj** (Bajaj is RRL's construction-finance lender) — distinct from the HDFC/BOB/TATA NOCs which are issued by RRL to the buyer's bank. Fields mapped: purchaser names, mobile, flat/tower/area, agreement value, loan amount, lender's name (buyer's bank, defaults HDFC), own contribution (auto = total − loan), booking date, agreement date. Sanction date pullable from `custom_fields.bajaj_sanction_date`. Reuses the dark-band letterhead + gold footer.
 - **BESCOM in Booking Form**: `bescom_rate` was missing from the public booking-form path entirely (frontend `calculatePrice` + backend `_calculate_pricing` ignored it). Added input + live-preview row in `PropertyDetailsStep.jsx` and `ReviewStep.jsx`; wired into `BookingFormPage` payload and `booking/__init__.py` `_calculate_pricing` so the saved customer's subtotal, labour cess and GST all include BESCOM from the very first save.

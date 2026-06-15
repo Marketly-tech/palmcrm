@@ -1,21 +1,36 @@
 # TDS Calculation Logic — RRL CRM (LOCKED-IN BUSINESS RULE)
 
 > 🚨 **MANDATORY READING BEFORE TOUCHING ANY TDS CODE.**
-> User-approved on **2026-02-15**. Do NOT change these formulas without explicit
-> user confirmation. The same logic must be used in:
+> Last revised **2026-06-06** — Demand Letter now shows BOTH a per-slab
+> "Current TDS due" and a lifetime "Total TDS Payable", and the Net Amount
+> Payable formula now subtracts the per-slab figure (not the lifetime total).
+> The same logic must be used in:
 > - `/app/backend/documents/templates/demand_letter.py` (PDF)
 > - `/app/frontend/src/components/customer/payment/PaymentSummaryCard.jsx` (UI)
 > - Any future "TDS overview" widget or report
 
 ---
 
-## The Three TDS Numbers
+## The Four TDS Numbers (post-2026-06-06)
 
-| Field | Formula | Source |
+| Field | Formula | Meaning |
 |---|---|---|
-| **TDS Payable** | `demand_raised ÷ 101` | Total TDS owed up to current stage. `demand_raised` = cumulative % × total price, gross-inclusive of 1% TDS u/s 194-IA. |
+| **Current TDS due for Slab {X%}** | `current_due ÷ 101` | TDS owed for **the current installment only**. `current_due = stage_percentage × total_price`. Label uses `cumulative_percentage` (e.g. "50%") so it matches the Payment Stage header. |
+| **Total TDS Payable** | `demand_raised ÷ 101` | Lifetime TDS owed up to current cumulative stage. `demand_raised = cumulative_percentage × total_price`, gross-inclusive of 1% TDS u/s 194-IA. *Was called "TDS Payable" pre-2026-06-06.* |
 | **TDS Paid** | Sum of `transactions` where `transaction_stage == "tds"` | Actual TDS challans submitted by the customer. **NOT** 1% of all payments. |
-| **TDS To Be Paid** | `TDS Payable − TDS Paid` | Outstanding TDS still due. Always `max(0, ...)`. |
+| **TDS To Be Paid** | `Total TDS Payable − TDS Paid` | Outstanding TDS still due across the entire booking. Always `max(0, ...)`. |
+
+### Net Amount Payable
+
+```
+Net Amount Payable = max(0, Total Outstanding − Current TDS due for Slab {X%})
+```
+
+**Why subtract the per-slab figure and not the lifetime total?**
+The demand letter asks for the *current installment*. The customer will deduct
+1% TDS from THIS payment and remit it themselves. Lifetime TDS shortfall is
+shown separately ("TDS To Be Paid") so the customer/accounts team can true up
+prior slabs, but the current cheque amount only nets the current-slab TDS.
 
 ---
 
@@ -27,6 +42,8 @@
 
 3. **WRONG**: Mixing the two formulas between UI and PDF (e.g., UI uses `× 0.01` but PDF uses `÷ 101`). They MUST match — same numbers everywhere.
 
+4. **WRONG (post-2026-06-06)**: `net_amount_payable = total_outstanding − tds_payable`. The lifetime Total TDS Payable will over-credit prior-slab TDS that wasn't part of this demand. Always subtract **`current_tds_due`** (current slab only).
+
 ---
 
 ## ✅ Reference Implementations
@@ -35,7 +52,8 @@
 
 ```python
 # ─── TDS Calculation (Section 194-IA) ───
-tds_payable = round(demand_raised / 101, 2) if demand_raised else 0
+tds_payable     = round(demand_raised / 101, 2) if demand_raised else 0       # lifetime
+current_tds_due = round(current_due   / 101, 2) if current_due   else 0       # this slab only
 tds_paid = round(
     sum(
         float(t.get('amount', 0) or 0)
@@ -44,7 +62,16 @@ tds_paid = round(
     ),
     2,
 )
-tds_to_be_paid = max(0, round(tds_payable - tds_paid, 2))
+tds_to_be_paid     = max(0, round(tds_payable     - tds_paid, 2))
+net_amount_payable = max(0, round(total_outstanding - current_tds_due, 2))
+
+# Render order in the demand-letter table:
+#   ... Total Outstanding ...
+#   Current TDS due for Slab {cumulative_percentage}%
+#   Total TDS Payable
+#   TDS Paid
+#   TDS To be Paid
+#   Net Amount Payable  (Total Outstanding − Current TDS due for Slab X%)
 ```
 
 ### Frontend (Payment Tracking Card) — `components/customer/payment/PaymentSummaryCard.jsx`
@@ -57,30 +84,33 @@ const tdsPaid = transactions
 const tdsBalance = Math.max(0, tdsPayable - Math.round(tdsPaid));
 ```
 
+> The Payment Tracking UI currently shows only the lifetime numbers. If a
+> per-slab card is added in future, mirror the demand-letter formula:
+> `current_tds_due = current_due / 101`.
+
 ---
 
-## ✅ Verified Test Case (2026-02-15)
+## ✅ Verified Test Case (2026-06-06) — Ramya test lead
 
 **Input**:
-- `total_price` = ₹1,00,00,000
-- `cumulative_percentage` = 50% → `demand_raised` = ₹50,00,000
-- Transactions:
-  - booking: ₹5,00,000
-  - agreement: ₹10,00,000
-  - **tds**: ₹5,000
-  - **tds**: ₹7,500
-  - scheduled_disbursement: ₹20,00,000
+- `total_price` = ₹2,11,656
+- `cumulative_percentage` = 40% → `demand_raised` = ₹84,662
+- `stage_percentage` (this slab's incremental %) = 40% → `current_due` = ₹84,662
+- Transactions: total ₹85,560 paid, no `transaction_stage='tds'` rows
 
-**Expected Output**:
-- TDS Payable: ₹49,505 (50,00,000 ÷ 101)
-- TDS Paid: ₹12,500 (5,000 + 7,500 — only TDS-stage txns)
-- TDS To Be Paid: ₹37,005 (49,505 − 12,500)
+**Output verified in PDF**:
+- Current TDS due for Slab 40%: **₹838** (84,662 ÷ 101 = 838.24)
+- Total TDS Payable: **₹838**
+- TDS Paid: ₹0
+- TDS To be Paid: ₹838
+- Total Outstanding: ₹0
+- Net Amount Payable: ₹0 (`max(0, 0 − 838)`)
 
-✅ Verified rendered output matches exactly.
+✅ Verified end-to-end via `/api/documents/generate` → `/api/documents/html/{id}`.
 
 ---
 
-## Interest Amount handling in Demand Letter (added 2026-02-15)
+## Interest Amount handling in Demand Letter
 
 `customer.interest_amount` is a flat amount the customer owes outside the
 cumulative slab demand (it's a post-GST add-on per `PRD.md`). It is **added
@@ -94,7 +124,8 @@ Total Outstanding = (Demand Raised − Amount Paid) + Interest Amount
 The "Interest (D)" row in the demand-letter table renders
 `customer.interest_amount`, NOT a hardcoded `0`.
 
-`Net Amount Payable = Total Outstanding − TDS Payable` (unchanged).
+`Net Amount Payable = Total Outstanding − Current TDS due for Slab X%`
+(updated 2026-06-06).
 
 ✅ Verified: total_price ₹1Cr, 50% cumulative, paid ₹30L, interest ₹25K →
 Outstanding = ₹20,25,000.
@@ -115,5 +146,6 @@ The system will automatically pick it up in:
 
 ---
 
-**Last updated**: 2026-02-15 by user request. If you change anything in this
-logic, update this file in the same commit.
+**Last updated**: 2026-06-06 by user request (added per-slab Current TDS due,
+renamed TDS Payable → Total TDS Payable, changed Net Amount Payable formula).
+If you change anything in this logic, update this file in the same commit.

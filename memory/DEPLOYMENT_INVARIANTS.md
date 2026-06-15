@@ -82,11 +82,16 @@ total_price  = subtotal + labour_cess + gst_amount + interest_amount
 
 ## 3 · TDS Calculation — see `TDS_CALCULATION_LOGIC.md`
 
-* **TDS Payable**  = 1 % of total_price (statutory)
-* **TDS Paid**     = sum of `payment_transactions` where `transaction_stage == 'tds'`
-* **TDS To Be Paid** = Payable − Paid
+* **Total TDS Payable** = `demand_raised ÷ 101` (lifetime, cumulative up to current stage)
+* **Current TDS due for Slab {X%}** = `current_due ÷ 101` (this installment only). X% = `cumulative_percentage` (matches the Payment Stage header).
+* **TDS Paid** = sum of `payment_transactions` where `transaction_stage == 'tds'`
+* **TDS To Be Paid** = `Total TDS Payable − TDS Paid`
+* **Net Amount Payable** = `max(0, Total Outstanding − Current TDS due for Slab {X%})` — subtracts the **per-slab** figure, NOT the lifetime total.
 * Used in: Demand Letter PDF (`demand_letter.py`), Payment Tracking UI, Transactions Export.
 * **Never** use a blanket 1 % on the demand letter — always sum actual TDS-stage transactions.
+
+> Demand-letter row order (post-2026-06-06):
+> Total Outstanding → **Current TDS due for Slab X%** → **Total TDS Payable** → TDS Paid → TDS To be Paid → Net Amount Payable.
 
 ---
 
