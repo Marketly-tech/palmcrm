@@ -37,6 +37,7 @@ router = APIRouter(tags=["Communication"])
 RESEND_API_KEY = settings.RESEND_API_KEY
 RESEND_FROM_EMAIL = settings.RESEND_FROM_EMAIL
 RESEND_FROM_NAME = settings.RESEND_FROM_NAME
+RESEND_BCC_ARCHIVE = settings.RESEND_BCC_ARCHIVE
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
@@ -54,6 +55,8 @@ async def _resend_send(
 
     Resend SDK is sync — runs in a thread to keep the FastAPI loop free.
     Returns {"status": "sent"|"failed", "id": str|None, "error": str|None}.
+    Always BCCs ``RESEND_BCC_ARCHIVE`` (when set) for a silent off-platform
+    archive — see DEPLOYMENT_INVARIANTS.md § Email Archive BCC.
     """
     if not RESEND_API_KEY:
         return {"status": "mocked (no API key)", "id": None, "error": None}
@@ -64,6 +67,8 @@ async def _resend_send(
         "subject": subject,
         "html": html_content,
     }
+    if RESEND_BCC_ARCHIVE and RESEND_BCC_ARCHIVE.strip():
+        params["bcc"] = [RESEND_BCC_ARCHIVE.strip()]
     if attachments:
         params["attachments"] = [
             {
@@ -270,6 +275,7 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
         await db.generated_documents.insert_one(doc_dict)
 
     email_status = "pending"
+    sendgrid_response = None
 
     if RESEND_API_KEY:
         # Build attachment list for Resend (filename + base64 content)
@@ -290,6 +296,7 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
             attachments=resend_attachments,
         )
         email_status = result["status"]
+        sendgrid_response = {"provider": "resend", "id": result.get("id"), "error": result.get("error")}
     else:
         email_status = "simulated"
 
@@ -302,6 +309,7 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
         "status": email_status,
         "email_type": data.email_type,
         "attachments": [att['filename'] for att in attachments_data],
+        "resend_message_id": (sendgrid_response or {}).get("id") if isinstance(sendgrid_response, dict) else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "created_by": user['id']
     }
@@ -381,11 +389,12 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
 
     log = CommunicationLog(
         customer_id=customer_id, channel="email", message_type="Welcome Email",
-        content=f"To: {recipient_email}\nSubject: {subject}\n\n[Welcome Email HTML Body]\n\nAttachments:\n1. {filename_form_preview}\n2. {filename_terms}\n3. {filename_price}",
+        content=f"To: {recipient_email}\nSubject: {subject}\nResend ID: {(sendgrid_response or {}).get('id') if isinstance(sendgrid_response, dict) else 'N/A'}\n\n[Welcome Email HTML Body]\n\nAttachments:\n1. {filename_form_preview}\n2. {filename_terms}\n3. {filename_price}",
         status=email_status, sent_by=user['id']
     )
     log_doc = log.model_dump()
     log_doc['sent_at'] = log_doc['sent_at'].isoformat()
+    log_doc['resend_message_id'] = (sendgrid_response or {}).get("id") if isinstance(sendgrid_response, dict) else None
     await db.communication_logs.insert_one(log_doc)
 
     if customer.get('stage') == 'pending_approval':

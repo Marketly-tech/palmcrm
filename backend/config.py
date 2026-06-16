@@ -27,6 +27,9 @@ class Settings:
     RESEND_API_KEY: str = os.environ.get("RESEND_API_KEY", "")
     RESEND_FROM_EMAIL: str = os.environ.get("RESEND_FROM_EMAIL", "crm@rrlbuildersanddevelopers.com")
     RESEND_FROM_NAME: str = os.environ.get("RESEND_FROM_NAME", "RRL Group")
+    # Internal archive BCC — every outbound CRM email gets a silent copy here
+    # so the team has a permanent off-platform backup. Blank string = disabled.
+    RESEND_BCC_ARCHIVE: str = os.environ.get("RESEND_BCC_ARCHIVE", "")
     
     # CORS
     CORS_ORIGINS: str = os.environ.get("CORS_ORIGINS", "*")

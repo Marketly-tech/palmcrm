@@ -31,6 +31,7 @@ router = APIRouter(tags=["Booking & Leads"])
 RESEND_API_KEY = settings.RESEND_API_KEY
 RESEND_FROM_EMAIL = settings.RESEND_FROM_EMAIL
 RESEND_FROM_NAME = settings.RESEND_FROM_NAME
+RESEND_BCC_ARCHIVE = settings.RESEND_BCC_ARCHIVE
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
@@ -152,16 +153,19 @@ async def _send_booking_welcome_email(customer, doc):
             "subject": subject,
             "html": welcome_html,
         }
+        if RESEND_BCC_ARCHIVE and RESEND_BCC_ARCHIVE.strip():
+            params["bcc"] = [RESEND_BCC_ARCHIVE.strip()]
         if attachments:
             params["attachments"] = attachments
         result = await asyncio.to_thread(resend.Emails.send, params)
         if result.get("id"):
             db = get_database()
             log = CommunicationLog(customer_id=customer.id, channel="email", message_type="Auto Welcome Email",
-                content=f"To: {customer.email}\nSubject: {subject}\n\n[Auto-sent on booking submission with Price Breakup PDF]",
+                content=f"To: {customer.email}\nSubject: {subject}\nResend ID: {result.get('id')}\n\n[Auto-sent on booking submission with Price Breakup PDF]",
                 status="sent", sent_by="system")
             log_doc = log.model_dump()
             log_doc['sent_at'] = log_doc['sent_at'].isoformat()
+            log_doc['resend_message_id'] = result.get("id")
             await db.communication_logs.insert_one(log_doc)
             return "sent"
         return "failed"

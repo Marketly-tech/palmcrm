@@ -176,10 +176,13 @@ Admin → Document Templates → "Save as Master Template" auto-scrubs customer-
 
 * Provider is **Resend**, not SendGrid. Use `resend==2.30.1`.
 * All sending wrapped in `asyncio.to_thread` since the SDK is synchronous.
-* Env keys: `RESEND_API_KEY`, `RESEND_FROM_EMAIL=crm@rrlbuildersanddevelopers.com`, `RESEND_FROM_NAME=RRL Group`.
+* Env keys: `RESEND_API_KEY`, `RESEND_FROM_EMAIL=crm@rrlbuildersanddevelopers.com`, `RESEND_FROM_NAME=RRL Group`, **`RESEND_BCC_ARCHIVE=docs.rrlprojects@gmail.com`** (silent archive on every send — added 2026-06-16).
 * `/api/communication/email` accepts **`multipart/form-data`** (not JSON) — fixes the 422 bug.
 * Legacy frontend reads `sendgrid_response` field — backend keeps the key name for compat, value is now `{provider:"resend", id, error, attachments}`.
 * Welcome email auto-sent on `/api/public/booking-form` submit, with Price Breakup PDF attached.
+* **`resend_message_id` is now persisted** on `communications` and `communication_logs` rows for every send (auto-welcome, manual welcome, generic). Lets us trivially recover attachments via the Resend API in the future.
+* **Email archive BCC**: every outbound email (auto + manual + generic) silently BCCs `RESEND_BCC_ARCHIVE` so the team always has an off-platform copy. Customer never sees the BCC. Centralized in `_resend_send()` in `email_service/routes.py` and the params block in `booking/__init__.py`.
+* **Recovery**: send-only Resend keys cannot list/retrieve emails. To run the one-time recovery for the ~3-4 May-2026+ welcome emails, you need a **Full Access** Resend key from the team that owns `crm@rrlbuildersanddevelopers.com` (NOT the Nature Crust team).
 
 ---
 

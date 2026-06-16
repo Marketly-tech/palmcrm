@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-16 (later) — Email Archive BCC + resend_message_id Persistence
+- **New env var `RESEND_BCC_ARCHIVE`** (set to `docs.rrlprojects@gmail.com`). Every outbound email from the CRM now silently BCCs this address — auto-welcome on booking submit, manual welcome-send, doc sends, and the generic `/communication/email` endpoint. Customers don't see the BCC; team gets a permanent off-platform archive.
+- **`resend_message_id` now persisted** in `communications` and `communication_logs` collections (previously thrown away). Makes future Resend-API attachment recovery trivial.
+- **Discovered**: the existing `RESEND_API_KEY` in `backend/.env` is a SEND-ONLY key — cannot list/retrieve sent emails or attachments. Recovery requires a Full Access key from the Resend team that owns `crm@rrlbuildersanddevelopers.com` (the user gave a key from a different team — Nature Crust — which we cannot use for Builders recovery).
+- Files: `backend/.env`, `backend/config.py`, `backend/email_service/routes.py`, `backend/booking/__init__.py`. Memory: `DEPLOYMENT_INVARIANTS.md` § 5.
+- **Verified**: sent a test welcome to Ramya, Resend ID `61276165-665a-434e-997c-238ee1b940bd` persisted on the log, BCC param accepted by Resend API.
+
 ## 2026-06-16 — Booking Form Snapshot (Immutable) + Backfill
 - **Problem**: The "Booking Form Preview" attached to the welcome email was re-generated live from the customer record every time it was previewed/sent. Any admin edit to the customer profile silently changed the preview, so the customer's *original* submission was effectively un-recoverable.
 - **Fix — going forward**: At public booking-form submission (`/api/public/booking-form`), the booking form preview HTML is generated and saved to `customers.original_booking_form_html` (+ `original_booking_form_snapshot_at`) before `insert_one`. The three welcome-email endpoints (`preview-welcome-email`, `send-welcome-email`, generic `/communication/email` with `email_type=welcome`) now serve this snapshot, falling back to live render only if missing.
