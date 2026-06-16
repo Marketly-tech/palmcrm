@@ -22,6 +22,7 @@ import {
 } from "../ui/select";
 import { Plus, FileText, Eye, Download, Trash2, Loader2, Building2, Lock } from "lucide-react";
 import { getStatusBadge } from "./utils";
+import axios from "axios";
 
 const NOC_TYPES = [
   { key: "noc_hdfc", label: "HDFC Bank", color: "red" },
@@ -100,30 +101,67 @@ const DocumentsTab = ({
                 </CardDescription>
               </div>
             </div>
-            <Button
-              variant="outline"
-              className="border-amber-400 text-amber-900 hover:bg-amber-100"
-              data-testid="view-original-booking-form-btn"
-              onClick={() => {
-                const backend = process.env.REACT_APP_BACKEND_URL || "";
-                const token = localStorage.getItem("token") || "";
-                const url = `${backend}/api/customers/${customer.id}/original-booking-form.pdf`;
-                // Fetch with auth header then open as blob (browser won't pass our JWT on a plain anchor)
-                fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-                  .then(async (r) => {
-                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                    return r.blob();
-                  })
-                  .then((blob) => {
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                className="border-amber-400 text-amber-900 hover:bg-amber-100"
+                data-testid="view-original-booking-form-btn"
+                onClick={async () => {
+                  try {
+                    const backend = process.env.REACT_APP_BACKEND_URL || "";
+                    const res = await axios.get(
+                      `${backend}/api/customers/${customer.id}/original-booking-form.pdf`,
+                      { responseType: "blob" }
+                    );
+                    const blob = new Blob([res.data], { type: "application/pdf" });
                     const objUrl = URL.createObjectURL(blob);
                     window.open(objUrl, "_blank", "noopener,noreferrer");
-                  })
-                  .catch((err) => alert(`Could not load original booking form: ${err.message}`));
-              }}
-            >
-              <Eye className="w-4 h-4 mr-2" />
-              View Original PDF
-            </Button>
+                  } catch (err) {
+                    alert(
+                      `Could not load original booking form: ${
+                        err.response?.data?.detail || err.message
+                      }`
+                    );
+                  }
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View
+              </Button>
+              <Button
+                variant="outline"
+                className="border-amber-400 text-amber-900 hover:bg-amber-100"
+                data-testid="download-original-booking-form-btn"
+                onClick={async () => {
+                  try {
+                    const backend = process.env.REACT_APP_BACKEND_URL || "";
+                    const res = await axios.get(
+                      `${backend}/api/customers/${customer.id}/original-booking-form.pdf`,
+                      { responseType: "blob" }
+                    );
+                    const blob = new Blob([res.data], { type: "application/pdf" });
+                    const objUrl = URL.createObjectURL(blob);
+                    const safe = (customer.name || "Customer").trim().replace(/\s+/g, "_");
+                    const a = document.createElement("a");
+                    a.href = objUrl;
+                    a.download = `RRL_OriginalBookingForm_${safe}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+                  } catch (err) {
+                    alert(
+                      `Could not download original booking form: ${
+                        err.response?.data?.detail || err.message
+                      }`
+                    );
+                  }
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </Button>
+            </div>
           </CardHeader>
         </Card>
       )}
