@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Plus, FileText, Eye, Download, Trash2, Loader2, Building2 } from "lucide-react";
+import { Plus, FileText, Eye, Download, Trash2, Loader2, Building2, Lock } from "lucide-react";
 import { getStatusBadge } from "./utils";
 
 const NOC_TYPES = [
@@ -32,6 +32,7 @@ const NOC_TYPES = [
 
 const DocumentsTab = ({
   documents,
+  customer,
   isAccountsRole,
   onGenerateDocument,
   onPreviewDocument,
@@ -67,6 +68,66 @@ const DocumentsTab = ({
 
   return (
     <>
+      {customer?.id && (
+        <Card className="border-amber-200 bg-amber-50/40" data-testid="original-booking-form-card">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="rounded-md bg-amber-100 p-2 mt-0.5">
+                <Lock className="w-5 h-5 text-amber-700" />
+              </div>
+              <div>
+                <CardTitle className="flex items-center gap-2 text-amber-900">
+                  Original Booking Form
+                  <Badge className="bg-amber-200 text-amber-900 hover:bg-amber-200">Locked</Badge>
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Immutable copy of the booking form preview that was emailed to the customer on the day of booking. Cannot be edited.
+                  {customer.original_booking_form_pdf_recovered_from ? (
+                    <span className="block mt-1 text-emerald-700">
+                      ✓ Restored from original email attachment (perfect fidelity)
+                    </span>
+                  ) : customer.original_booking_form_html ? (
+                    <span className="block mt-1 text-slate-600">
+                      Rendered from the frozen HTML snapshot
+                      {customer.original_booking_form_snapshot_at &&
+                        ` — locked on ${new Date(customer.original_booking_form_snapshot_at).toLocaleDateString()}`}
+                    </span>
+                  ) : (
+                    <span className="block mt-1 text-slate-500">
+                      No snapshot on file — run the admin backfill once.
+                    </span>
+                  )}
+                </CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              className="border-amber-400 text-amber-900 hover:bg-amber-100"
+              data-testid="view-original-booking-form-btn"
+              onClick={() => {
+                const backend = process.env.REACT_APP_BACKEND_URL || "";
+                const token = localStorage.getItem("token") || "";
+                const url = `${backend}/api/customers/${customer.id}/original-booking-form.pdf`;
+                // Fetch with auth header then open as blob (browser won't pass our JWT on a plain anchor)
+                fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+                  .then(async (r) => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.blob();
+                  })
+                  .then((blob) => {
+                    const objUrl = URL.createObjectURL(blob);
+                    window.open(objUrl, "_blank", "noopener,noreferrer");
+                  })
+                  .catch((err) => alert(`Could not load original booking form: ${err.message}`));
+              }}
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              View Original PDF
+            </Button>
+          </CardHeader>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>

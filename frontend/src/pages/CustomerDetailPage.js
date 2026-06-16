@@ -129,6 +129,7 @@ const CustomerDetailPage = () => {
         <TabsContent value="documents">
           <DocumentsTab
             documents={h.documents} isAccountsRole={h.isAccountsRole}
+            customer={h.customer}
             onGenerateDocument={async (docType) => {
               try {
                 const res = await axios.post(`${API}/documents/generate`, { customer_id: id, doc_type: docType });
