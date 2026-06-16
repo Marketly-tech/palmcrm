@@ -102,6 +102,12 @@ class CustomerBase(BaseModel):
     # See /app/memory/DEPLOYMENT_INVARIANTS.md § Booking Form Snapshot.
     original_booking_form_html: Optional[str] = None
     original_booking_form_snapshot_at: Optional[str] = None
+    # IMMUTABLE recovered PDF binary (base64). Set ONLY by the Resend recovery
+    # script for customers whose welcome email is still in Resend's retention
+    # window. Customers with this field present have the *true* originally-sent
+    # PDF; those without fall back to ``original_booking_form_html`` snapshot.
+    original_booking_form_pdf_b64: Optional[str] = None
+    original_booking_form_pdf_recovered_from: Optional[str] = None  # e.g. "resend:<email_id>"
 
 
 class CustomerCreate(CustomerBase):

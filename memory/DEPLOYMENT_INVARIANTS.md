@@ -100,41 +100,54 @@ total_price  = subtotal + labour_cess + gst_amount + interest_amount
 The **Booking Form Preview** that the customer received in the auto welcome
 email must never drift when admin later edits the live customer record.
 
-### Storage
-* Two new fields on `customers/models.py::CustomerBase`:
-  * `original_booking_form_html: Optional[str]` — full HTML of the preview
-  * `original_booking_form_snapshot_at: Optional[str]` — ISO timestamp
-* Captured once inside `booking/__init__.py::submit_booking_form`, **immediately after**
-  the customer doc is built and before `db.customers.insert_one`. Wrapped in a try/except
-  so a snapshot failure never blocks the booking from being saved.
+### Storage — three layers (priority order)
+* `original_booking_form_pdf_b64: Optional[str]` — **TRUE original PDF** (base64).
+  Set ONLY by the Resend recovery script `scripts/recover_booking_form_pdfs.py`
+  for customers whose welcome email is still in Resend's retention window.
+  Perfect fidelity to the email the customer actually received.
+* `original_booking_form_pdf_recovered_from: Optional[str]` — e.g. `"resend:<email_id>"`.
+* `original_booking_form_html: Optional[str]` — frozen HTML snapshot (next-best fidelity).
+  Captured at booking-submit time. For pre-2026-06-16 customers, comes from the
+  one-time backfill (= current state at backfill time, not original booking time).
+* `original_booking_form_snapshot_at: Optional[str]` — ISO timestamp.
+
+### Capture path
+* New bookings: `booking/__init__.py::submit_booking_form` calls
+  `generate_booking_form_preview_html(doc)` immediately before `db.customers.insert_one`.
+  Wrapped in try/except so a snapshot failure never blocks the booking.
+* Existing customers (one-time): `POST /api/customers/admin/backfill-booking-form-snapshots`.
+
+### Recovery (one-time) for already-sent emails
+* `python -m scripts.recover_booking_form_pdfs <RESEND_FULL_ACCESS_KEY>`.
+* Lists sent emails via `GET /emails` (must be a **Full-Access** Resend key, NOT send-only).
+* Filters subjects matching `welcome` / `booking confirmation`, takes the oldest per recipient.
+* `GET /emails/{id}/attachments` → 1-hour signed `download_url` → fetches PDF binary →
+  base64 → `db.customers.update_one`.
+* Falls back to any `*.pdf` attachment if no `RRL_BookingFormPreview_*.pdf` exists.
+* Idempotent — skips customers that already have `original_booking_form_pdf_b64`.
 
 ### Read path
-* `email_service/routes.py` — three sites now do
-  `customer.get('original_booking_form_html') or generate_booking_form_preview_html(customer)`:
-  1. `GET /api/communication/preview-welcome-email/{customer_id}`
-  2. `POST /api/communication/email` (when `email_type == "welcome"`)
-  3. `POST /api/communication/send-welcome-email/{customer_id}`
+* `GET /api/customers/{id}/original-booking-form.pdf` — single entry-point. Priority:
+  1. Decode `original_booking_form_pdf_b64` → return as `application/pdf`.
+  2. Render `original_booking_form_html` via WeasyPrint on the fly.
+  3. 404.
+* `email_service/routes.py` welcome-email previews still read
+  `customer.get('original_booking_form_html') or generate_booking_form_preview_html(customer)`.
 
 ### Immutability guard
-* `PUT /api/customers/{customer_id}` strips `original_booking_form_html` and
-  `original_booking_form_snapshot_at` from the updates dict before applying.
-  **No other write path exists** for these fields except the booking submission
-  and the admin backfill endpoint below.
-
-### One-time backfill endpoint
-* `POST /api/customers/admin/backfill-booking-form-snapshots` (admin-only,
-  idempotent). Skips customers that already have a snapshot. Run once after
-  deploying this feature so all 37 existing customers get frozen at current state.
-* **Caveat**: For customers booked BEFORE 2026-06-16, the backfill reflects the
-  customer profile *at backfill time*, not original booking time, because no
-  earlier snapshot ever existed. New bookings (post-2026-06-16) snapshot
-  perfectly at the moment of submission.
+* `PUT /api/customers/{customer_id}` strips ALL four fields from the update dict
+  (`original_booking_form_html`, `_snapshot_at`, `_pdf_b64`, `_pdf_recovered_from`).
+  Only the booking-submit path + backfill endpoint + recovery script can write them.
 
 ### Verified (2026-06-16) — Ramya test lead
-* Backfilled 37/37 customers, 0 failures.
-* Snapshot HTML is 155,149 bytes; survives `PUT` with `original_booking_form_html: "HACKED"`
-  in payload (SHA256 hash identical before/after).
-* Editing `bhk_type` on the live record does not change snapshot length or hash.
+* Backfilled 37/37 customers (HTML), 0 failures.
+* Resend recovery: 2/5 candidates recovered (Ramya + 1 test); 3 not in preview DB
+  (only present in production). Ramya's `original_booking_form_pdf_b64` = 208 KB base64
+  → decodes to 156 KB valid PDF.
+* `GET /api/customers/{id}/original-booking-form.pdf` returns `HTTP 200, 156,181 bytes`,
+  magic `%PDF-`.
+* Hash test: PUT with `original_booking_form_html: "HACKED"` → SHA256 identical
+  before/after. Editing `bhk_type` on the live record does not change snapshot.
 
 ---
 

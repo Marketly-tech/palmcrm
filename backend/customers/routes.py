@@ -4,8 +4,10 @@ Handles customer CRUD operations.
 """
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
+import base64
 import re
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import Response
 from pymongo import ReturnDocument
 
 from database import get_database
@@ -221,6 +223,8 @@ async def update_customer(customer_id: str, updates: Dict[str, Any], user: dict 
     # Booking-form snapshot is immutable — strip any attempt to overwrite it.
     updates.pop('original_booking_form_html', None)
     updates.pop('original_booking_form_snapshot_at', None)
+    updates.pop('original_booking_form_pdf_b64', None)
+    updates.pop('original_booking_form_pdf_recovered_from', None)
     result = await db.customers.update_one({"id": customer_id}, {"$set": updates})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -298,3 +302,61 @@ async def backfill_booking_form_snapshots(user: dict = Depends(check_role([UserR
         "failed": failed,
         "failed_details": failed_ids,
     }
+
+
+@router.get("/{customer_id}/original-booking-form.pdf")
+async def get_original_booking_form_pdf(
+    customer_id: str, user: dict = Depends(get_current_user)
+):
+    """Download the ORIGINAL booking form PDF that was emailed to the customer
+    on booking day. Served as a static, non-editable file.
+
+    Source priority:
+      1. ``original_booking_form_pdf_b64`` — true binary recovered from Resend
+         (perfect fidelity to what the customer received).
+      2. ``original_booking_form_html`` snapshot rendered to PDF on the fly
+         (frozen HTML from snapshot/backfill time, NOT live profile data).
+      3. 404 if neither exists.
+    """
+    db = get_database()
+    customer = await db.customers.find_one(
+        {"id": customer_id},
+        {
+            "_id": 0,
+            "name": 1,
+            "original_booking_form_pdf_b64": 1,
+            "original_booking_form_html": 1,
+        },
+    )
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    name_safe = (customer.get("name") or "Customer").strip().replace(" ", "_")
+    filename = f"RRL_OriginalBookingForm_{name_safe}.pdf"
+
+    pdf_bytes: Optional[bytes] = None
+    if customer.get("original_booking_form_pdf_b64"):
+        try:
+            pdf_bytes = base64.b64decode(customer["original_booking_form_pdf_b64"])
+        except Exception:
+            pdf_bytes = None
+
+    if pdf_bytes is None and customer.get("original_booking_form_html"):
+        # Render the frozen HTML snapshot to PDF as a fallback
+        from weasyprint import HTML  # local import to keep startup light
+        try:
+            pdf_bytes = HTML(string=customer["original_booking_form_html"]).write_pdf()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"PDF render failed: {e}")
+
+    if not pdf_bytes:
+        raise HTTPException(
+            status_code=404,
+            detail="No original booking form snapshot on file for this customer.",
+        )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )

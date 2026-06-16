@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-16 (final) — Resend Recovery for Truly-Original PDFs ✅
+- **Recovery script** `backend/scripts/recover_booking_form_pdfs.py` — uses Resend's `GET /emails` + `GET /emails/{id}/attachments` to pull the actual PDF binary that was emailed to each customer, stores as base64 on `customers.original_booking_form_pdf_b64`. Idempotent.
+- **Download endpoint** `GET /api/customers/{id}/original-booking-form.pdf` — serves the recovered PDF if present, falls back to rendering the frozen HTML snapshot via WeasyPrint. Single source of truth for "show me what the customer received".
+- **Immutability**: PUT now strips all 4 snapshot fields (html, snapshot_at, pdf_b64, pdf_recovered_from).
+- **Tested on preview**: 2 customers recovered (Ramya 156 KB PDF + 1 test). 3 other recoverable bookings exist on production only — will recover automatically when the same script runs against production Mongo.
+- **Production run**: After redeploying, on production execute:
+  `RESEND_RECOVERY_API_KEY="re_X2pW1Ak6_..." python -m scripts.recover_booking_form_pdfs`
+- Files: `backend/customers/models.py`, `backend/customers/routes.py`, `backend/scripts/recover_booking_form_pdfs.py`.
+
 ## 2026-06-16 (later) — Email Archive BCC + resend_message_id Persistence
 - **New env var `RESEND_BCC_ARCHIVE`** (set to `docs.rrlprojects@gmail.com`). Every outbound email from the CRM now silently BCCs this address — auto-welcome on booking submit, manual welcome-send, doc sends, and the generic `/communication/email` endpoint. Customers don't see the BCC; team gets a permanent off-platform archive.
 - **`resend_message_id` now persisted** in `communications` and `communication_logs` collections (previously thrown away). Makes future Resend-API attachment recovery trivial.
