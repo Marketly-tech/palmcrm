@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06-16 — Booking Form Snapshot (Immutable) + Backfill
+- **Problem**: The "Booking Form Preview" attached to the welcome email was re-generated live from the customer record every time it was previewed/sent. Any admin edit to the customer profile silently changed the preview, so the customer's *original* submission was effectively un-recoverable.
+- **Fix — going forward**: At public booking-form submission (`/api/public/booking-form`), the booking form preview HTML is generated and saved to `customers.original_booking_form_html` (+ `original_booking_form_snapshot_at`) before `insert_one`. The three welcome-email endpoints (`preview-welcome-email`, `send-welcome-email`, generic `/communication/email` with `email_type=welcome`) now serve this snapshot, falling back to live render only if missing.
+- **Immutability**: `PUT /api/customers/{id}` strips these two fields from the update dict. No other code path writes them except booking submit + the backfill endpoint below.
+- **Backfill**: New admin endpoint `POST /api/customers/admin/backfill-booking-form-snapshots` (idempotent). One-off run for the 37 existing customers — locked their current state in as the snapshot. Caveat: not truly "original" for pre-2026-06-16 bookings, but freezes them from this moment.
+- **Verified**: 37/37 customers backfilled, 0 failures. Hash test: PUT with `original_booking_form_html: "HACKED"` → SHA256 unchanged. Editing `bhk_type` afterwards does not affect snapshot length.
+- Files: `backend/customers/models.py`, `backend/customers/routes.py`, `backend/booking/__init__.py`, `backend/email_service/routes.py`; memory: `DEPLOYMENT_INVARIANTS.md` § 3.5.
+
 ## 2026-06-06 (later) — Demand Letter TDS Split into Per-Slab + Lifetime
 - **Renamed** "TDS Payable" → **"Total TDS Payable"** (lifetime cumulative, = `demand_raised ÷ 101`).
 - **Added** new row above Total TDS Payable: **"Current TDS due for Slab {X%}"** where `X = int(cumulative_percentage)`. Formula: `current_due ÷ 101` (TDS owed on the current installment only).

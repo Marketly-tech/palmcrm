@@ -22,7 +22,7 @@ from customers.models import Customer, DocumentChecklist, GoogleFormWebhook
 from documents.models import CommunicationLog
 from customers import generate_customer_id
 from utils.payment_helpers import auto_generate_booking_transaction
-from documents.templates import generate_welcome_email_html, generate_price_breakup_html
+from documents.templates import generate_welcome_email_html, generate_price_breakup_html, generate_booking_form_preview_html
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +223,16 @@ async def submit_booking_form(data: BookingFormData):
     doc = customer.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     doc['updated_at'] = doc['updated_at'].isoformat()
+    # IMMUTABLE booking-form snapshot — captured once, never overwritten.
+    # This is the *original* booking form preview that goes out in the auto
+    # welcome email; the customer profile may later be edited but this stays
+    # frozen. See /app/memory/DEPLOYMENT_INVARIANTS.md § Booking Form Snapshot.
+    try:
+        snapshot_html = generate_booking_form_preview_html(doc)
+        doc['original_booking_form_html'] = snapshot_html
+        doc['original_booking_form_snapshot_at'] = datetime.now(timezone.utc).isoformat()
+    except Exception as snap_err:
+        logger.error(f"Booking-form snapshot failed for {customer.id}: {snap_err}")
     await db.customers.insert_one(doc)
 
     checklist = DocumentChecklist(customer_id=customer.id)

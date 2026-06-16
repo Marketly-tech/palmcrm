@@ -94,7 +94,12 @@ async def preview_welcome_email(customer_id: str, user: dict = Depends(get_curre
         raise HTTPException(status_code=404, detail="Customer not found")
 
     welcome_html = generate_welcome_email_html(customer)
-    form_preview_html = generate_booking_form_preview_html(customer)
+    # Booking Form Preview — use the IMMUTABLE snapshot captured at booking
+    # submission if it exists, otherwise fall back to live render.
+    form_preview_html = (
+        customer.get('original_booking_form_html')
+        or generate_booking_form_preview_html(customer)
+    )
     terms_conditions_html = generate_terms_and_conditions_html(customer)
     price_breakup_html = generate_price_breakup_html(customer)
 
@@ -236,7 +241,10 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
     attachments_data = []
 
     if data.email_type == "welcome":
-        form_preview_html = generate_booking_form_preview_html(customer)
+        form_preview_html = (
+            customer.get('original_booking_form_html')
+            or generate_booking_form_preview_html(customer)
+        )
         terms_conditions_html = generate_terms_and_conditions_html(customer)
         price_breakup_html = generate_price_breakup_html(customer)
         customer_name_safe = customer.get('name', 'Customer').replace(' ', '_')
@@ -317,7 +325,10 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
 
     welcome_html = generate_welcome_email_html(customer)
     price_breakup_html = generate_price_breakup_html(customer)
-    form_preview_html = generate_booking_form_preview_html(customer)
+    form_preview_html = (
+        customer.get('original_booking_form_html')
+        or generate_booking_form_preview_html(customer)
+    )
     terms_conditions_html = generate_terms_and_conditions_html(customer)
 
     welcome_doc = GeneratedDocument(customer_id=customer_id, doc_type=DocumentType.WELCOME_LETTER, content=welcome_html, generated_by=user['id'])

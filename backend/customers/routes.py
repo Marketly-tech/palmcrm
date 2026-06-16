@@ -218,6 +218,9 @@ async def update_customer(customer_id: str, updates: Dict[str, Any], user: dict 
             raise HTTPException(status_code=403, detail="Accounts role can only update agreement status")
     
     updates['updated_at'] = datetime.now(timezone.utc).isoformat()
+    # Booking-form snapshot is immutable — strip any attempt to overwrite it.
+    updates.pop('original_booking_form_html', None)
+    updates.pop('original_booking_form_snapshot_at', None)
     result = await db.customers.update_one({"id": customer_id}, {"$set": updates})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -242,3 +245,56 @@ async def delete_customer(customer_id: str, user: dict = Depends(check_role([Use
     
     await log_activity(user['id'], user['name'], "delete", "customer", customer_id, "Deleted customer")
     return {"message": "Customer deleted"}
+
+
+
+@router.post("/admin/backfill-booking-form-snapshots")
+async def backfill_booking_form_snapshots(user: dict = Depends(check_role([UserRole.ADMIN]))):
+    """One-time admin utility: locks in a Booking Form Preview snapshot for every
+    customer that doesn't already have one, using their *current* customer record.
+
+    NOTE: This is best-effort recovery for customers booked BEFORE the snapshot
+    feature existed. Their live profile may have been edited since booking, so
+    the resulting snapshot reflects the state AT BACKFILL TIME, not original
+    booking time. New bookings (post-Feb-2026) snapshot automatically at submit.
+
+    Idempotent — skips customers that already have a snapshot.
+    """
+    from documents.templates import generate_booking_form_preview_html
+    db = get_database()
+    cursor = db.customers.find(
+        {"$or": [
+            {"original_booking_form_html": {"$exists": False}},
+            {"original_booking_form_html": None},
+            {"original_booking_form_html": ""},
+        ]},
+        {"_id": 0},
+    )
+    backfilled = 0
+    failed = 0
+    failed_ids = []
+    async for customer in cursor:
+        try:
+            html = generate_booking_form_preview_html(customer)
+            await db.customers.update_one(
+                {"id": customer['id']},
+                {"$set": {
+                    "original_booking_form_html": html,
+                    "original_booking_form_snapshot_at": datetime.now(timezone.utc).isoformat(),
+                }},
+            )
+            backfilled += 1
+        except Exception as e:
+            failed += 1
+            failed_ids.append({"id": customer.get('id'), "error": str(e)[:120]})
+
+    await log_activity(
+        user['id'], user['name'], "backfill", "customer",
+        "all", f"Backfilled {backfilled} booking-form snapshots ({failed} failed)"
+    )
+    return {
+        "message": "Backfill complete",
+        "backfilled": backfilled,
+        "failed": failed,
+        "failed_details": failed_ids,
+    }

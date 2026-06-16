@@ -95,6 +95,49 @@ total_price  = subtotal + labour_cess + gst_amount + interest_amount
 
 ---
 
+## 3.5 · Booking Form Snapshot (IMMUTABLE) — added 2026-06-16
+
+The **Booking Form Preview** that the customer received in the auto welcome
+email must never drift when admin later edits the live customer record.
+
+### Storage
+* Two new fields on `customers/models.py::CustomerBase`:
+  * `original_booking_form_html: Optional[str]` — full HTML of the preview
+  * `original_booking_form_snapshot_at: Optional[str]` — ISO timestamp
+* Captured once inside `booking/__init__.py::submit_booking_form`, **immediately after**
+  the customer doc is built and before `db.customers.insert_one`. Wrapped in a try/except
+  so a snapshot failure never blocks the booking from being saved.
+
+### Read path
+* `email_service/routes.py` — three sites now do
+  `customer.get('original_booking_form_html') or generate_booking_form_preview_html(customer)`:
+  1. `GET /api/communication/preview-welcome-email/{customer_id}`
+  2. `POST /api/communication/email` (when `email_type == "welcome"`)
+  3. `POST /api/communication/send-welcome-email/{customer_id}`
+
+### Immutability guard
+* `PUT /api/customers/{customer_id}` strips `original_booking_form_html` and
+  `original_booking_form_snapshot_at` from the updates dict before applying.
+  **No other write path exists** for these fields except the booking submission
+  and the admin backfill endpoint below.
+
+### One-time backfill endpoint
+* `POST /api/customers/admin/backfill-booking-form-snapshots` (admin-only,
+  idempotent). Skips customers that already have a snapshot. Run once after
+  deploying this feature so all 37 existing customers get frozen at current state.
+* **Caveat**: For customers booked BEFORE 2026-06-16, the backfill reflects the
+  customer profile *at backfill time*, not original booking time, because no
+  earlier snapshot ever existed. New bookings (post-2026-06-16) snapshot
+  perfectly at the moment of submission.
+
+### Verified (2026-06-16) — Ramya test lead
+* Backfilled 37/37 customers, 0 failures.
+* Snapshot HTML is 155,149 bytes; survives `PUT` with `original_booking_form_html: "HACKED"`
+  in payload (SHA256 hash identical before/after).
+* Editing `bhk_type` on the live record does not change snapshot length or hash.
+
+---
+
 ## 4 · Document Templates — see `DOCUMENT_FORMAT_REFERENCE.md`
 
 ### Visual format (locked-in 2026-04, restored from production)

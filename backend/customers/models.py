@@ -95,6 +95,13 @@ class CustomerBase(BaseModel):
     
     # Document Uploads (store file paths/urls)
     uploaded_documents: Dict[str, str] = {}  # {doc_type: file_url}
+    
+    # IMMUTABLE snapshot — captured once at booking submission and never overwritten.
+    # Used to render the original Booking Form Preview that was auto-emailed to the
+    # customer on the day they booked, even after admin edits the live profile.
+    # See /app/memory/DEPLOYMENT_INVARIANTS.md § Booking Form Snapshot.
+    original_booking_form_html: Optional[str] = None
+    original_booking_form_snapshot_at: Optional[str] = None
 
 
 class CustomerCreate(CustomerBase):
