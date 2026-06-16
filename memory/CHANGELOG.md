@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-06-16 (later still) — Auto-Persist PDF at Booking Submit + View/Download UI
+- **Every new booking submission now stores the actual PDF binary** on the customer record (`original_booking_form_pdf_b64`, `recovered_from = "booking_submit"`) — generated via WeasyPrint immediately before `insert_one`. Wrapped in try/except so the booking itself is never blocked by a render failure. Going forward, no dependency on Resend retention.
+- **Customer profile → Documents tab** has a new amber-bordered locked card at the top with **View** + **Download** buttons (uses axios with global Authorization header — fixes earlier 403 caused by reading from wrong storage).
+- Files: `backend/booking/__init__.py` (PDF persistence in `submit_booking_form`), `frontend/src/components/customer/DocumentsTab.jsx` (View/Download buttons via axios + Blob), `frontend/src/pages/CustomerDetailPage.js` (passes `customer` to DocumentsTab).
+- **Verified end-to-end on a freshly-submitted booking**: PDF binary 206 KB base64 → endpoint returns 154 KB valid PDF with `%PDF-` magic. View opens in new tab, Download saves as `RRL_OriginalBookingForm_<Name>.pdf`. BCC `docs.rrlprojects@gmail.com` confirmed in every outbound send path.
+
 ## 2026-06-16 (final) — Resend Recovery for Truly-Original PDFs ✅
 - **Recovery script** `backend/scripts/recover_booking_form_pdfs.py` — uses Resend's `GET /emails` + `GET /emails/{id}/attachments` to pull the actual PDF binary that was emailed to each customer, stores as base64 on `customers.original_booking_form_pdf_b64`. Idempotent.
 - **Download endpoint** `GET /api/customers/{id}/original-booking-form.pdf` — serves the recovered PDF if present, falls back to rendering the frozen HTML snapshot via WeasyPrint. Single source of truth for "show me what the customer received".

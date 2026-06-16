@@ -115,7 +115,12 @@ email must never drift when admin later edits the live customer record.
 * New bookings: `booking/__init__.py::submit_booking_form` calls
   `generate_booking_form_preview_html(doc)` immediately before `db.customers.insert_one`.
   Wrapped in try/except so a snapshot failure never blocks the booking.
-* Existing customers (one-time): `POST /api/customers/admin/backfill-booking-form-snapshots`.
+  **Also renders the HTML to PDF via WeasyPrint and stores it as
+  `original_booking_form_pdf_b64`** (`recovered_from = "booking_submit"`).
+  This means every new booking now has the actual binary PDF on the record
+  from the moment of creation — no dependency on email-provider retention.
+* Existing customers (one-time): `POST /api/customers/admin/backfill-booking-form-snapshots`
+  (HTML only — runs Resend recovery script separately for the actual PDFs).
 
 ### Recovery (one-time) for already-sent emails
 * `python -m scripts.recover_booking_form_pdfs <RESEND_FULL_ACCESS_KEY>`.

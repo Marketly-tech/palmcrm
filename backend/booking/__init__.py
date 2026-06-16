@@ -235,6 +235,14 @@ async def submit_booking_form(data: BookingFormData):
         snapshot_html = generate_booking_form_preview_html(doc)
         doc['original_booking_form_html'] = snapshot_html
         doc['original_booking_form_snapshot_at'] = datetime.now(timezone.utc).isoformat()
+        # Also persist the rendered PDF binary so View/Download always serves
+        # the exact-fidelity file (no on-the-fly re-render needed).
+        try:
+            snapshot_pdf_bytes = HTML(string=snapshot_html).write_pdf()
+            doc['original_booking_form_pdf_b64'] = base64.b64encode(snapshot_pdf_bytes).decode()
+            doc['original_booking_form_pdf_recovered_from'] = "booking_submit"
+        except Exception as pdf_err:
+            logger.error(f"Booking-form PDF snapshot failed for {customer.id}: {pdf_err}")
     except Exception as snap_err:
         logger.error(f"Booking-form snapshot failed for {customer.id}: {snap_err}")
     await db.customers.insert_one(doc)
