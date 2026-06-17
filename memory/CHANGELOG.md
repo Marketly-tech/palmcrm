@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-17 — Demand Letter: TDS excluded from Installment Paid + Net Amount uses Total TDS Payable
+- **Installment Amount Paid Till Date (C)** now excludes any payment_transaction with `transaction_stage == 'tds'`. TDS challans are reported only on the "TDS Paid" row — keeping them out of "Installment Paid" prevents double-counting.
+- **Net Amount Payable** formula reverted to `max(0, Total Outstanding − Total TDS Payable)` (lifetime). The earlier per-slab formula (`− Current TDS due for Slab X%`) is removed. Sub-label updated.
+- "Current TDS due for Slab X%" row is still shown for reference but is no longer used in the Net Amount calculation.
+- **Verified end-to-end on Ramya**: With no TDS txns → Paid=85,560, Net=0. After injecting ₹5,000 TDS-stage txn → Paid still 85,560 (no double count), TDS Paid=5,000, TDS To be Paid=0. Then cleaned up the test txn.
+- Files: `backend/documents/templates/demand_letter.py`; memory: `DEPLOYMENT_INVARIANTS.md` § 3, `TDS_CALCULATION_LOGIC.md` next-update.
+
 ## 2026-06-16 (later still) — Auto-Persist PDF at Booking Submit + View/Download UI
 - **Every new booking submission now stores the actual PDF binary** on the customer record (`original_booking_form_pdf_b64`, `recovered_from = "booking_submit"`) — generated via WeasyPrint immediately before `insert_one`. Wrapped in try/except so the booking itself is never blocked by a render failure. Going forward, no dependency on Resend retention.
 - **Customer profile → Documents tab** has a new amber-bordered locked card at the top with **View** + **Download** buttons (uses axios with global Authorization header — fixes earlier 403 caused by reading from wrong storage).

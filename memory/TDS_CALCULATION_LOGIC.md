@@ -11,26 +11,46 @@
 
 ---
 
-## The Four TDS Numbers (post-2026-06-06)
+## The Four TDS Numbers (post-2026-06-17)
 
 | Field | Formula | Meaning |
 |---|---|---|
-| **Current TDS due for Slab {X%}** | `current_due ÷ 101` | TDS owed for **the current installment only**. `current_due = stage_percentage × total_price`. Label uses `cumulative_percentage` (e.g. "50%") so it matches the Payment Stage header. |
-| **Total TDS Payable** | `demand_raised ÷ 101` | Lifetime TDS owed up to current cumulative stage. `demand_raised = cumulative_percentage × total_price`, gross-inclusive of 1% TDS u/s 194-IA. *Was called "TDS Payable" pre-2026-06-06.* |
+| **Current TDS due for Slab {X%}** | `current_due ÷ 101` | TDS owed for **the current installment only**. `current_due = stage_percentage × total_price`. Label uses `cumulative_percentage` (e.g. "50%") so it matches the Payment Stage header. **Shown for reference only — no longer used in Net Amount Payable calculation (since 2026-06-17).** |
+| **Total TDS Payable** | `demand_raised ÷ 101` | Lifetime TDS owed up to current cumulative stage. `demand_raised = cumulative_percentage × total_price`, gross-inclusive of 1% TDS u/s 194-IA. |
 | **TDS Paid** | Sum of `transactions` where `transaction_stage == "tds"` | Actual TDS challans submitted by the customer. **NOT** 1% of all payments. |
 | **TDS To Be Paid** | `Total TDS Payable − TDS Paid` | Outstanding TDS still due across the entire booking. Always `max(0, ...)`. |
+
+### Installment Amount Paid Till Date (C) — important
+TDS-stage transactions are **excluded** from this sum since 2026-06-17. TDS
+challans are reported on the "TDS Paid" row only; including them here would
+double-count once via Installment Paid and once via the TDS Payable subtraction
+in Net Amount.
+
+```python
+txn_total = sum(
+    float(t['amount'] or 0)
+    for t in transactions
+    if (t.get('transaction_stage') or '').lower() != 'tds'
+)
+```
 
 ### Net Amount Payable
 
 ```
-Net Amount Payable = max(0, Total Outstanding − Current TDS due for Slab {X%})
+Net Amount Payable = max(0, Total Outstanding − Total TDS Payable)
 ```
 
-**Why subtract the per-slab figure and not the lifetime total?**
-The demand letter asks for the *current installment*. The customer will deduct
-1% TDS from THIS payment and remit it themselves. Lifetime TDS shortfall is
-shown separately ("TDS To Be Paid") so the customer/accounts team can true up
-prior slabs, but the current cheque amount only nets the current-slab TDS.
+**Why subtract the LIFETIME total, not the per-slab figure?**
+Per user direction on 2026-06-17. The demand letter is generated at a specific
+cumulative stage and shows the cumulative TDS obligation the customer owes
+toward the seller — not just the current slab. Subtracting Total TDS Payable
+keeps the demand consistent with how the customer reports & remits 1% u/s 194-IA
+on the cumulative consideration.
+
+> Previously (between 2026-06-06 and 2026-06-17) the formula subtracted
+> `Current TDS due for Slab X%` per a different interpretation. That has been
+> reverted. The "Current TDS due for Slab X%" row remains visible in the demand
+> letter as informational context but does not feed the Net Amount.
 
 ---
 

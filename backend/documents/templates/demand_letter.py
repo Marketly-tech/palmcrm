@@ -59,8 +59,15 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
     # Current due = stage % of total basic cost (this stage's individual share)
     current_due = round((total_basic_cost * stage_percentage) / 100, 2) if stage_percentage else 0
 
-    # Amount paid till date from transactions
-    txn_total = sum(float(t.get('amount', 0) or 0) for t in transactions)
+    # Amount paid till date from transactions — TDS-stage payments are
+    # excluded because TDS is reported separately as "TDS Paid"; including it
+    # here would double-count it once via the installment row and once via the
+    # TDS Payable subtraction at the end.
+    txn_total = sum(
+        float(t.get('amount', 0) or 0)
+        for t in transactions
+        if (t.get('transaction_stage') or '').lower() != 'tds'
+    )
     amount_paid = txn_total if txn_total >= booking_amount else booking_amount + txn_total
 
     # Interest Amount — flat post-GST add-on owed by the customer (per
@@ -82,7 +89,9 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
     # TDS Paid               = Sum of all transactions where transaction_stage == "tds"
     #                          (actual TDS challans submitted by the customer)
     # TDS To Be Paid         = Total TDS Payable − TDS Paid
-    # Net Amount Payable     = Total Outstanding − Current TDS due (NOT total payable)
+    # Net Amount Payable     = Total Outstanding − Total TDS Payable
+    #                          (per 2026-06-17 user direction — revert from
+    #                          per-slab to lifetime).
     tds_payable = round(demand_raised / 101, 2) if demand_raised else 0
     current_tds_due = round(current_due / 101, 2) if current_due else 0
     tds_paid = round(
@@ -95,9 +104,8 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
     )
     tds_to_be_paid = max(0, round(tds_payable - tds_paid, 2))
 
-    # Net amount payable = total outstanding − CURRENT stage's TDS portion
-    # (only the TDS on the current installment is netted off, not the lifetime total).
-    net_amount_payable = max(0, round(total_outstanding - current_tds_due, 2))
+    # Net amount payable = total outstanding − LIFETIME TDS payable.
+    net_amount_payable = max(0, round(total_outstanding - tds_payable, 2))
 
     # Label for the "Current TDS due for Slab {X%}" row.
     # Uses cumulative_percentage so it matches the Payment Stage header (e.g. "50%").
@@ -406,7 +414,7 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                         <td>{fmt(tds_to_be_paid)}</td>
                     </tr>
                     <tr class="highlight">
-                        <th>Net Amount Payable<br><small>(Total Outstanding &minus; Current TDS due for Slab {current_slab_label_pct}%)</small></th>
+                        <th>Net Amount Payable<br><small>(Total Outstanding &minus; Total TDS Payable)</small></th>
                         <td style="font-size: 13px;">{fmt(net_amount_payable)}</td>
                     </tr>
                 </table>
