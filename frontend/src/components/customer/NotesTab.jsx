@@ -1,6 +1,8 @@
 /**
  * NotesTab - Customer notes management component
- * Allows users to add, view, and delete notes for a customer
+ * Allows users to add, view, and delete notes for a customer.
+ * Renders the multi-level FollowUpTracker above the notes section so the
+ * sales/accounts team can log stage-tied follow-ups in the same view.
  */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
@@ -8,12 +10,14 @@ import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Separator } from "../ui/separator";
 import { Plus, Loader2, Trash2, FileText } from "lucide-react";
+import FollowUpTracker from "./FollowUpTracker";
 
 const NotesTab = ({
   notes,
   onAddNote,
   onDeleteNote,
   isAccountsRole = false,
+  customerId,
 }) => {
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -30,7 +34,9 @@ const NotesTab = ({
   };
 
   return (
-    <Card>
+    <div className="space-y-6">
+      {customerId && <FollowUpTracker customerId={customerId} />}
+      <Card>
       <CardHeader>
         <CardTitle>Customer Notes</CardTitle>
         <CardDescription>Keep track of important information and follow-ups</CardDescription>
@@ -102,6 +108,7 @@ const NotesTab = ({
         )}
       </CardContent>
     </Card>
+    </div>
   );
 };
 

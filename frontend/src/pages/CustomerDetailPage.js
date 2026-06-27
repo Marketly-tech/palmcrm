@@ -184,6 +184,7 @@ const CustomerDetailPage = () => {
 
         <TabsContent value="notes">
           <NotesTab
+            customerId={id}
             notes={h.notes}
             onAddNote={async (content) => {
               try {

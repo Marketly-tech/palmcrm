@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useFollowUpReminders } from "../../hooks/useFollowUpReminders";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import {
@@ -48,6 +49,9 @@ const DashboardLayout = ({ children }) => {
     () => navigation.filter((item) => !item.roles || item.roles.includes(user?.role)),
     [user?.role]
   );
+
+  // Background poll for due follow-ups → chime + browser notification.
+  useFollowUpReminders(Boolean(user));
 
   const handleLogout = () => {
     logout();

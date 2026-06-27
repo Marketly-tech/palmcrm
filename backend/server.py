@@ -22,7 +22,7 @@ from dashboard import router as dashboard_router
 from documents import documents_router, checklist_router, upload_router
 from email_service import email_router
 from booking import router as booking_router
-from settings import router as settings_router, notes_router, overdue_router, misc_router
+from settings import router as settings_router, notes_router, overdue_router, misc_router, followups_router
 
 # Import models/utilities needed for startup
 from auth import User, hash_password
@@ -78,6 +78,7 @@ app.include_router(settings_router, prefix="/api")
 app.include_router(notes_router, prefix="/api")
 app.include_router(overdue_router, prefix="/api")
 app.include_router(misc_router, prefix="/api")
+app.include_router(followups_router, prefix="/api")
 
 
 # ==================== HEALTH CHECKS ====================

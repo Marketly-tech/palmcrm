@@ -20,6 +20,11 @@ router = APIRouter(tags=["Settings & Stages"])
 notes_router = APIRouter(tags=["Customer Notes"])
 overdue_router = APIRouter(tags=["Overdue"])
 misc_router = APIRouter(tags=["Misc"])
+followups_router = APIRouter(tags=["Follow-ups"])
+
+# Valid call-status values for the multi-level follow-up tracker.
+# Tied to disbursement/payment stages from PAYMENT_STAGES.
+FOLLOW_UP_STATUSES = ["Dialed", "Connected", "Unanswered", "Follow-up", "Completed"]
 
 
 class UnitPricing(BaseModel):
@@ -142,6 +147,149 @@ async def update_payment_due_date(customer_id: str, data: dict, user: dict = Dep
         raise HTTPException(status_code=404, detail="Customer not found")
     await log_activity(user['id'], user['name'], "update", "payment_due_date", customer_id, f"Updated payment due date to {due_date}")
     return {"message": "Payment due date updated", "payment_due_date": due_date}
+
+
+# ==================== MULTI-LEVEL FOLLOW-UP TRACKER ====================
+async def _compute_overdue_stages(customer: dict) -> List[Dict[str, Any]]:
+    """Return PAYMENT_STAGES entries where cumulative expected > total_received.
+    Capped at the admin-set current stage (anything beyond that is "not yet due").
+    """
+    db = get_database()
+    settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    current_stage_key = settings_doc.get("current_stage") if settings_doc else None
+    if not current_stage_key:
+        return []
+
+    txns = await db.payment_transactions.find(
+        {"customer_id": customer["id"]}, {"_id": 0, "amount": 1}
+    ).to_list(1000)
+    total_received = sum(t.get("amount", 0) or 0 for t in txns)
+    total_price = customer.get("total_price", 0) or 0
+
+    overdue = []
+    for stage in PAYMENT_STAGES:
+        expected = (total_price * stage["cumulative"]) / 100
+        if expected > total_received + 1:  # tolerance
+            overdue.append({**stage, "expected": round(expected, 2),
+                            "shortfall": round(expected - total_received, 2)})
+        if stage["key"] == current_stage_key:
+            break
+    return overdue
+
+
+@followups_router.get("/customers/{customer_id}/follow-ups")
+async def get_customer_follow_ups(customer_id: str, user: dict = Depends(get_current_user)):
+    """Return follow-up log + overdue stages snapshot for the customer."""
+    db = get_database()
+    customer = await db.customers.find_one(
+        {"id": customer_id},
+        {"_id": 0, "id": 1, "name": 1, "follow_ups": 1, "total_price": 1}
+    )
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    follow_ups = customer.get("follow_ups", []) or []
+    overdue_stages = await _compute_overdue_stages(customer)
+
+    settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    current_stage_key = settings_doc.get("current_stage") if settings_doc else None
+
+    return {
+        "follow_ups": sorted(follow_ups, key=lambda f: f.get("created_at", ""), reverse=True),
+        "overdue_stages": overdue_stages,
+        "current_stage": current_stage_key,
+        "all_stages": PAYMENT_STAGES,
+        "statuses": FOLLOW_UP_STATUSES,
+    }
+
+
+@followups_router.post("/customers/{customer_id}/follow-ups")
+async def add_customer_follow_up(customer_id: str, data: dict, user: dict = Depends(get_current_user)):
+    db = get_database()
+    stage_key = (data.get("stage_key") or "").strip()
+    status = (data.get("status") or "").strip()
+    notes_text = (data.get("notes") or "").strip()
+    next_date = (data.get("next_follow_up_date") or "").strip() or None
+    next_time = (data.get("next_follow_up_time") or "").strip() or None
+
+    stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+    if not stage_info:
+        raise HTTPException(status_code=400, detail="Invalid stage_key")
+    if status not in FOLLOW_UP_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {FOLLOW_UP_STATUSES}")
+
+    entry = {
+        "id": str(uuid.uuid4()),
+        "stage_key": stage_key,
+        "stage_name": stage_info["name"],
+        "status": status,
+        "notes": notes_text,
+        "next_follow_up_date": next_date,
+        "next_follow_up_time": next_time,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": user["id"],
+        "created_by_name": user.get("name", "Unknown"),
+    }
+    result = await db.customers.update_one(
+        {"id": customer_id}, {"$push": {"follow_ups": entry}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    await log_activity(
+        user['id'], user['name'], "create", "follow_up", customer_id,
+        f"Logged follow-up [{stage_info['name']}] status={status}"
+    )
+    return entry
+
+
+@followups_router.delete("/customers/{customer_id}/follow-ups/{follow_up_id}")
+async def delete_customer_follow_up(customer_id: str, follow_up_id: str, user: dict = Depends(get_current_user)):
+    db = get_database()
+    result = await db.customers.update_one(
+        {"id": customer_id}, {"$pull": {"follow_ups": {"id": follow_up_id}}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Follow-up not found")
+    await log_activity(user['id'], user['name'], "delete", "follow_up", customer_id, "Deleted follow-up")
+    return {"message": "Follow-up deleted"}
+
+
+@followups_router.get("/follow-ups/upcoming")
+async def get_upcoming_follow_ups(within_minutes: int = 120, user: dict = Depends(get_current_user)):
+    """Return follow-ups whose ``next_follow_up_date[/time]`` falls within the
+    next ``within_minutes`` window (or is already past-due today). Used by the
+    in-app reminder hook to play a sound + browser notification.
+    """
+    db = get_database()
+    now = datetime.now(timezone.utc)
+    today_str = now.date().isoformat()
+    cursor = db.customers.find(
+        {"follow_ups": {"$exists": True, "$ne": []}},
+        {"_id": 0, "id": 1, "name": 1, "customer_id": 1, "follow_ups": 1}
+    )
+    upcoming = []
+    async for customer in cursor:
+        for fu in customer.get("follow_ups", []) or []:
+            d = fu.get("next_follow_up_date")
+            if not d:
+                continue
+            if d > today_str:
+                continue
+            # Today or past-due → surface it
+            upcoming.append({
+                "follow_up_id": fu.get("id"),
+                "customer_id": customer.get("id"),
+                "customer_name": customer.get("name"),
+                "stage_name": fu.get("stage_name"),
+                "status": fu.get("status"),
+                "notes": fu.get("notes"),
+                "next_follow_up_date": d,
+                "next_follow_up_time": fu.get("next_follow_up_time"),
+                "is_today": d == today_str,
+                "is_past_due": d < today_str,
+            })
+    upcoming.sort(key=lambda x: (x["next_follow_up_date"], x.get("next_follow_up_time") or "23:59"))
+    return upcoming
 
 
 # ==================== OVERDUE CALCULATION ====================
