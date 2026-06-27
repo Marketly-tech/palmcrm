@@ -234,6 +234,91 @@ Kindly review the terms and conditions mentioned in the letter and let us know i
     }
 
 
+INTERIOR_PDF_PATH = (
+    "/app/backend/assets/email_templates/interior/RRL_Interior_Inhouse_Team.pdf"
+)
+
+
+def _build_interior_email_body(customer: dict) -> str:
+    """Personalized Interior recommendation email body — content adapted
+    from `RRL PA WHY IN HOUSE TEAM.pdf` (user-provided 2026-06-17). Plain text
+    so it renders consistently when wrapped by `generate_document_email_html`.
+    """
+    name = (customer.get("name") or "Homeowner").strip()
+    flat_no = (customer.get("unit_number") or "").strip()
+    project = (customer.get("project") or "RRL Palm Altezze").strip()
+    flat_label = (
+        f"Flat No. {flat_no}, {project}" if flat_no else project
+    )
+    return f"""Dear {name},
+
+Congratulations on your new home at {flat_label}! As you prepare for this exciting transition, our goal is to ensure your move-in is seamless, structurally sound and financially savvy.
+
+To ensure the highest standards of safety and convenience, we strongly recommend furnishing your home through our specialised In-House Interior Team. By choosing our integrated services, you bypass the complexities of third-party management and gain access to exclusive benefits designed specifically for this society.
+
+Why choose the In-House Team?
+
+  • Move in on Day One — interior work can begin before official possession, so you walk into a fully finished home the day you receive your keys.
+  • Structural expertise — intimate understanding of the Mivan construction used in this project; strict adherence to engineering standards. (Non-certified interior firms are not permitted, to protect structural integrity.)
+  • Seamless financing — bundle an Interior Loan with your Housing Loan and skip high-interest top-ups and redundant paperwork.
+  • Turnkey solutions — modular + bespoke; one single point of contact end-to-end.
+  • Damage-free customisation — specialised techniques that ensure zero chipping or damage to the structural walls.
+
+Guidelines for External Vendors
+
+Should you choose to engage a service provider other than the In-House Team, the following security protocols apply:
+
+  1. Security Deposit — a refundable ₹2,00,000 (Two Lakhs) must be maintained to cover potential structural or cosmetic damages caused by external labour/vendors.
+  2. No Early Access — external work (including measurements and marking) cannot begin until after official possession and the issuance of an NOC.
+  3. Liability for Common Areas — the flat owner remains fully liable for any damage caused by their vendor to the premises (staircases, passages, ducts, etc.). Repair costs are deducted from the deposit.
+  4. Debris Management — the client/vendor is solely responsible for immediate removal and offsite relocation of all construction debris at their own expense.
+
+Ready to start designing? Our team is on-site and ready to transform your floor plan into a home. Would you like us to schedule a consultation call with our design lead and share our latest design catalog?
+
+Quick links:
+  • Instagram — https://www.instagram.com/sunrise.designhive?igsh=MTYxbWlhM2dqbHdmNA==
+  • Website — https://www.designhive.in
+  • WhatsApp — https://wa.me/919619995516
+
+The complete brochure is attached for your reference.
+
+Warm regards,
+RRL Builders and Developers Pvt. Ltd.
+Bangalore
+"""
+
+
+@router.get("/communication/preview-interior-email/{customer_id}")
+async def preview_interior_email(customer_id: str, user: dict = Depends(get_current_user)):
+    db = get_database()
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    recipient_email = customer.get("email")
+    flat_no = customer.get("unit_number") or ""
+    project = customer.get("project") or "RRL Palm Altezze"
+    subject = f"Design Your New Home – {project} - Flat No. {flat_no}" if flat_no else f"Design Your New Home – {project}"
+
+    body = _build_interior_email_body(customer)
+    email_html = generate_document_email_html(customer, subject, body)
+
+    return {
+        "email_type": "interior",
+        "customer_name": customer.get("name"),
+        "recipient_email": recipient_email,
+        "subject": subject,
+        "body": body,
+        "email_html": email_html,
+        # Static attachment — same PDF for every customer
+        "attachment_filename": "RRL_Interior_Inhouse_Team.pdf",
+        "attachment_static": True,
+        "has_sendgrid": bool(RESEND_API_KEY),
+    }
+
+
+
+
 # ==================== EMAIL SENDING ====================
 @router.post("/communication/send-document-email/{customer_id}")
 async def send_document_email(customer_id: str, data: EmailSendRequest, user: dict = Depends(get_current_user)):
@@ -268,8 +353,25 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
     elif data.email_type == "allotment_letter":
         allotment_letter_html = generate_allotment_letter_html(customer)
         attachments_data.append({"filename": f"RRL_AllotmentLetter_{customer.get('name', 'Customer').replace(' ', '_')}.pdf", "html": allotment_letter_html, "doc_type": DocumentType.ALLOTMENT_LETTER})
+    elif data.email_type == "interior":
+        # Interior email — single static PDF attachment; no per-customer
+        # HTML render. Loaded directly from disk and passed straight to Resend.
+        try:
+            with open(INTERIOR_PDF_PATH, "rb") as f:
+                interior_pdf_bytes = f.read()
+            attachments_data.append({
+                "filename": "RRL_Interior_Inhouse_Team.pdf",
+                "static_bytes": interior_pdf_bytes,
+                "doc_type": None,
+            })
+        except FileNotFoundError:
+            logger.error(f"Interior PDF missing on disk: {INTERIOR_PDF_PATH}")
+            raise HTTPException(status_code=500, detail="Interior brochure not available on server.")
 
     for att in attachments_data:
+        # Static attachments don't get persisted to generated_documents
+        if att.get('doc_type') is None:
+            continue
         doc = GeneratedDocument(customer_id=customer_id, doc_type=att['doc_type'], content=att['html'], generated_by=user['id'])
         doc_dict = doc.model_dump()
         doc_dict['generated_at'] = doc_dict['generated_at'].isoformat()
@@ -283,13 +385,16 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
         resend_attachments = []
         for att in attachments_data:
             try:
-                pdf_bytes = HTML(string=att['html']).write_pdf()
+                if att.get('static_bytes') is not None:
+                    pdf_bytes = att['static_bytes']
+                else:
+                    pdf_bytes = HTML(string=att['html']).write_pdf()
                 resend_attachments.append({
                     "filename": att['filename'],
                     "content": base64.b64encode(pdf_bytes).decode(),
                 })
             except Exception as pdf_error:
-                logger.error(f"Error generating PDF attachment {att['filename']}: {pdf_error}")
+                logger.error(f"Error preparing attachment {att['filename']}: {pdf_error}")
         result = await _resend_send(
             to_email=recipient_email,
             subject=data.subject,

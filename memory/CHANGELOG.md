@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-17 (final) — Interior Email Button + Static Brochure Attachment
+- **New "Interior" button** in the customer profile header, sitting right next to "Allotment Letter" (purple accent, sofa icon, `data-testid="send-interior-btn"`).
+- **Personalized email body** auto-fills customer name + flat number (e.g. *"Congratulations on your new home at Flat No. 0701, RRL Palm Altezze!"*). Content is faithfully adapted from `RRL PA WHY IN HOUSE TEAM.pdf` — covers why-in-house benefits, external-vendor protocols (₹2L deposit, no early access, debris management), and Sunrise DesignHive contact links (Instagram, website, WhatsApp).
+- **Attachment**: static PDF stored at `/app/backend/assets/email_templates/interior/RRL_Interior_Inhouse_Team.pdf` (74 KB). Same file goes out to every customer — no per-customer regeneration.
+- **New backend endpoints**: `GET /api/communication/preview-interior-email/{customer_id}` + extended `POST /api/communication/send-document-email/{customer_id}` with `email_type: "interior"` branch (loads PDF as `static_bytes`, skips the per-customer doc-persistence step).
+- **Frontend**: `useCustomerPage.js::handlePreviewInteriorEmail` opens the existing EmailComposerDialog with the preview body editable before send. Uses the same axios + auth flow as other email buttons.
+- **Verified via Resend API**: Interior email sent to test recipient, id `6eb192a0-f2b5-442c-887b-766e0f2a7497`, attachments delivered to Resend = 1 (`RRL_Interior_Inhouse_Team.pdf`). Personalized subject: *"Design Your New Home – RRL Palm Altezze - Flat No. 0701"*.
+- Files: `backend/assets/email_templates/interior/RRL_Interior_Inhouse_Team.pdf` (new), `backend/email_service/routes.py`, `frontend/src/components/customer/CustomerHeader.jsx`, `frontend/src/hooks/useCustomerPage.js`, `frontend/src/pages/CustomerDetailPage.js`. Lint clean.
+
 ## 2026-06-17 (later) — Total Registration Charges PDF Added to Welcome Email
 - New static PDF `Total_Registration_Charges.pdf` (131 KB) saved to `/app/backend/assets/welcome_email/`. Sent to customers as `RRL_Total_Registration_Charges.pdf`.
 - New helper `documents/templates/common.py::get_welcome_email_static_attachments()` reads + base64-encodes any file listed in `WELCOME_EMAIL_STATIC_ATTACHMENTS`. Missing files are logged + skipped, never raise.

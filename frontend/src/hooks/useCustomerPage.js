@@ -589,6 +589,23 @@ export function useCustomerPage(id) {
     }
   };
 
+  const handlePreviewInteriorEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const response = await axios.get(`${API}/communication/preview-interior-email/${id}`);
+      setEmailComposerData(response.data);
+      setEditedEmailSubject(response.data.subject);
+      setEditedEmailBody(response.data.body);
+      setEditedEmailTo(response.data.recipient_email || customer.email);
+      setEditedEmailCc("");
+      setEmailComposerOpen(true);
+    } catch {
+      toast.error("Failed to generate interior email preview");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const handleSendDocumentEmail = async () => {
     if (!emailComposerData) return;
     setSendingEmail(true);
@@ -757,7 +774,7 @@ export function useCustomerPage(id) {
     editedEmailBody, setEditedEmailBody, editedEmailTo, setEditedEmailTo,
     editedEmailCc, setEditedEmailCc, sendingEmail,
     handlePreviewWelcomeEmail, handlePreviewSalesAgreement,
-    handlePreviewAllotmentLetter, handleSendDocumentEmail,
+    handlePreviewAllotmentLetter, handlePreviewInteriorEmail, handleSendDocumentEmail,
     handleSendWhatsAppWelcome,
     // Calculator
     calcEditing, calcData, calcLivePrice, calcSaving,

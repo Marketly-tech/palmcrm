@@ -1,6 +1,6 @@
 import { Button } from "../ui/button";
 import {
-  ArrowLeft, Mail, FileText, MessageCircle,
+  ArrowLeft, Mail, FileText, MessageCircle, Sofa,
   Edit, Save, Loader2,
 } from "lucide-react";
 
@@ -8,7 +8,7 @@ const CustomerHeader = ({
   customer, navigate, editing, setEditing, saving, isAccountsRole,
   sendingWelcome, sendingEmail,
   onSave, onPreviewWelcome, onPreviewSalesAgreement,
-  onPreviewAllotmentLetter, onSendWhatsApp,
+  onPreviewAllotmentLetter, onPreviewInteriorEmail, onSendWhatsApp,
 }) => (
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div className="flex items-center gap-4">
@@ -41,6 +41,14 @@ const CustomerHeader = ({
       >
         {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
         Allotment Letter
+      </Button>
+      <Button
+        variant="outline" onClick={onPreviewInteriorEmail} disabled={sendingEmail}
+        data-testid="send-interior-btn"
+        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200"
+      >
+        {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sofa className="w-4 h-4 mr-2" />}
+        Interior
       </Button>
       <Button
         variant="outline" onClick={onSendWhatsApp}

@@ -46,6 +46,7 @@ const CustomerDetailPage = () => {
         onPreviewWelcome={h.handlePreviewWelcomeEmail}
         onPreviewSalesAgreement={h.handlePreviewSalesAgreement}
         onPreviewAllotmentLetter={h.handlePreviewAllotmentLetter}
+        onPreviewInteriorEmail={h.handlePreviewInteriorEmail}
         onSendWhatsApp={h.handleSendWhatsAppWelcome}
       />
 
