@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-06-27 (later still) — Notification Bell in Header
+- New **bell icon** in the header (left of the user dropdown) — surfaces every follow-up whose status is not yet `Completed`. Badge shows total count (red when past-due+today > 0, slate otherwise; "99+" cap).
+- Popover lists entries grouped into buckets: **Past Due → Today → Upcoming → Unscheduled**. Each row: customer + tower-unit, status badge (colour-coded), stage, scheduled date+time, truncated notes.
+- Row click deep-links to `/customers/{id}?tab=notes&focus={fid}` — CustomerDetailPage now reads `?tab=` via `useSearchParams` and opens the Notes tab (= Calling & Follow-up Tracker / call log) by default.
+- Each row has a **Done** button (emerald outline) that PATCHes the follow-up to status=`Completed` (stamps `completed_at`, `completed_by`, `completed_by_name`), removes it optimistically from the popover, and decrements the badge.
+- New backend endpoints in `followups_router`: `GET /api/follow-ups/pending` and `PATCH /api/customers/{id}/follow-ups/{fid}`. Pending list sorts by urgency bucket then date+time. PATCH validates against FOLLOW_UP_STATUSES.
+- Accessibility: row wrapper is `<div role="button" tabIndex={0}>` with Enter/Space keyboard handler (avoids nested `<button>` HTML violation that initially caused a React `insertBefore` crash — caught + fixed in iter_40).
+- Polling: bell refreshes every 60s in addition to on-mount and after PATCH.
+- **Tested**: 11/11 backend pytest + Playwright e2e across admin/sales/accounts — 100% pass, no defects (iteration_40).
+- Files: `backend/settings/__init__.py`, `frontend/src/components/layout/NotificationBell.jsx` (new), `frontend/src/components/layout/DashboardLayout.js`, `frontend/src/pages/CustomerDetailPage.js`. Tests: `backend/tests/test_notification_bell.py`.
+
 ## 2026-06-27 (later) — Call Status Column on Customers List
 - Added a new **Call Status** column on `/customers` table, between *Agreement* and *Actions*, with quick-edit Select dropdown.
 - Backend: `POST /api/customers/{id}/follow-ups/quick-status` (no role guard — all roles intentional) logs a follow-up against the admin-set `current_stage` (fallback to `PAYMENT_STAGES[0].key`). GET `/api/customers` now enriches each row with `latest_call_status`, `latest_call_status_at`, `latest_call_status_stage` from the most recent follow_ups entry.
