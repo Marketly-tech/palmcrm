@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useFollowUpReminders } from "../../hooks/useFollowUpReminders";
 import { Button } from "../ui/button";
+import NotificationBell from "./NotificationBell";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import {
   DropdownMenu,
@@ -167,6 +168,8 @@ const DashboardLayout = ({ children }) => {
           </button>
 
           <div className="flex-1" />
+
+          <NotificationBell />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

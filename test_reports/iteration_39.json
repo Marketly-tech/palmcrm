@@ -1,0 +1,39 @@
+{
+  "summary": "Tested the new NotificationBell (header bell + popover + deep-link + Done button) and its two new endpoints (GET /api/follow-ups/pending, PATCH /api/customers/{id}/follow-ups/{fid}). Backend: 11/11 pytest cases PASSED — pending list excludes Completed, sort order (past-due > today > upcoming > unscheduled) verified, PATCH stamps completed_at/by/by_name, 400/404 validation works, and sales+accounts role parity confirmed. Frontend (admin): bell renders, badge shows correct count, /follow-ups/pending polled on page load, popover groups by bucket, row content (customer_name + tower-unit, status badge, stage, date+time, notes) all correct, Done button optimistically removes row + persists Completed status server-side (still appears in customer.follow_ups history but NOT in /pending). HOWEVER one CRITICAL UI bug was discovered: clicking the row body triggers an uncaught React runtime error (insertBefore NotFoundError) because the popover row uses a <button> wrapping another <button> (the Done Button). This is also an HTML hydration warning seen in console. As a side-effect, after navigation completes the React tree dies and the entire page becomes an error overlay — preventing sales/accounts role parity checks via UI (they were verified via backend pytest instead).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "NotificationBell.jsx",
+        "issue": "Invalid nested <button> inside another <button>. The row is rendered as <button data-testid=notification-item-...> and contains the <Button data-testid=notification-complete-...> Done component (which renders as <button>). This produces a React hydration warning ('<button> cannot be a descendant of <button>') AND causes an uncaught runtime error 'NotFoundError: Failed to execute insertBefore on Node' during the post-click DOM reconciliation when the popover closes and navigation runs. Result: after a successful deep-link click the entire UI is replaced with the dev error overlay until next reload.",
+        "selector": "[data-testid='notification-item-{id}'] > [data-testid='notification-complete-{id}']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notification_bell.py",
+    "/app/test_reports/pytest/pytest_notification_bell.xml"
+  ],
+  "action_items": [
+    "Replace the outer <button> of notification-item with a <div role='button' tabIndex={0}> (with onClick + onKeyDown for Enter/Space). Keep the inner Button untouched and keep data-testid='notification-item-{id}' on the wrapper. This eliminates the nested-button hydration warning AND fixes the insertBefore crash on navigation.",
+    "Optional follow-up: split NotificationBell.jsx if it grows beyond ~250 lines (currently ~265; close to threshold)."
+  ],
+  "critical_code_review_comments": [
+    "NotificationBell.jsx L189-253: <button> wrapping another <Button> (renders <button>) is invalid HTML. Triggers React DOM reconciliation crash post-navigation. Fix: switch the row to <div role='button' tabIndex={0} onKeyDown={Enter/Space->open}>.",
+    "GET /api/follow-ups/pending does an O(N) full scan over every customer with follow_ups. Fine today (~30 customers); revisit with $unwind+$match aggregation as data grows.",
+    "PATCH endpoint sets completed_at/by/by_name to None when status changes from Completed back to a non-Completed state — silently overwriting any pre-existing history. Acceptable for current use case (only Mark Completed), but worth a comment so a future role-toggle doesn't leak audit data.",
+    "Polling interval of 60s is hardcoded; consider exposing it via a constant or env-driven feature flag.",
+    "NotificationBell silently swallows fetch errors (`catch {}`) — acceptable to avoid logout flicker but should at least log once at info level for diagnostics."
+  ],
+  "updated_files": ["/app/backend/tests/test_notification_bell.py"],
+  "success_rate": {"backend": "100% (11/11 pytest)", "frontend": "Admin flow 100% PASS for bell/popover/Done/deep-link; sales+accounts UI parity COULD NOT be verified due to runtime crash described above (role parity proven at API layer via pytest)."},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026, Sales sales@rrlrprojects.com / sales123, Accounts accounts@rrlbuilders.com / accounts123. Test customer: 6d902613-5106-4294-bc3e-b907f85127f7 (Ramya).",
+  "seed_data_creation": "Each test creates TEST_-prefixed follow-ups (notes start with TEST_) on Ramya (the whitelisted customer) and removes them in teardown. Also a final purge pass at end of module. JAYANTHI S existing follow-up was left untouched. Verified Ramya tracker is clean post-run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend (GET /follow-ups/pending + PATCH /customers/{id}/follow-ups/{fid}) is solid — see test_notification_bell.py for reference. The NotificationBell front-end works end-to-end EXCEPT the row wrapper uses <button> + nested <Button>; clicking the row navigates correctly (URL gets ?tab=notes&focus=<fid> and Notes tab auto-activates with FollowUpTracker visible) but React crashes immediately after, replacing the page with the dev error overlay. Once the main agent swaps the outer <button> for a <div role='button'>, please rerun the sales+accounts UI parity checks for the Done button and deep-link click. Auth token is stored under sessionStorage key 'token' (not 'access_token'). Use stage_key='podium' for seeding follow-ups (NOT 'booking' — that key does not exist in PAYMENT_STAGES).",
+  "rca_of_the_issue": "Root cause of the post-navigation crash: HTML spec disallows nested interactive <button> elements. Browsers re-parent the inner <button> outside the outer one during initial parse, so React's virtual DOM and the actual DOM tree diverge. When the popover unmounts during route change, React tries to remove the inner <button> using `parentNode.insertBefore(...)` relative to a sibling that no longer matches its bookkeeping → NotFoundError. Fix: outer wrapper must be <div role='button' tabIndex={0}> (with Enter/Space keyboard handler for accessibility). The fix is a 4-line change and does not require touching backend, tests, or routing logic."
+}

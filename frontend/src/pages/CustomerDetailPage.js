@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { useCustomerPage } from "../hooks/useCustomerPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -23,6 +23,8 @@ const API = `${BACKEND_URL}/api`;
 
 const CustomerDetailPage = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "details";
   const h = useCustomerPage(id);
 
   if (h.loading) {
@@ -56,7 +58,7 @@ const CustomerDetailPage = () => {
         onAgreementStatusChange={h.handleAgreementStatusChange}
       />
 
-      <Tabs defaultValue="details" className="space-y-4">
+      <Tabs defaultValue={initialTab} className="space-y-4">
         <TabsList className="flex flex-wrap">
           <TabsTrigger value="details" data-testid="tab-details"><User className="w-4 h-4 mr-2" />Details</TabsTrigger>
           <TabsTrigger value="calculator" data-testid="tab-calculator"><CreditCard className="w-4 h-4 mr-2" />Payment Tracking</TabsTrigger>

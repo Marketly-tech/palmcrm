@@ -296,6 +296,103 @@ async def quick_set_call_status(customer_id: str, data: dict, user: dict = Depen
     return entry
 
 
+@followups_router.patch("/customers/{customer_id}/follow-ups/{follow_up_id}")
+async def update_customer_follow_up(
+    customer_id: str, follow_up_id: str, data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update mutable fields of a follow-up entry. Currently only ``status``
+    can be patched (used by the notification bell's "Mark Completed" action).
+    """
+    db = get_database()
+    new_status = (data.get("status") or "").strip()
+    if new_status and new_status not in FOLLOW_UP_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {FOLLOW_UP_STATUSES}")
+
+    set_fields: Dict[str, Any] = {}
+    if new_status:
+        set_fields["follow_ups.$.status"] = new_status
+        set_fields["follow_ups.$.completed_at"] = datetime.now(timezone.utc).isoformat() if new_status == "Completed" else None
+        set_fields["follow_ups.$.completed_by"] = user["id"] if new_status == "Completed" else None
+        set_fields["follow_ups.$.completed_by_name"] = user.get("name", "Unknown") if new_status == "Completed" else None
+    if not set_fields:
+        raise HTTPException(status_code=400, detail="No mutable fields supplied")
+
+    result = await db.customers.update_one(
+        {"id": customer_id, "follow_ups.id": follow_up_id},
+        {"$set": set_fields},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Follow-up not found")
+    await log_activity(
+        user['id'], user['name'], "update", "follow_up", customer_id,
+        f"Updated follow-up status → {new_status}"
+    )
+    return {"message": "Follow-up updated", "status": new_status}
+
+
+@followups_router.get("/follow-ups/pending")
+async def get_pending_follow_ups(user: dict = Depends(get_current_user)):
+    """Return all follow-ups whose status is not 'Completed', across every
+    customer. Used by the header notification bell — sorted with overdue at
+    the top, then by next_follow_up_date, then by created_at desc.
+    """
+    db = get_database()
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    cursor = db.customers.find(
+        {"follow_ups": {"$exists": True, "$ne": []}},
+        {"_id": 0, "id": 1, "name": 1, "customer_id": 1, "unit_number": 1,
+         "tower": 1, "follow_ups": 1}
+    )
+    pending = []
+    async for customer in cursor:
+        for fu in customer.get("follow_ups", []) or []:
+            if fu.get("status") == "Completed":
+                continue
+            d = fu.get("next_follow_up_date") or ""
+            is_past_due = bool(d) and d < today_str
+            is_today = bool(d) and d == today_str
+            pending.append({
+                "follow_up_id": fu.get("id"),
+                "customer_id": customer.get("id"),
+                "customer_name": customer.get("name"),
+                "customer_code": customer.get("customer_id"),
+                "unit_number": customer.get("unit_number"),
+                "tower": customer.get("tower"),
+                "stage_key": fu.get("stage_key"),
+                "stage_name": fu.get("stage_name"),
+                "status": fu.get("status"),
+                "notes": fu.get("notes"),
+                "next_follow_up_date": fu.get("next_follow_up_date"),
+                "next_follow_up_time": fu.get("next_follow_up_time"),
+                "created_at": fu.get("created_at"),
+                "created_by_name": fu.get("created_by_name"),
+                "is_today": is_today,
+                "is_past_due": is_past_due,
+            })
+
+    # Sort: past-due first, then today, then future (asc by date+time), then
+    # entries without a scheduled date (newest first).
+    def sort_key(item):
+        if item["is_past_due"]:
+            bucket = 0
+        elif item["is_today"]:
+            bucket = 1
+        elif item["next_follow_up_date"]:
+            bucket = 2
+        else:
+            bucket = 3
+        return (
+            bucket,
+            item["next_follow_up_date"] or "9999-12-31",
+            item["next_follow_up_time"] or "23:59",
+            # Newer first within the no-date bucket
+            -1 * len(item["created_at"] or "") if not item["next_follow_up_date"] else 0,
+        )
+    pending.sort(key=sort_key)
+    return pending
+
+
 @followups_router.get("/follow-ups/upcoming")
 async def get_upcoming_follow_ups(within_minutes: int = 120, user: dict = Depends(get_current_user)):
     """Return follow-ups whose ``next_follow_up_date[/time]`` falls within the
