@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-27 (hardening) — XSS Sanitisation + Lint Cleanup
+- New shared utility `frontend/src/utils/sanitize.js` exporting `sanitizeEmailHtml()` and `sanitizeText()`. Forbids `<script>/<iframe>/<object>/<embed>/<link>/<base>/<form>/<input>/<button>/<textarea>/<select>/<option>`, all `on*` event handlers, `formaction`, `srcdoc`. Auto-stamps `rel="noopener noreferrer"` on every `<a target=_blank>` via a `DOMPurify.addHook` registered once at module-load.
+- `frontend/src/utils/safePreview.js`: hardened. `openSafePreviewWindow` uses the strict config; new `openSafePdfPreview` validates the `data:application/pdf;` scheme prefix and escapes quotes before stamping into the iframe `src`. Both open the new window with `noopener,noreferrer`. Hook registration delegated to `sanitize.js` (no double-register).
+- `EmailComposerDialog.jsx`: dropped direct `DOMPurify` import; all four `dangerouslySetInnerHTML` sites now route through `sanitizeEmailHtml`.
+- `useCustomerPage.js`: removed 3 stale `eslint-disable-next-line react-hooks/exhaustive-deps` comments (deps were already satisfied). `handlePreviewUploadedDoc` now delegates to `openSafePdfPreview` instead of inline blob-URL construction.
+- `DashboardPage.js`: unescaped apostrophes (`'`) replaced with `&apos;` to satisfy `react/no-unescaped-entities`.
+- Verified by testing_agent_v3_fork (iteration_44): 27/27 XSS unit tests pass (`/app/frontend/tests/sanitize.test.cjs`), 0 lint warnings, all 4 email preview dialogs still render with inline styles + CTA buttons intact. No regressions.
+- Files: `frontend/src/utils/sanitize.js` (new), `frontend/src/utils/safePreview.js`, `frontend/src/components/customer/EmailComposerDialog.jsx`, `frontend/src/hooks/useCustomerPage.js`, `frontend/src/pages/DashboardPage.js`. Tests: `frontend/tests/sanitize.test.cjs`.
+
 ## 2026-06-27 (feature) — Interior Email: Inline CTA Buttons, No PDF Attachment
 - Replaced the PDF attachment (`RRL_Interior_Inhouse_Team.pdf`) with **three CTA buttons embedded directly in the email HTML**: Book a Design Consultation (WhatsApp deep link), View Design Catalog (designhive.in), Follow on Instagram. Single source of truth: `INTERIOR_CTA_LINKS` dict.
 - New helper `generate_interior_email_html(customer, subject, body)` wraps the existing dark/gold email template and injects a gold-bordered CTA block before the signature.

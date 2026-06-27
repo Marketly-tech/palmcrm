@@ -8,21 +8,18 @@ import DOMPurify from "dompurify";
  *    cookies stay isolated.
  *  • DOMPurify strips <script>/<iframe>/<object>/<embed>, all on* event-handler
  *    attributes, and javascript:/srcdoc payloads.
- *  • `noopener,noreferrer` rel hook prevents the new window from accessing
- *    `window.opener`.
+ *  • The shared `noopener,noreferrer` rel hook for target=_blank anchors is
+ *    registered in `./sanitize.js` (loaded at module init below) so we don't
+ *    duplicate-register the same hook across modules.
  */
+import "./sanitize"; // side-effect: registers the noopener/noreferrer hook
+
 const FORBID_TAGS = ["script", "iframe", "object", "embed", "base", "form"];
 const FORBID_ATTR = [
   "onerror", "onload", "onclick", "onmouseover", "onmouseout",
   "onfocus", "onblur", "onsubmit", "onchange", "onkeydown",
   "onkeyup", "onkeypress", "formaction", "srcdoc",
 ];
-
-DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
-    node.setAttribute("rel", "noopener noreferrer");
-  }
-});
 
 export const openSafePreviewWindow = (htmlContent) => {
   const sanitized = DOMPurify.sanitize(htmlContent || "", {
