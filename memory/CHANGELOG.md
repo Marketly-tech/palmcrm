@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-06-27 — Multi-Level Calling / Follow-up Tracker
+- **New feature**: Sales/Accounts/Admin can log multi-level follow-up calls tied to disbursement stages directly from the customer profile (Notes tab). Differentiated amber-themed card sits above the existing Notes card.
+- **Schema**: `follow_ups` array embedded on each customer doc — `{id, stage_key, stage_name, status, notes, next_follow_up_date, next_follow_up_time, created_at, created_by, created_by_name}`. Valid statuses: `Dialed`, `Connected`, `Unanswered`, `Follow-up`, `Completed`.
+- **Backend endpoints** (`/app/backend/settings/__init__.py`, exposed via `followups_router`):
+  - `GET /api/customers/{id}/follow-ups` → returns `{follow_ups, overdue_stages, current_stage, all_stages, statuses}`. Overdue stages computed from PAYMENT_STAGES cumulative% × total_price vs total_received, capped at admin's current stage.
+  - `POST /api/customers/{id}/follow-ups` → validates stage_key + status; pushes entry; logs activity.
+  - `DELETE /api/customers/{id}/follow-ups/{follow_up_id}`.
+  - `GET /api/follow-ups/upcoming` → today + past-due entries with `is_today`/`is_past_due` flags for the reminder hook.
+- **Frontend**:
+  - `components/customer/FollowUpTracker.jsx` (amber gradient card, stage+status+date+time+notes form, history grouped by stage, delete per entry).
+  - `hooks/useFollowUpReminders.js` mounted in `DashboardLayout` — polls `/follow-ups/upcoming` every 60s; when due, plays Web-Audio chime + browser notification + toast (one fire per entry per session).
+  - `utils/followUpSound.js` — Web Audio API 2-tone chime (C5→E5), no shipped assets.
+  - `NotesTab.jsx` now wraps both tracker + notes; `CustomerDetailPage.js` passes `customerId` prop.
+- **Permissions**: All roles (admin, manager, sales, accounts, support) can create + delete entries per product spec.
+- **Tested**: 10/10 pytest (`/app/backend/tests/test_follow_ups.py`) + frontend Sales+Accounts UI flow (iteration_37).
+- Files: `backend/settings/__init__.py`, `backend/server.py`, `frontend/src/components/customer/FollowUpTracker.jsx` (new), `frontend/src/components/customer/NotesTab.jsx`, `frontend/src/pages/CustomerDetailPage.js`, `frontend/src/hooks/useFollowUpReminders.js` (new), `frontend/src/utils/followUpSound.js` (new), `frontend/src/components/layout/DashboardLayout.js`.
+
 ## 2026-06-17 (final) — Interior Email Button + Static Brochure Attachment
 - **New "Interior" button** in the customer profile header, sitting right next to "Allotment Letter" (purple accent, sofa icon, `data-testid="send-interior-btn"`).
 - **Personalized email body** auto-fills customer name + flat number (e.g. *"Congratulations on your new home at Flat No. 0701, RRL Palm Altezze!"*). Content is faithfully adapted from `RRL PA WHY IN HOUSE TEAM.pdf` — covers why-in-house benefits, external-vendor protocols (₹2L deposit, no early access, debris management), and Sunrise DesignHive contact links (Instagram, website, WhatsApp).
