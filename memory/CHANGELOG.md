@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06-27 (later) — Call Status Column on Customers List
+- Added a new **Call Status** column on `/customers` table, between *Agreement* and *Actions*, with quick-edit Select dropdown.
+- Backend: `POST /api/customers/{id}/follow-ups/quick-status` (no role guard — all roles intentional) logs a follow-up against the admin-set `current_stage` (fallback to `PAYMENT_STAGES[0].key`). GET `/api/customers` now enriches each row with `latest_call_status`, `latest_call_status_at`, `latest_call_status_stage` from the most recent follow_ups entry.
+- Frontend: `CustomerTable.jsx` shows colour-coded badge trigger (Dialed=blue, Connected=emerald, Unanswered=rose, Follow-up=amber, Completed=violet); dropdown stops row-click propagation so it does not navigate to the profile. Handler in `CustomersPage.js::handleCallStatusChange` calls the new endpoint and updates the row in place.
+- Quick-status entries land in the same `follow_ups` array — they show up in the Calling & Follow-up Tracker history on the customer profile too.
+- Tested: 8/8 pytest + Playwright e2e for admin, sales, accounts (iteration_38, 100%).
+- Files: `backend/customers/routes.py`, `backend/settings/__init__.py`, `frontend/src/components/customers/CustomerTable.jsx`, `frontend/src/pages/CustomersPage.js`. Tests: `backend/tests/test_call_status_column.py`.
+
 ## 2026-06-27 — Multi-Level Calling / Follow-up Tracker
 - **New feature**: Sales/Accounts/Admin can log multi-level follow-up calls tied to disbursement stages directly from the customer profile (Notes tab). Differentiated amber-themed card sits above the existing Notes card.
 - **Schema**: `follow_ups` array embedded on each customer doc — `{id, stage_key, stage_name, status, notes, next_follow_up_date, next_follow_up_time, created_at, created_by, created_by_name}`. Valid statuses: `Dialed`, `Connected`, `Unanswered`, `Follow-up`, `Completed`.
