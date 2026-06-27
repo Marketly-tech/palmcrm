@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 40 RETEST of HIGH-priority NotificationBell crash fix. The previously reported React 'NotFoundError: Failed to execute insertBefore' crash caused by nested <button> inside <button> is FIXED. Outer wrapper of each notification row is now <div role='button' tabIndex='0'> with onClick + onKeyDown(Enter/Space). Confirmed across all three roles (admin, sales, accounts): popover opens, row click deep-links to /customers/{id}?tab=notes&focus={fid} with no React error overlay; FollowUpTracker visible on landing; Done button completes the follow-up (toast appears, row disappears optimistically, NO unintended row navigation — e.stopPropagation works), keyboard Enter on focused row navigates same as click. Backend pytest /app/backend/tests/test_notification_bell.py: 11/11 PASS — no regression in GET /api/follow-ups/pending or PATCH /api/customers/{id}/follow-ups/{fid}. All TEST_ seed data on Ramya cleaned up.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notification_bell.py",
+    "/app/test_reports/pytest/pytest_notification_bell_iter40.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix verified: NotificationBell.jsx L188-261 — outer row is now <div role='button' tabIndex={0}> with onKeyDown handling for Enter/Space. Inner Button (Done) coexists safely.",
+    "Minor (not blocking): file is ~272 lines, just over the 250 soft threshold flagged earlier. Consider extracting <NotificationItemRow /> into its own file when next touched.",
+    "Minor: NotificationBell still swallows fetch errors silently (`catch {}` on L64). Acceptable for logout flicker avoidance but a single console.warn on first failure would aid diagnostics.",
+    "Minor: 60s POLL_MS still hardcoded — consider moving to a constant export or env-driven feature flag if other components reuse polling."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (11/11 pytest)", "frontend": "100% — admin, sales, accounts all verified for: popover open, row click deep-link, no crash overlay, FollowUpTracker visible, Done button completes without navigation, keyboard Enter navigation"},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026, Sales sales@rrlrprojects.com / sales123, Accounts accounts@rrlbuilders.com / accounts123. Test customer (Ramya): 6d902613-5106-4294-bc3e-b907f85127f7.",
+  "seed_data_creation": "Per-role TEST_iter40_<role> follow-ups created on Ramya for click/deep-link + a second TEST_iter40_<role>_done follow-up for the Done button test. All TEST_-prefixed follow-ups were purged via DELETE after each role and again at end of suite. JAYANTHI S follow-up untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "NotificationBell row wrapper is now a <div role='button' tabIndex=0> (NOT a <button>) — selector remains data-testid='notification-item-{fid}'. e.stopPropagation in handleMarkCompleted prevents row navigation when Done is clicked. Auth token continues to be stored in sessionStorage key 'token'. Use stage_key='podium' when seeding follow-ups for tests. When automating UI across roles, fully clear sessionStorage AND reload before logging in as next role, and allow ~2s wait after bell click for the popover Radix animation to settle before asserting visibility.",
+  "rca_of_the_issue": "Previous bug RCA stands: nested interactive <button> in <button> caused browsers to re-parent inner button at parse time, diverging React VDOM from real DOM; on unmount during route change, React's insertBefore against a stale sibling threw NotFoundError. Fix applied: outer wrapper changed to <div role='button' tabIndex={0}> with onKeyDown(Enter/Space) — keeps full a11y semantics, eliminates HTML nesting violation, and the post-navigation crash is gone (verified across admin/sales/accounts)."
+}

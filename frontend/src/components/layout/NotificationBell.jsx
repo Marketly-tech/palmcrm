@@ -186,11 +186,18 @@ const NotificationBell = () => {
                   <Separator />
                   <div>
                     {grouped[label].map((item) => (
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         key={item.follow_up_id}
                         onClick={() => handleOpenCallLog(item)}
-                        className="w-full text-left px-4 py-3 hover:bg-amber-50/60 transition-colors border-b last:border-b-0 focus:outline-none focus:bg-amber-50"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleOpenCallLog(item);
+                          }
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-amber-50/60 transition-colors border-b last:border-b-0 focus:outline-none focus:bg-amber-50 cursor-pointer"
                         data-testid={`notification-item-${item.follow_up_id}`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -250,7 +257,7 @@ const NotificationBell = () => {
                             )}
                           </Button>
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 </div>
