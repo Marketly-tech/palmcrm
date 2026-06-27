@@ -38,6 +38,7 @@ const EmailComposerDialog = ({
             {emailComposerData.email_type === 'welcome' && 'Send Welcome Email'}
             {emailComposerData.email_type === 'sales_agreement' && 'Send Sales Agreement'}
             {emailComposerData.email_type === 'allotment_letter' && 'Send Allotment Letter'}
+            {emailComposerData.email_type === 'interior' && 'Send Interior Design Email'}
           </DialogTitle>
         </DialogHeader>
         
@@ -95,40 +96,58 @@ const EmailComposerDialog = ({
               />
             </div>
             
-            {/* Attachments Info */}
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <FileText className="w-5 h-5 text-red-500" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Attachments (Auto-generated)</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <Badge variant="outline" className="text-xs">
-                    {emailComposerData.attachment_filename}
-                  </Badge>
-                  {emailComposerData.attachment_filename_2 && (
+            {/* Attachments Info — hidden for emails that have no PDF
+                attachments (e.g. Interior email uses inline CTA buttons). */}
+            {emailComposerData.attachment_filename && (
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                <FileText className="w-5 h-5 text-red-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Attachments (Auto-generated)</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
                     <Badge variant="outline" className="text-xs">
-                      {emailComposerData.attachment_filename_2}
+                      {emailComposerData.attachment_filename}
                     </Badge>
-                  )}
-                  {emailComposerData.attachment_filename_3 && (
-                    <Badge variant="outline" className="text-xs">
-                      {emailComposerData.attachment_filename_3}
-                    </Badge>
-                  )}
+                    {emailComposerData.attachment_filename_2 && (
+                      <Badge variant="outline" className="text-xs">
+                        {emailComposerData.attachment_filename_2}
+                      </Badge>
+                    )}
+                    {emailComposerData.attachment_filename_3 && (
+                      <Badge variant="outline" className="text-xs">
+                        {emailComposerData.attachment_filename_3}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+            {emailComposerData.email_type === 'interior' && (
+              <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <Mail className="w-5 h-5 text-amber-600" />
+                <div className="flex-1 text-sm text-amber-900">
+                  <span className="font-medium">No attachment.</span>{' '}
+                  Sunrise DesignHive CTA buttons (Book Consultation, View Catalog, Instagram) are embedded inside the email body — recipients can act in one click.
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Preview Tabs */}
           <div>
             <Tabs defaultValue="preview">
-              <TabsList className={`grid w-full max-w-2xl ${emailComposerData.email_type === 'welcome' ? 'grid-cols-4' : 'grid-cols-3'}`}>
+              <TabsList className={`grid w-full max-w-2xl ${
+                emailComposerData.email_type === 'welcome' ? 'grid-cols-4' :
+                emailComposerData.email_type === 'interior' ? 'grid-cols-1' :
+                'grid-cols-3'
+              }`}>
                 <TabsTrigger value="preview">Email Preview</TabsTrigger>
-                <TabsTrigger value="attachment1">
-                  {emailComposerData.email_type === 'welcome' ? 'Form Preview' : 
-                   emailComposerData.email_type === 'sales_agreement' ? 'Sales Agreement' : 
-                   'Allotment Letter'}
-                </TabsTrigger>
+                {emailComposerData.email_type !== 'interior' && emailComposerData.attachment_filename && (
+                  <TabsTrigger value="attachment1">
+                    {emailComposerData.email_type === 'welcome' ? 'Form Preview' :
+                     emailComposerData.email_type === 'sales_agreement' ? 'Sales Agreement' :
+                     'Allotment Letter'}
+                  </TabsTrigger>
+                )}
                 {emailComposerData.attachment_html_2 && (
                   <TabsTrigger value="attachment2">
                     {emailComposerData.email_type === 'welcome' ? 'Terms & Conditions' : 'Price Breakup'}
@@ -143,9 +162,11 @@ const EmailComposerDialog = ({
                 <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.email_html || "") }} />
               </TabsContent>
               
-              <TabsContent value="attachment1" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.attachment_html || "") }} />
-              </TabsContent>
+              {emailComposerData.email_type !== 'interior' && emailComposerData.attachment_html && (
+                <TabsContent value="attachment1" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.attachment_html || "") }} />
+                </TabsContent>
+              )}
               
               {emailComposerData.attachment_html_2 && (
                 <TabsContent value="attachment2" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">

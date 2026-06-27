@@ -1,0 +1,31 @@
+{
+  "summary": "Verified Interior email refactor end-to-end. Backend preview/send no longer attach the PDF; CTA buttons (WhatsApp, Catalog, Instagram) are embedded in email_html. Frontend EmailComposerDialog correctly shows new title, amber 'No attachment' info banner, hides attachment badge box, and renders only the 'Email Preview' tab for interior. Regression on welcome (3 PDFs/4 tabs), sales_agreement (2 PDFs/3 tabs), allotment_letter (1 PDF) confirmed intact.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_interior_email.py",
+    "/app/test_reports/pytest/pytest_interior_email.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "send_document_email() builds email_html via generate_interior_email_html only for the interior branch — correct.",
+    "preview_interior_email() correctly omits attachment_filename/attachment_static/attachment_html keys; frontend conditional `emailComposerData.attachment_filename` therefore short-circuits the badge box and avoids the prior 'undefined' rendering.",
+    "INTERIOR_PDF_PATH constant is now unused — safe to remove (the static file on disk is intentionally untouched, only the import-time path constant is dead code).",
+    "Communication log for interior writes attachments=[] in db.communications — observable proof of zero attachments path (verified via send response payload).",
+    "Frontend Tabs grid uses grid-cols-1 for interior, grid-cols-3 for sales/allotment, grid-cols-4 for welcome — visual layout verified in screenshots."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_interior_email.py (new)"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "Admin: crm@rrlbuildersanddevelopers.com / #RRLnew2026. Test customer: 6d902613-5106-4294-bc3e-b907f85127f7.",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend interior email test at /app/backend/tests/test_interior_email.py covers preview shape (no attachment keys, CTA links, no cid:), send-document-email returning empty attachments[] for interior, and regression for welcome/sales_agreement/allotment_letter previews. Frontend Playwright verified dialog title, amber banner, single 'Email Preview' tab, CTAs rendered, and a real Send Email POST (returned HTTP 200 with email sent to admin inbox). Note: Allotment Letter dialog renders 2 tabs (Email Preview + Allotment Letter) — backend only returns one attachment_html for allotment, so the original PRD line that mentions '3 tabs for allotment' is inaccurate vs current backend; this is pre-existing behavior, NOT broken by the interior change.",
+  "rca of the issue": "N/A — feature change verified working."
+}

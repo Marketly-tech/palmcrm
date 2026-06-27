@@ -238,11 +238,21 @@ INTERIOR_PDF_PATH = (
     "/app/backend/assets/email_templates/interior/RRL_Interior_Inhouse_Team.pdf"
 )
 
+# Sunrise DesignHive CTA links — single source of truth so the email body
+# text, the CTA buttons in the HTML preview, and any future tweaks all stay
+# in sync.
+INTERIOR_CTA_LINKS = {
+    "consultation_whatsapp": "https://wa.me/919619995516?text=Hi%2C%20I%27d%20like%20to%20schedule%20a%20design%20consultation%20for%20my%20RRL%20Palm%20Altezze%20flat.",
+    "catalog": "https://www.designhive.in",
+    "instagram": "https://www.instagram.com/sunrise.designhive?igsh=MTYxbWlhM2dqbHdmNA==",
+}
+
 
 def _build_interior_email_body(customer: dict) -> str:
     """Personalized Interior recommendation email body — content adapted
     from `RRL PA WHY IN HOUSE TEAM.pdf` (user-provided 2026-06-17). Plain text
-    so it renders consistently when wrapped by `generate_document_email_html`.
+    so it renders consistently when wrapped by ``generate_interior_email_html``,
+    which appends rich CTA buttons after this body.
     """
     name = (customer.get("name") or "Homeowner").strip()
     flat_no = (customer.get("unit_number") or "").strip()
@@ -254,7 +264,7 @@ def _build_interior_email_body(customer: dict) -> str:
 
 Congratulations on your new home at {flat_label}! As you prepare for this exciting transition, our goal is to ensure your move-in is seamless, structurally sound and financially savvy.
 
-To ensure the highest standards of safety and convenience, we strongly recommend furnishing your home through our specialised In-House Interior Team. By choosing our integrated services, you bypass the complexities of third-party management and gain access to exclusive benefits designed specifically for this society.
+To ensure the highest standards of safety and convenience, we strongly recommend furnishing your home through our specialised In-House Interior Team — Sunrise DesignHive. By choosing our integrated services, you bypass the complexities of third-party management and gain access to exclusive benefits designed specifically for this society.
 
 Why choose the In-House Team?
 
@@ -273,19 +283,63 @@ Should you choose to engage a service provider other than the In-House Team, the
   3. Liability for Common Areas — the flat owner remains fully liable for any damage caused by their vendor to the premises (staircases, passages, ducts, etc.). Repair costs are deducted from the deposit.
   4. Debris Management — the client/vendor is solely responsible for immediate removal and offsite relocation of all construction debris at their own expense.
 
-Ready to start designing? Our team is on-site and ready to transform your floor plan into a home. Would you like us to schedule a consultation call with our design lead and share our latest design catalog?
-
-Quick links:
-  • Instagram — https://www.instagram.com/sunrise.designhive?igsh=MTYxbWlhM2dqbHdmNA==
-  • Website — https://www.designhive.in
-  • WhatsApp — https://wa.me/919619995516
-
-The complete brochure is attached for your reference.
+Ready to start designing? Our team is on-site and waiting to transform your floor plan into a home you'll love. Use the buttons below to book a consultation, view our latest catalog, or chat with us instantly on WhatsApp.
 
 Warm regards,
 RRL Builders and Developers Pvt. Ltd.
 Bangalore
 """
+
+
+def generate_interior_email_html(customer: dict, subject: str, body: str) -> str:
+    """Interior-specific email wrapper. Renders the editable body as before,
+    but appends three CTA buttons (Book Consultation / View Catalog /
+    Instagram) so the recipient can act in one click without needing the PDF
+    attachment.
+    """
+    base_html = generate_document_email_html(customer, subject, body)
+    cta_block = f'''
+        <div style="margin: 28px 0 8px 0; padding: 22px; background: #FFF8E1; border-left: 4px solid #D4AF37; border-radius: 6px;">
+            <div style="font-size: 13px; font-weight: 700; color: #1A1A1A; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;">Take the next step</div>
+            <div style="font-size: 13px; color: #555; margin-bottom: 18px;">
+                Connect with our Sunrise DesignHive team and start designing your dream home today.
+            </div>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                <tr>
+                    <td style="padding: 4px 6px 4px 0;">
+                        <a href="{INTERIOR_CTA_LINKS["consultation_whatsapp"]}"
+                           style="display: inline-block; background: #25D366; color: #FFFFFF !important; padding: 12px 22px; border-radius: 6px; font-weight: 600; font-size: 13px; text-decoration: none; text-align: center;">
+                            💬 Book a Design Consultation
+                        </a>
+                    </td>
+                    <td style="padding: 4px 6px;">
+                        <a href="{INTERIOR_CTA_LINKS["catalog"]}"
+                           style="display: inline-block; background: #1A1A1A; color: #D4AF37 !important; padding: 12px 22px; border-radius: 6px; font-weight: 600; font-size: 13px; text-decoration: none; text-align: center;">
+                            View Design Catalog
+                        </a>
+                    </td>
+                    <td style="padding: 4px 0 4px 6px;">
+                        <a href="{INTERIOR_CTA_LINKS["instagram"]}"
+                           style="display: inline-block; background: #FFFFFF; color: #1A1A1A !important; padding: 11px 22px; border: 1px solid #D4AF37; border-radius: 6px; font-weight: 600; font-size: 13px; text-decoration: none; text-align: center;">
+                            Follow on Instagram
+                        </a>
+                    </td>
+                </tr>
+            </table>
+            <div style="margin-top: 14px; font-size: 11px; color: #888;">
+                Prefer a direct line? WhatsApp us at
+                <a href="{INTERIOR_CTA_LINKS["consultation_whatsapp"]}" style="color: #D4AF37; text-decoration: none;">+91 96199 95516</a>.
+            </div>
+        </div>
+    '''
+    # Inject the CTA block just before the signature card. The base template
+    # marks the signature with a unique inline style; splitting on that
+    # anchor keeps us robust to template tweaks.
+    anchor = '<!-- Signature -->'
+    if anchor in base_html:
+        return base_html.replace(anchor, cta_block + anchor, 1)
+    # Fallback — append before </body> if template anchor ever changes.
+    return base_html.replace('</body>', cta_block + '</body>', 1)
 
 
 @router.get("/communication/preview-interior-email/{customer_id}")
@@ -301,7 +355,7 @@ async def preview_interior_email(customer_id: str, user: dict = Depends(get_curr
     subject = f"Design Your New Home – {project} - Flat No. {flat_no}" if flat_no else f"Design Your New Home – {project}"
 
     body = _build_interior_email_body(customer)
-    email_html = generate_document_email_html(customer, subject, body)
+    email_html = generate_interior_email_html(customer, subject, body)
 
     return {
         "email_type": "interior",
@@ -310,9 +364,7 @@ async def preview_interior_email(customer_id: str, user: dict = Depends(get_curr
         "subject": subject,
         "body": body,
         "email_html": email_html,
-        # Static attachment — same PDF for every customer
-        "attachment_filename": "RRL_Interior_Inhouse_Team.pdf",
-        "attachment_static": True,
+        # No attachment — CTA buttons are baked into the email body itself.
         "has_sendgrid": bool(RESEND_API_KEY),
     }
 
@@ -328,7 +380,12 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
         raise HTTPException(status_code=404, detail="Customer not found")
 
     recipient_email = data.recipient_email or customer.get('email')
-    email_html = generate_document_email_html(customer, data.subject, data.body)
+    # Interior emails get a dedicated wrapper with embedded CTA buttons so the
+    # recipient can act on the email directly without a PDF attachment.
+    if data.email_type == "interior":
+        email_html = generate_interior_email_html(customer, data.subject, data.body)
+    else:
+        email_html = generate_document_email_html(customer, data.subject, data.body)
     attachments_data = []
 
     if data.email_type == "welcome":
@@ -354,19 +411,10 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
         allotment_letter_html = generate_allotment_letter_html(customer)
         attachments_data.append({"filename": f"RRL_AllotmentLetter_{customer.get('name', 'Customer').replace(' ', '_')}.pdf", "html": allotment_letter_html, "doc_type": DocumentType.ALLOTMENT_LETTER})
     elif data.email_type == "interior":
-        # Interior email — single static PDF attachment; no per-customer
-        # HTML render. Loaded directly from disk and passed straight to Resend.
-        try:
-            with open(INTERIOR_PDF_PATH, "rb") as f:
-                interior_pdf_bytes = f.read()
-            attachments_data.append({
-                "filename": "RRL_Interior_Inhouse_Team.pdf",
-                "static_bytes": interior_pdf_bytes,
-                "doc_type": None,
-            })
-        except FileNotFoundError:
-            logger.error(f"Interior PDF missing on disk: {INTERIOR_PDF_PATH}")
-            raise HTTPException(status_code=500, detail="Interior brochure not available on server.")
+        # Interior email — no attachment. CTA buttons live inside the email
+        # HTML body itself (see generate_interior_email_html). Recipients act
+        # directly from the email without needing to download a PDF.
+        pass
 
     for att in attachments_data:
         # Static attachments don't get persisted to generated_documents
