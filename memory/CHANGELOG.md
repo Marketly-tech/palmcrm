@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-06-27 (bugfix) — Bajaj NOC: Details of Purchaser table overlap/break
+- **Bug**: When downloading the Bajaj Housing Finance NOC, the "Details of Purchaser" table broke at page boundaries — the long Project Location/Address row would wrap and split mid-row, drawing two partial borders that overlapped the next row's border in the rendered PDF.
+- **Fix** in `backend/documents/templates/noc_templates.py::generate_noc_bajaj_html`:
+  - `.details-table { table-layout: fixed; }` — predictable column widths
+  - `.details-table tr { page-break-inside: avoid; break-inside: avoid; }` — rows that don't fit move wholesale to the next page
+  - `.details-table th, .details-table td { vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; }` — long content wraps inside cells, never distorts layout
+- Scope: noc_bajaj only (HDFC/BOB/TATA NOC regression verified — no impact).
+- **Tested**: 7/7 pytest (iteration_42, 100% pass). Page 1 contains rows 1–9 ending with 'Lender's Name' complete; page 2 starts cleanly with 'Own Contribution'. Long Bengaluru address wraps to 2 lines inside its cell.
+- Files: `backend/documents/templates/noc_templates.py`. Tests: `backend/tests/test_noc_bajaj_pdf.py`.
+
 ## 2026-06-27 (bugfix) — Customer List Pagination (skip/limit)
 - **Bug**: Only the first 50 customers were visible on `/customers` because frontend `fetchCustomers` omitted `skip`/`limit` and the backend defaulted to `limit=50`, silently truncating without any UI affordance.
 - **Fix**: `CustomersPage.js` now drives a 0-based `page` + `pageSize` state (default 50, options 25/50/100/200/500), sends `skip=page*pageSize&limit=pageSize` on every fetch, and resets `page=0` on any filter change.
