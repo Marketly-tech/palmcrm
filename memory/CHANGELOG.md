@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-27 (bugfix) — Customer List Pagination (skip/limit)
+- **Bug**: Only the first 50 customers were visible on `/customers` because frontend `fetchCustomers` omitted `skip`/`limit` and the backend defaulted to `limit=50`, silently truncating without any UI affordance.
+- **Fix**: `CustomersPage.js` now drives a 0-based `page` + `pageSize` state (default 50, options 25/50/100/200/500), sends `skip=page*pageSize&limit=pageSize` on every fetch, and resets `page=0` on any filter change.
+- **UI**: New "Showing N–M of TOTAL" label, page-size Select dropdown, and a Prev / `Page X of Y` / Next footer (only shown when `total > pageSize`). Buttons disabled at boundaries.
+- **Tested**: 6/6 backend pytest + Playwright UI exercise with 55 seeded TEST_pagination_* customers (iteration_41, 100% pass). All seeded rows cleaned up.
+- Files: `frontend/src/pages/CustomersPage.js`. Tests: `backend/tests/test_customers_pagination.py`.
+
 ## 2026-06-27 (later still) — Notification Bell in Header
 - New **bell icon** in the header (left of the user dropdown) — surfaces every follow-up whose status is not yet `Completed`. Badge shows total count (red when past-due+today > 0, slate otherwise; "99+" cap).
 - Popover lists entries grouped into buckets: **Past Due → Today → Upcoming → Unscheduled**. Each row: customer + tower-unit, status badge (colour-coded), stage, scheduled date+time, truncated notes.
