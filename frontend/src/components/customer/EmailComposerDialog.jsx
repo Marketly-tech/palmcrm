@@ -1,4 +1,4 @@
-import DOMPurify from "dompurify";
+import { sanitizeEmailHtml } from "../../utils/sanitize";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -159,24 +159,24 @@ const EmailComposerDialog = ({
               </TabsList>
               
               <TabsContent value="preview" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.email_html || "") }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(emailComposerData.email_html) }} />
               </TabsContent>
               
               {emailComposerData.email_type !== 'interior' && emailComposerData.attachment_html && (
                 <TabsContent value="attachment1" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.attachment_html || "") }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(emailComposerData.attachment_html) }} />
                 </TabsContent>
               )}
               
               {emailComposerData.attachment_html_2 && (
                 <TabsContent value="attachment2" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.attachment_html_2 || "") }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(emailComposerData.attachment_html_2) }} />
                 </TabsContent>
               )}
               
               {emailComposerData.attachment_html_3 && (
                 <TabsContent value="attachment3" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailComposerData.attachment_html_3 || "") }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(emailComposerData.attachment_html_3) }} />
                 </TabsContent>
               )}
             </Tabs>

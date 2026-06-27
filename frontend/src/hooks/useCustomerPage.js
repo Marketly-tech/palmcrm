@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { openSafePreviewWindow } from "../utils/safePreview";
+import { openSafePreviewWindow, openSafePdfPreview } from "../utils/safePreview";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -103,7 +103,6 @@ export function useCustomerPage(id) {
   });
 
   // ─── Data Fetching ───────────────────────────────────────────
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchCustomerData = useCallback(async () => {
     try {
       const [
@@ -199,7 +198,7 @@ export function useCustomerPage(id) {
 
   useEffect(() => {
     if (editing && editData) setLiveCalc(calculateLivePrice(editData));
-  }, [editing, editData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editing, editData]);
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({ ...prev, [field]: value }));
@@ -524,11 +523,10 @@ export function useCustomerPage(id) {
         setPreviewContent(DOMPurify.sanitize(`<img src="${dataUrl}" style="max-width: 100%; height: auto;" alt="${DOMPurify.sanitize(filename)}" />`));
         setPreviewDialogOpen(true);
       } else if (content_type === "application/pdf") {
-        const pdfHtml = `<!DOCTYPE html><html><head><title>PDF Preview</title></head><body style="margin:0;"><iframe src="${DOMPurify.sanitize(dataUrl)}" style="width:100%;height:100vh;border:none;"></iframe></body></html>`;
-        const blob = new Blob([pdfHtml], { type: "text/html; charset=utf-8" });
-        const blobUrl = URL.createObjectURL(blob);
-        const pdfWindow = window.open(blobUrl, "_blank");
-        if (pdfWindow) setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+        // Strict PDF preview — openSafePdfPreview validates the data URL
+        // scheme + opens with noopener/noreferrer so the new window can't
+        // walk back to the CRM origin.
+        openSafePdfPreview(dataUrl);
       } else {
         handleDownloadUploadedDoc(doc);
       }
@@ -662,7 +660,7 @@ export function useCustomerPage(id) {
 
   useEffect(() => {
     if (calcEditing && calcData.saleable_area) setCalcLivePrice(calculateLivePrice(calcData));
-  }, [calcEditing, calcData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [calcEditing, calcData]);
 
   const saveCalcChanges = async () => {
     if (!calcLivePrice) return;

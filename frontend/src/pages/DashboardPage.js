@@ -123,7 +123,7 @@ const DashboardPage = () => {
     <div className="space-y-6" data-testid="dashboard-page">
       <div>
         <h1 className="font-heading text-3xl font-bold text-slate-900">Welcome back, {user?.name?.split(" ")[0]}!</h1>
-        <p className="text-slate-500 mt-1">Here's what's happening with your CRM today.</p>
+        <p className="text-slate-500 mt-1">Here&apos;s what&apos;s happening with your CRM today.</p>
       </div>
 
       <StatsCards stats={stats} />

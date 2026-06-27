@@ -1,0 +1,30 @@
+{
+  "summary": "P1 XSS hardening + lint-warning cleanup verified end-to-end. (1) Lint: 0 warnings/errors across /app/frontend/src/utils/sanitize.js, /app/frontend/src/utils/safePreview.js, /app/frontend/src/components/customer/EmailComposerDialog.jsx, /app/frontend/src/hooks/useCustomerPage.js, /app/frontend/src/pages/DashboardPage.js, /app/frontend/src/context/AuthContext.js. (2) XSS unit tests via Node+jsdom (27/27 PASS): malicious payload <img onerror>+<script>+<a target=_blank> sanitised correctly — onerror stripped, <script> stripped, anchor gets rel='noopener noreferrer'; all forbidden tags (iframe/object/embed/form/input/button/textarea/select/option/link) stripped; <style> blocks, inline style attrs, table markup, and CTA target=_blank anchors preserved; javascript:/srcdoc/formaction stripped; openSafePdfPreview rejects non-pdf data URLs (text/html, javascript:, http://) and escapes embedded quotes. (3) Functional regression via Playwright as admin on Ramya customer: Dashboard heading reads exactly \"Here's what's happening with your CRM today.\"; Welcome Email, Sales Agreement, Allotment Letter and Interior dialogs all open and render their HTML previews with inline styles and <style> blocks intact; Interior dialog shows the new amber 'No attachment' banner, hides the attachment badge box, and renders all 3 CTAs (Book Consultation, View Catalog, Instagram); no <script> or onerror in any rendered preview.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/tests/sanitize.test.cjs"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "sanitize.js — addHook('afterSanitizeAttributes', ...) is added at module load time. DOMPurify hooks are GLOBAL across all DOMPurify.sanitize() callers. safePreview.js registers the same hook again — so the same callback runs twice on every sanitize across the app. Functionally idempotent (setAttribute with same value), but worth deduping (register the hook once in a shared init module) to avoid surprise side effects when future configs diverge.",
+    "EmailComposerDialog renders 4 separate dangerouslySetInnerHTML blocks; each one re-sanitises on every render. Consider useMemo around sanitizeEmailHtml(...) keyed by the html prop to skip repeated DOMPurify work on unrelated re-renders.",
+    "openSafePdfPreview accepts only 'data:application/pdf;' prefix (note the trailing semicolon). This is strict and correct — but consider also accepting 'data:application/pdf,' (no media-type parameters) for completeness. Current callers always pass base64 form so this is theoretical.",
+    "useCustomerPage.js handlePreviewUploadedDoc still embeds `${dataUrl}` inside a DOMPurify.sanitize HTML string for image previews. The data URL is server-provided and passes through DOMPurify which validates http(s)/data:image schemes by default — acceptable, but using a React <img src={dataUrl}/> render (no innerHTML) would eliminate the templating altogether.",
+    "Interior email template does NOT use target=_blank on its CTA anchors — so the new noopener/noreferrer hook does not engage for that template. Not a bug (hook engages only when target=_blank is present), but if product wants CTAs to open in a new tab, the backend template should add target=_blank and the hook will then auto-harden the anchors."
+  ],
+  "updated_files": [
+    "/app/frontend/tests/sanitize.test.cjs (new — Node+jsdom unit test for sanitizeEmailHtml + openSafePdfPreview)"
+  ],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100%" },
+  "test_credentials": "Admin: crm@rrlbuildersanddevelopers.com / #RRLnew2026. Test customer: 6d902613-5106-4294-bc3e-b907f85127f7 (Ramya).",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Sanitizer unit test lives at /app/frontend/tests/sanitize.test.cjs — run with `node tests/sanitize.test.cjs` from /app/frontend (uses local jsdom + dompurify). The XSS hardening pass is shipped: EmailComposerDialog uses sanitizeEmailHtml everywhere, safePreview.js gates PDF scheme + escapes quotes, useCustomerPage stale eslint-disable lines are gone, DashboardPage apostrophes are &apos;-escaped. Functional regression on welcome / sales_agreement / allotment_letter / interior email previews verified intact. Pre-existing console warning 'Missing Description or aria-describedby for DialogContent' is unchanged by this iteration and not in scope.",
+  "rca of the issue": "N/A — hardening pass verified working."
+}
