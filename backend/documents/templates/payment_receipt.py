@@ -97,7 +97,16 @@ def generate_payment_receipt_html(customer: dict, transaction: dict) -> str:
     txn_no = transaction.get("transaction_number") or ""
     cheque_field = f"{txn_no} ({bank})" if bank and txn_no else (txn_no or bank or "—")
 
-    customer_names = format_customer_names(customer)
+    # Build names from applicant + co-applicant directly so BOTH names always
+    # render on the receipt. The shared format_customer_names() helper hides
+    # the co-applicant when gender == 'spouse', which is wrong for a receipt
+    # (the customer expects to see both names on a payment proof).
+    primary_name = (customer.get("name") or "").strip()
+    co_applicant_name = (customer.get("co_applicant_name") or "").strip()
+    if primary_name and co_applicant_name:
+        customer_names = f"{primary_name} & {co_applicant_name}"
+    else:
+        customer_names = primary_name or co_applicant_name or "—"
     flat_no = customer.get("unit_number", "") or ""
     tower = customer.get("tower", "") or ""
     flat_label = f"{tower}-{flat_no}" if tower and flat_no else (flat_no or "—")
@@ -156,7 +165,7 @@ def generate_payment_receipt_html(customer: dict, transaction: dict) -> str:
   }}
   .meta {{
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-end;
     margin-bottom: 14px;
     font-size: 12px;
@@ -254,7 +263,6 @@ def generate_payment_receipt_html(customer: dict, transaction: dict) -> str:
     </div>
 
     <div class="meta">
-      <div class="left">Receipt No.</div>
       <div class="right">
         <div class="row">
           <span class="lbl">Receipt Number:</span>
