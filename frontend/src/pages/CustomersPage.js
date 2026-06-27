@@ -6,8 +6,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "../components/ui/alert-dialog";
+import { Button } from "../components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { toast } from "sonner";
-import { Users, Loader2, Trash2 } from "lucide-react";
+import { Users, Loader2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { CreateCustomerDialog, CustomerFilters, CustomerTable } from "../components/customers";
 import { logError } from "../utils/logger";
 
@@ -42,11 +44,23 @@ const CustomersPage = () => {
   const [customerToDelete, setCustomerToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Pagination state — backend default was capping at 50, causing rows beyond
+  // 50 to be invisible. We now drive `skip`/`limit` explicitly and expose
+  // Prev/Next + page-size controls below the table.
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
+
+  // Reset to page 1 whenever any filter changes so the user doesn't end up on
+  // an empty page after narrowing the result set.
+  useEffect(() => {
+    setPage(0);
+  }, [search, projectFilter, statusFilter, agreementFilter, bankFilter, pageSize]);
+
   useEffect(() => {
     fetchCustomers();
     fetchProjects();
     fetchBanks();
-  }, [search, projectFilter, statusFilter, agreementFilter, bankFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search, projectFilter, statusFilter, agreementFilter, bankFilter, page, pageSize]);
 
   const fetchCustomers = async () => {
     try {
@@ -56,6 +70,8 @@ const CustomersPage = () => {
       if (statusFilter) params.append("agreement_status", statusFilter);
       if (agreementFilter) params.append("agreement_filter", agreementFilter);
       if (bankFilter) params.append("finance_bank", bankFilter);
+      params.append("skip", String(page * pageSize));
+      params.append("limit", String(pageSize));
       const response = await axios.get(`${API}/customers?${params.toString()}`);
       setCustomers(response.data.customers);
       setTotal(response.data.total);
@@ -149,9 +165,28 @@ const CustomersPage = () => {
         projects={projects} total={total}
       />
 
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <Users className="w-4 h-4" />
-        <span>Showing {customers.length} of {total} customers</span>
+      <div className="flex items-center justify-between gap-2 text-sm text-slate-500">
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4" />
+          <span data-testid="customers-count-label">
+            {total === 0
+              ? "No customers"
+              : `Showing ${page * pageSize + 1}–${Math.min(page * pageSize + customers.length, total)} of ${total} customers`}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500">Page size</span>
+          <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v, 10))}>
+            <SelectTrigger className="h-8 w-[80px]" data-testid="page-size-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[25, 50, 100, 200, 500].map((s) => (
+                <SelectItem key={s} value={String(s)}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <CustomerTable
@@ -162,6 +197,32 @@ const CustomersPage = () => {
         onAgreementStatusChange={handleAgreementStatusChange}
         onCallStatusChange={handleCallStatusChange}
       />
+
+      {total > pageSize && (
+        <div className="flex items-center justify-between" data-testid="customers-pagination">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0 || loading}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            data-testid="page-prev-btn"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+          </Button>
+          <span className="text-xs text-slate-500" data-testid="page-indicator">
+            Page {page + 1} of {Math.max(1, Math.ceil(total / pageSize))}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={(page + 1) * pageSize >= total || loading}
+            onClick={() => setPage((p) => p + 1)}
+            data-testid="page-next-btn"
+          >
+            Next <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

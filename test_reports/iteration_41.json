@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 41 — verified the customer pagination bug fix (skip/limit) end-to-end. Backend GET /api/customers correctly honours skip+limit and reports UNPAGINATED total. Frontend CustomersPage now sends explicit skip/limit, exposes page-size selector (25/50/100/200/500, default 50), shows 'Showing N–M of TOTAL customers' label, and renders a pagination footer (Prev / 'Page X of Y' / Next) only when total > pageSize. Prev disabled on page 1, Next disabled on last page; click flow advances/retreats pages; changing page size or any filter resets to page 1.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_customers_pagination.py",
+    "/app/test_reports/pytest/pytest_customers_pagination.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CustomersPage.js (262 lines) — clean. Pagination state, useEffect deps, and the filter-reset useEffect are all consistent. fetchCustomers correctly appends skip+limit on every call.",
+    "Minor: fetchCustomers swallows errors via bare `catch { toast.error(...) }` — losing the underlying error makes future debugging harder; logError(err) (already imported) would help.",
+    "Minor: useEffect on L59 depends on the unstable function-scoped fetchCustomers/fetchProjects/fetchBanks closures (not in deps); existing pattern in the codebase and behaviour is correct, but a future ESLint react-hooks/exhaustive-deps run will flag it.",
+    "Backend routes.py L189-193: when agreement_filter='upcoming_due', it fetches limit*2 then filters in-app and the `total` is set to len(filtered) — so total reflects the filtered+paginated subset rather than the true unpaginated count for that branch. Not in scope for this fix, but pagination math (Page X of Y) on the frontend would be slightly off if a user combines upcoming_due with paging — worth flagging."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_customers_pagination.py (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6 pytest passed)", "frontend": "100% — all pagination assertions passed (count label, footer visibility, Prev/Next enable/disable, page advance/retreat, page-size change resets to page 1, search filter resets to page 1)"},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026 used. Ramya (6d902613-5106-4294-bc3e-b907f85127f7) untouched.",
+  "seed_data_creation": "Seeded 55 customers (TEST_pagination_0 … TEST_pagination_54) via POST /api/customers as admin for both backend pytest and Playwright UI exercise (total grew to 59 = 4 existing + 55 seeded). ALL 55 deleted via DELETE /api/customers/{id} at end of run — verified total back to 4 and Ramya still present.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Pagination data-testids on /customers: page-size-select (Radix Select trigger), customers-count-label, customers-pagination (footer div, only mounted when total>pageSize), page-prev-btn, page-next-btn, page-indicator. Default pageSize=50; options 25/50/100/200/500. Auth token in sessionStorage. Backend default limit=50 still — frontend now always passes skip+limit so the cap is no longer silent. /app/backend/tests/test_customers_pagination.py is self-cleaning (module-scoped fixture seeds 55 then DELETEs). If you re-seed manually, name pattern TEST_pagination_<N> and cleanup by name/email prefix.",
+  "rca_of_the_issue": "Bug: only the first 50 customers were visible on /customers because frontend fetchCustomers omitted skip+limit, and backend GET /api/customers defaulted to limit=50, silently truncating the list with no UI affordance to fetch more. Fix (verified): CustomersPage introduced page (0-based) + pageSize (default 50) state, sends skip=page*pageSize & limit=pageSize on every fetch, renders a pagination footer when total>pageSize with Prev/Next buttons that are disabled at boundaries, exposes a 25/50/100/200/500 page-size selector, and a dedicated useEffect resets page to 0 whenever any filter (search/projectFilter/statusFilter/agreementFilter/bankFilter) or pageSize changes — preventing the empty-page-after-narrowing failure mode. Verified end-to-end with 59 customers: page 1 shows 1–50, Next advances to 51–59 (Page 2 of 2, Next disabled), pageSize=25 yields Page 1 of 3, pageSize=100 hides footer, search filter resets to page 1."
+}
