@@ -195,6 +195,19 @@ async def get_customers(
     if finance_bank or agreement_filter == "overdue":
         await _enrich_with_overdue(db, customers)
 
+    # Derive latest_call_status for the Customers list column. We only surface
+    # the *most recent* follow-up entry's status — the column is intentionally
+    # a quick at-a-glance view; full multi-level history lives on the profile.
+    for c in customers:
+        fus = c.get("follow_ups") or []
+        if fus:
+            latest = max(fus, key=lambda f: f.get("created_at") or "")
+            c["latest_call_status"] = latest.get("status")
+            c["latest_call_status_at"] = latest.get("created_at")
+            c["latest_call_status_stage"] = latest.get("stage_name")
+        else:
+            c["latest_call_status"] = None
+
     total = await db.customers.count_documents(query) if agreement_filter != "upcoming_due" else len(customers)
     return {"customers": customers, "total": total}
 

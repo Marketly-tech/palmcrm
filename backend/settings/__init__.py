@@ -254,6 +254,48 @@ async def delete_customer_follow_up(customer_id: str, follow_up_id: str, user: d
     return {"message": "Follow-up deleted"}
 
 
+@followups_router.post("/customers/{customer_id}/follow-ups/quick-status")
+async def quick_set_call_status(customer_id: str, data: dict, user: dict = Depends(get_current_user)):
+    """One-click call-status update from the Customers list view.
+
+    Pushes a new follow-up entry against the admin-set ``current_stage`` so
+    the column stays tied to disbursement progression. If admin hasn't set a
+    current stage yet we fall back to the first PAYMENT_STAGE.
+    """
+    db = get_database()
+    status = (data.get("status") or "").strip()
+    notes_text = (data.get("notes") or "").strip()
+    if status not in FOLLOW_UP_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {FOLLOW_UP_STATUSES}")
+
+    settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    stage_key = (settings_doc or {}).get("current_stage") or PAYMENT_STAGES[0]["key"]
+    stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), PAYMENT_STAGES[0])
+
+    entry = {
+        "id": str(uuid.uuid4()),
+        "stage_key": stage_info["key"],
+        "stage_name": stage_info["name"],
+        "status": status,
+        "notes": notes_text,
+        "next_follow_up_date": None,
+        "next_follow_up_time": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": user["id"],
+        "created_by_name": user.get("name", "Unknown"),
+    }
+    result = await db.customers.update_one(
+        {"id": customer_id}, {"$push": {"follow_ups": entry}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    await log_activity(
+        user['id'], user['name'], "create", "follow_up", customer_id,
+        f"Quick-set call status [{stage_info['name']}] → {status}"
+    )
+    return entry
+
+
 @followups_router.get("/follow-ups/upcoming")
 async def get_upcoming_follow_ups(within_minutes: int = 120, user: dict = Depends(get_current_user)):
     """Return follow-ups whose ``next_follow_up_date[/time]`` falls within the

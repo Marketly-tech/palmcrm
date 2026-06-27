@@ -100,6 +100,19 @@ const CustomersPage = () => {
     } catch (error) { toast.error(error.response?.data?.detail || "Failed to update agreement status"); }
   };
 
+  const handleCallStatusChange = async (customerId, newStatus) => {
+    try {
+      const res = await axios.post(`${API}/customers/${customerId}/follow-ups/quick-status`, { status: newStatus });
+      toast.success(`Call status set to ${newStatus}`);
+      setCustomers(customers.map((c) => c.id === customerId ? {
+        ...c,
+        latest_call_status: newStatus,
+        latest_call_status_at: res.data?.created_at,
+        latest_call_status_stage: res.data?.stage_name,
+      } : c));
+    } catch (error) { toast.error(error.response?.data?.detail || "Failed to update call status"); }
+  };
+
   const handleConfirmDelete = async () => {
     if (!customerToDelete) return;
     setDeleting(true);
@@ -147,6 +160,7 @@ const CustomersPage = () => {
         onNavigate={navigate}
         onDeleteClick={(customer, e) => { e.stopPropagation(); setCustomerToDelete(customer); setDeleteDialogOpen(true); }}
         onAgreementStatusChange={handleAgreementStatusChange}
+        onCallStatusChange={handleCallStatusChange}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -1,0 +1,24 @@
+{
+  "summary": "Tested the new Call Status column on /customers (iteration 38). Backend POST /api/customers/{id}/follow-ups/quick-status validates status, returns 404 for unknown customer, persists against admin-set current_stage (fallback to PAYMENT_STAGES[0]), and GET /api/customers enriches each row with latest_call_status / latest_call_status_at / latest_call_status_stage. Frontend renders the new column between Agreement and Actions with the PhoneCall icon, the row Select reflects latest status (or em-dash), selecting an option fires the API, shows a toast, updates the trigger label in place, does NOT navigate to the customer profile, and persists across reload. All three roles (admin, sales, accounts) can change call status. Tracker history on the profile also shows the quick-status entries (same follow_ups array). 8/8 pytest + full Playwright e2e PASSED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_call_status_column.py",
+    "/app/test_reports/pytest/pytest_call_status_column.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CustomerTable.jsx: `getStatusBadge` does not have a mapping for the new `disbursement` agreement_status value other than `bg-purple-100`, but the SelectItem options include both `disbursement` and `completed`. Minor — purely cosmetic.",
+    "settings/__init__.py L257-296 (quick_set_call_status): No role check on this route — that is intentional per requirements (all roles allowed). Worth a code comment so a future refactor doesn't accidentally lock it behind admin only.",
+    "customers/routes.py L201-209: `max(fus, key=lambda f: f.get('created_at') or '')` works fine because timestamps are ISO-8601 strings, but a fallback to empty string can cause non-deterministic ordering if any historical entry is missing created_at. Consider explicitly skipping entries without created_at.",
+    "CustomerTable.jsx file is now ~157 lines — still under the 700-line threshold, but the Select cells are starting to duplicate (Agreement + Call Status are near identical). Consider extracting a generic <ColumnStatusSelect> when a 3rd similar column lands."
+  ],
+  "updated_files": ["/app/backend/tests/test_call_status_column.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (admin + sales + accounts e2e PASSED)"},
+  "test_credentials": "Admin: crm@rrlbuildersanddevelopers.com/#RRLnew2026; Sales: sales@rrlrprojects.com/sales123; Accounts: accounts@rrlbuilders.com/accounts123",
+  "seed_data_creation": "Created 5 transient quick-status follow-ups on test customer Ramya (6d902613-5106-4294-bc3e-b907f85127f7) during testing — all 4 stale entries with empty notes and no next-date were deleted in teardown. Profile is clean.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The Call Status column is fully wired. /api/customers/{id}/follow-ups/quick-status is the new endpoint (no role guard — by design). GET /api/customers now returns latest_call_status* fields. Auth response uses `access_token` key (not `token`) and `sessionStorage` for persistence. Test customer is Ramya 6d902613-...127f7. Quick-status entries can be distinguished from regular follow-ups by empty notes + null next_follow_up_date if cleanup is needed.",
+  "rca_of_the_issue": "User reported the Call Status column was missing entirely in the Customers list. Fix verified: column is now visible at position 8 (between Agreement at index 6 and Actions at index 8), with header data-testid='call-status-column-header' and per-row Select data-testid='call-status-select-{id}'. Selection triggers POST .../follow-ups/quick-status which logs against admin's current_stage, persists to customer.follow_ups, returns the full entry, and GET /customers re-emits latest_call_status for the badge. Row-click propagation is stopped on the cell, so dropdown clicks no longer open the customer profile."
+}

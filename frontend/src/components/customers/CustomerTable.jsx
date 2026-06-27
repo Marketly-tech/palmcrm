@@ -7,7 +7,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../ui/select";
-import { Eye, Users, Loader2, Trash2 } from "lucide-react";
+import { Eye, Users, Loader2, Trash2, PhoneCall } from "lucide-react";
 
 const INR = (amount) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount || 0);
@@ -17,9 +17,21 @@ const getStatusBadge = (status) => {
   return styles[status] || styles.draft;
 };
 
+const CALL_STATUS_OPTIONS = ["Dialed", "Connected", "Unanswered", "Follow-up", "Completed"];
+const callStatusClass = (status) => {
+  const map = {
+    Dialed: "bg-blue-100 text-blue-700",
+    Connected: "bg-emerald-100 text-emerald-700",
+    Unanswered: "bg-rose-100 text-rose-700",
+    "Follow-up": "bg-amber-100 text-amber-700",
+    Completed: "bg-violet-100 text-violet-700",
+  };
+  return map[status] || "bg-slate-100 text-slate-500";
+};
+
 const CustomerTable = ({
   customers, loading, isAccountsRole, agreementFilter, bankFilter,
-  onNavigate, onDeleteClick, onAgreementStatusChange,
+  onNavigate, onDeleteClick, onAgreementStatusChange, onCallStatusChange,
 }) => {
   const showOverdue = !!bankFilter || agreementFilter === "overdue";
   const totalOverdue = showOverdue
@@ -45,6 +57,12 @@ const CustomerTable = ({
                 <TableHead>Phone</TableHead>
                 {showOverdue && <TableHead className="text-right text-red-600" data-testid="overdue-column-header">Overdue Amount</TableHead>}
                 <TableHead>Agreement</TableHead>
+                <TableHead data-testid="call-status-column-header">
+                  <span className="inline-flex items-center gap-1">
+                    <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
+                    Call Status
+                  </span>
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -79,6 +97,24 @@ const CustomerTable = ({
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={customer.latest_call_status || ""}
+                      onValueChange={(value) => onCallStatusChange?.(customer.id, value)}
+                    >
+                      <SelectTrigger
+                        className={`w-32 h-8 text-xs ${callStatusClass(customer.latest_call_status)}`}
+                        data-testid={`call-status-select-${customer.id}`}
+                      >
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CALL_STATUS_OPTIONS.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onNavigate(`/customers/${customer.id}`); }} data-testid={`view-customer-${customer.id}`}>
@@ -101,7 +137,7 @@ const CustomerTable = ({
                   <TableCell className="text-right font-mono font-bold text-amber-400 text-base" data-testid="overdue-total-amount">
                     {INR(totalOverdue)}
                   </TableCell>
-                  <TableCell colSpan={2} />
+                  <TableCell colSpan={3} />
                 </TableRow>
               )}
             </TableBody>
