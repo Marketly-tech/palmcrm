@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06-17 (later) — Total Registration Charges PDF Added to Welcome Email
+- New static PDF `Total_Registration_Charges.pdf` (131 KB) saved to `/app/backend/assets/welcome_email/`. Sent to customers as `RRL_Total_Registration_Charges.pdf`.
+- New helper `documents/templates/common.py::get_welcome_email_static_attachments()` reads + base64-encodes any file listed in `WELCOME_EMAIL_STATIC_ATTACHMENTS`. Missing files are logged + skipped, never raise.
+- Wired into both welcome paths: `booking/__init__.py::_send_booking_welcome_email` (auto on submit) and `email_service/routes.py::send_welcome_email` (manual). Existing 3 attachments preserved.
+- **Verified via Resend API**: latest manual welcome to Ramya (id `42482b20-cbfb-4f11-b88d-d667f70a5470`) shows 4 attachments — BookingFormPreview, T&C, PriceBreakup, **Total Registration Charges** ✅
+- To add another static add-on later: drop the PDF in `/app/backend/assets/welcome_email/` and append `(sent_name, disk_name)` to `WELCOME_EMAIL_STATIC_ATTACHMENTS`.
+- Files: `backend/assets/welcome_email/Total_Registration_Charges.pdf` (new), `backend/documents/templates/common.py`, `backend/booking/__init__.py`, `backend/email_service/routes.py`. Memory: `DEPLOYMENT_INVARIANTS.md` § 5.
+
 ## 2026-06-17 — Demand Letter: TDS excluded from Installment Paid + Net Amount uses Total TDS Payable
 - **Installment Amount Paid Till Date (C)** now excludes any payment_transaction with `transaction_stage == 'tds'`. TDS challans are reported only on the "TDS Paid" row — keeping them out of "Installment Paid" prevents double-counting.
 - **Net Amount Payable** formula reverted to `max(0, Total Outstanding − Total TDS Payable)` (lifetime). The earlier per-slab formula (`− Current TDS due for Slab X%`) is removed. Sub-label updated.

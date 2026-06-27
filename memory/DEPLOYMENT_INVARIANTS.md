@@ -198,10 +198,11 @@ Admin → Document Templates → "Save as Master Template" auto-scrubs customer-
 * Env keys: `RESEND_API_KEY`, `RESEND_FROM_EMAIL=crm@rrlbuildersanddevelopers.com`, `RESEND_FROM_NAME=RRL Group`, **`RESEND_BCC_ARCHIVE=docs.rrlprojects@gmail.com`** (silent archive on every send — added 2026-06-16).
 * `/api/communication/email` accepts **`multipart/form-data`** (not JSON) — fixes the 422 bug.
 * Legacy frontend reads `sendgrid_response` field — backend keeps the key name for compat, value is now `{provider:"resend", id, error, attachments}`.
-* Welcome email auto-sent on `/api/public/booking-form` submit, with Price Breakup PDF attached.
-* **`resend_message_id` is now persisted** on `communications` and `communication_logs` rows for every send (auto-welcome, manual welcome, generic). Lets us trivially recover attachments via the Resend API in the future.
-* **Email archive BCC**: every outbound email (auto + manual + generic) silently BCCs `RESEND_BCC_ARCHIVE` so the team always has an off-platform copy. Customer never sees the BCC. Centralized in `_resend_send()` in `email_service/routes.py` and the params block in `booking/__init__.py`.
-* **Recovery**: send-only Resend keys cannot list/retrieve emails. To run the one-time recovery for the ~3-4 May-2026+ welcome emails, you need a **Full Access** Resend key from the team that owns `crm@rrlbuildersanddevelopers.com` (NOT the Nature Crust team).
+* Welcome email auto-sent on `/api/public/booking-form` submit. **Auto-welcome attaches: Price Breakup PDF + every static add-on PDF in `/app/backend/assets/welcome_email/`.**
+* Manual welcome send (`/api/communication/send-welcome-email/{customer_id}`) attaches: Booking Form Preview + Terms & Conditions + Price Breakup + every static add-on.
+* **Static welcome-email add-ons** are listed in `documents/templates/common.py::WELCOME_EMAIL_STATIC_ATTACHMENTS` — currently `["RRL_Total_Registration_Charges.pdf"]`. PDFs live in `/app/backend/assets/welcome_email/`. To add another, drop the file in that folder and add the `(sent_name, disk_name)` tuple to the list.
+* `resend_message_id` is now persisted on `communications` and `communication_logs` rows.
+* **Recovery**: send-only Resend keys cannot list/retrieve emails. Use a **Full Access** key from the team that owns `crm@rrlbuildersanddevelopers.com`.
 
 ---
 

@@ -23,6 +23,7 @@ from documents.models import CommunicationLog
 from customers import generate_customer_id
 from utils.payment_helpers import auto_generate_booking_transaction
 from documents.templates import generate_welcome_email_html, generate_price_breakup_html, generate_booking_form_preview_html
+from documents.templates.common import get_welcome_email_static_attachments
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,8 @@ async def _send_booking_welcome_email(customer, doc):
             })
         except Exception as pdf_error:
             logger.error(f"Error generating PDF for auto-email: {str(pdf_error)}")
+        # Append any static add-on PDFs (e.g. Total Registration Charges)
+        attachments.extend(get_welcome_email_static_attachments())
         params = {
             "from": f"{RESEND_FROM_NAME} <{RESEND_FROM_EMAIL}>",
             "to": [customer.email],

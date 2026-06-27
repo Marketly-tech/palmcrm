@@ -18,6 +18,7 @@ from config import settings
 from dashboard.models import EmailSendRequest
 from database import get_database
 from documents.models import CommunicationLog, GeneratedDocument
+from documents.templates.common import get_welcome_email_static_attachments
 from documents.templates import (
     generate_allotment_letter_html,
     generate_booking_form_preview_html,
@@ -370,6 +371,10 @@ async def send_welcome_email(customer_id: str, user: dict = Depends(get_current_
                 attachments_added.append(fname)
             except Exception as pdf_error:
                 logger.error(f"Error generating PDF {fname}: {pdf_error}")
+        # Append static welcome-email add-ons (e.g. Total Registration Charges)
+        for static_att in get_welcome_email_static_attachments():
+            resend_attachments.append(static_att)
+            attachments_added.append(static_att["filename"])
         result = await _resend_send(
             to_email=recipient_email,
             subject=subject,

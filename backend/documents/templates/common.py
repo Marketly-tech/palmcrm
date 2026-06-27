@@ -1,12 +1,50 @@
 """Common utilities shared across document templates."""
+import base64
+import logging
 from datetime import datetime
+from pathlib import Path
 from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
 from documents.templates.logo_data import RRL_LOGO_BASE64
+
+logger = logging.getLogger(__name__)
 
 # Company name constant used across all documents
 COMPANY_NAME = "RRL Builders and Developers Pvt. Ltd."
 COMPANY_NAME_UPPER = "RRL BUILDERS AND DEVELOPERS PVT. LTD."
 COMPANY_NAME_FULL = "RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED"
+
+# Static welcome-email attachments — these PDFs are NOT generated per customer;
+# they live on disk in /app/backend/assets/welcome_email/ and are reused as-is
+# for every welcome email going out (auto + manual).
+WELCOME_EMAIL_STATIC_DIR = Path(__file__).resolve().parents[2] / "assets" / "welcome_email"
+
+# (filename_sent_to_customer, on_disk_filename)
+WELCOME_EMAIL_STATIC_ATTACHMENTS: list[tuple[str, str]] = [
+    ("RRL_Total_Registration_Charges.pdf", "Total_Registration_Charges.pdf"),
+]
+
+
+def get_welcome_email_static_attachments() -> list[dict]:
+    """Return the static welcome-email add-on PDFs as Resend-ready attachments.
+
+    Each item: ``{"filename": <name shown to customer>, "content": <base64 str>}``.
+    Missing files are logged and skipped — never raise so the welcome email
+    still goes out even if the static asset is somehow absent on deploy.
+    """
+    out: list[dict] = []
+    for sent_name, disk_name in WELCOME_EMAIL_STATIC_ATTACHMENTS:
+        path = WELCOME_EMAIL_STATIC_DIR / disk_name
+        if not path.is_file():
+            logger.warning(f"Static welcome attachment missing on disk: {path}")
+            continue
+        try:
+            out.append({
+                "filename": sent_name,
+                "content": base64.b64encode(path.read_bytes()).decode(),
+            })
+        except Exception as e:
+            logger.error(f"Failed to read static welcome attachment {path}: {e}")
+    return out
 
 def get_logo_img_tag(width=120, height="auto"):
     """Return an <img> tag with the embedded base64 RRL Group logo."""
