@@ -1,0 +1,25 @@
+{
+  "summary": "Iteration 42 — verified the Bajaj NOC 'Details of Purchaser' table overlap/breakage fix end-to-end. POST /api/documents/generate with doc_type=noc_bajaj for Ramya (6d902613-5106-4294-bc3e-b907f85127f7) returns a document record; GET /api/documents/pdf/{id} returns a valid application/pdf binary (2 pages, A4, ~9 KB compressed). pdftotext extraction confirms all 13 purchaser-detail rows are present and the long 'Project Location / Address' row (full Bengaluru address) wraps cleanly within its cell and stays entirely on page 1 — never split mid-row. Page 1 ends with the 'Lender\u2019s Name' row complete; page 2 starts cleanly with 'Own Contribution'. HDFC NOC regression still generates and downloads correctly. 7/7 pytest tests passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_noc_bajaj_pdf.py",
+    "/app/test_reports/pytest/pytest_noc_bajaj.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix in generate_noc_bajaj_html() is correctly scoped: table-layout: fixed + page-break-inside/break-inside: avoid on tr + vertical-align: top + word-wrap/overflow-wrap: anywhere on th/td. Shared helpers (_letterhead_styles, _footer_band_html, _doc_title_html) are untouched, so HDFC/BOB/TATA NOCs are unaffected — confirmed by HDFC regression test.",
+    "Minor (pre-existing, not in scope): The same `.details-table` overlap risk exists in the HDFC/BOB/TATA NOC templates if their long-content rows ever wrap near a page break. Consider hoisting the new CSS rules into a shared _table_styles() helper to prevent recurrence across NOC types.",
+    "Minor: documents/routes.py L301 returns `{**doc, '_id': None}` — the `_id` key is set to None rather than excluded. Pydantic model_dump doesn't include _id anyway (it isn't in GeneratedDocument), so the explicit None is harmless but stylistically odd."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_noc_bajaj_pdf.py (new — 7 tests, self-contained, uses Ramya only, generates docs but does not modify customer)"
+  ],
+  "success_rate": {"backend": "100% (7/7 pytest passed in 4.96s)", "frontend": "N/A — backend-only task (CSS change is rendered server-side by WeasyPrint)"},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026. Test customer Ramya (6d902613-5106-4294-bc3e-b907f85127f7).",
+  "seed_data_creation": "None — read-only against Ramya. Each test generates a new generated_documents row (3 noc_bajaj + 1 noc_hdfc per full run). Generated docs do not mutate the customer; cleanup is not strictly required but main agent may purge them by doc_type+customer_id if desired.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "PDF inspection workflow: poppler-utils is now installed (apt-get install poppler-utils — pdftoppm/pdftotext available). Use `pdftotext -layout -f N -l N file.pdf -` for per-page text extraction. The Bajaj NOC test PDF is preserved at /tmp/noc_bajaj_test.pdf and HDFC at /tmp/noc_hdfc_test.pdf after a successful run for manual eyeballing. Per-page extraction confirms: page 1 = rows 1\u20139 (through 'Lender\u2019s Name'), page 2 = rows 10\u201312 (Own Contribution, Booking Date, Agreement for Sale Date) + signature/footer. Long Bengaluru address wraps to 2 lines inside its cell on page 1 \u2014 never straddles. If you alter the letterhead height or add rows, re-verify the page-break behavior with the same test file.",
+  "rca_of_the_issue": "BUG (reported): In Bajaj NOC PDF, the 'Details of Purchaser' table was breaking and overlapping at the page boundary. ROOT CAUSE: .details-table had no table-layout:fixed (long content stretched columns) and no page-break-inside:avoid on tr \u2014 so when the 'Project Location / Address' row wrapped over multiple lines, WeasyPrint would split that row across pages; the partial bottom portion on page 1 and the partial top portion on page 2 each drew their own borders, producing visible overlap with the neighbouring row's border. FIX (verified in generate_noc_bajaj_html only): added (a) table-layout: fixed so widths are predictable, (b) tr { page-break-inside: avoid; break-inside: avoid; } so a row that doesn't fit moves wholesale to the next page, and (c) vertical-align: top + word-wrap: break-word + overflow-wrap: anywhere on th/td so content wraps inside the cell instead of distorting layout. VERIFICATION: 7/7 pytest tests green; per-page pdftotext shows the long address row stays on page 1 as a single unit, and the table partitions cleanly across pages with no label appearing on both pages (test_rows_partition_across_pages). HDFC NOC regression also passes."
+}

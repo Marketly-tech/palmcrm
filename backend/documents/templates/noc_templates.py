@@ -594,6 +594,7 @@ def generate_noc_bajaj_html(customer: dict) -> str:
                 border-collapse: collapse;
                 margin: 12px 0 18px 0;
                 font-size: 11.5px;
+                table-layout: fixed;
             }}
             .details-table th {{
                 background: #F5F5F5;
@@ -603,11 +604,23 @@ def generate_noc_bajaj_html(customer: dict) -> str:
                 font-weight: 700;
                 color: #1A1A1A;
                 width: 42%;
+                vertical-align: top;
+                word-wrap: break-word;
+                overflow-wrap: anywhere;
             }}
             .details-table td {{
                 padding: 8px 10px;
                 border: 1px solid #E5E5E5;
                 color: #1A1A1A;
+                vertical-align: top;
+                word-wrap: break-word;
+                overflow-wrap: anywhere;
+            }}
+            /* Prevent rows from being split across pages — the long address
+               row was wrapping then overlapping the next row's border. */
+            .details-table tr {{
+                page-break-inside: avoid;
+                break-inside: avoid;
             }}
             .details-table .section-header td {{
                 background: #1A1A1A;
