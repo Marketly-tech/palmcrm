@@ -234,10 +234,6 @@ Kindly review the terms and conditions mentioned in the letter and let us know i
     }
 
 
-INTERIOR_PDF_PATH = (
-    "/app/backend/assets/email_templates/interior/RRL_Interior_Inhouse_Team.pdf"
-)
-
 # Sunrise DesignHive CTA links — single source of truth so the email body
 # text, the CTA buttons in the HTML preview, and any future tweaks all stay
 # in sync.

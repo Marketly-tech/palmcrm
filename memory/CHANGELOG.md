@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-06-27 (feature) — Interior Email: Inline CTA Buttons, No PDF Attachment
+- Replaced the PDF attachment (`RRL_Interior_Inhouse_Team.pdf`) with **three CTA buttons embedded directly in the email HTML**: Book a Design Consultation (WhatsApp deep link), View Design Catalog (designhive.in), Follow on Instagram. Single source of truth: `INTERIOR_CTA_LINKS` dict.
+- New helper `generate_interior_email_html(customer, subject, body)` wraps the existing dark/gold email template and injects a gold-bordered CTA block before the signature.
+- `preview_interior_email` no longer returns `attachment_filename`/`attachment_static`. `send_document_email` interior branch is now a no-op for attachments and uses the new wrapper.
+- Frontend `EmailComposerDialog`:
+  - New title "Send Interior Design Email"
+  - Hides the "Attachments (Auto-generated)" badge box when there's no attachment
+  - Shows an amber info banner explaining CTA buttons are embedded inline
+  - Tabs grid is `grid-cols-1` (only Email Preview) for interior emails
+- Body copy refreshed — removed "The complete brochure is attached" line.
+- **Tested**: 100% pass backend + Playwright frontend (iteration_43, no defects).
+- Files: `backend/email_service/routes.py`, `frontend/src/components/customer/EmailComposerDialog.jsx`. Tests: `backend/tests/test_interior_email.py`.
+
 ## 2026-06-27 (bugfix) — Bajaj NOC: Details of Purchaser table overlap/break
 - **Bug**: When downloading the Bajaj Housing Finance NOC, the "Details of Purchaser" table broke at page boundaries — the long Project Location/Address row would wrap and split mid-row, drawing two partial borders that overlapped the next row's border in the rendered PDF.
 - **Fix** in `backend/documents/templates/noc_templates.py::generate_noc_bajaj_html`:
