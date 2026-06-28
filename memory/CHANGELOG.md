@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2026-06-28 (UX) — Interior Email: Mobile-Friendly + Prominent WhatsApp/Phone Block
+- **Bug**: 3-column CTA row squeezed on narrow viewports — button text wrapped vertically ("Book a Design / Consultation"). Phone number relegated to small print at the bottom.
+- **Fix** in `generate_interior_email_html`:
+  - Single-column nested-table layout — every CTA anchor is `display: block` full-width with `text-align: center`; buttons now stack one per row on every device.
+  - New dashed-green phone block on top of the CTAs containing: a label ("CALL OR WHATSAPP US DIRECTLY"), the number rendered as a 26px `tel:+919619995516` link, and a bright green "Chat on WhatsApp →" anchor (wa.me link with prefilled message).
+  - Padding bumped (14–16px button vertical) → tap-friendly targets on mobile.
+  - Phone number + tel: URL added to `INTERIOR_CTA_LINKS` for single-source-of-truth.
+- **Fix** in `generate_document_email_html` base template:
+  - Added `<meta name="viewport" content="width=device-width, initial-scale=1.0">`.
+  - Added a `@media (max-width: 600px)` block that tightens `.rrl-body` / `.rrl-shell` / `.rrl-card` padding on phones.
+  - Welcome / Sales Agreement / Allotment Letter / Interior emails all benefit.
+- Tested: 8/8 pytest + Playwright headless render at 420×900 (mobile) and 1280×1200 (desktop). Iteration_46 — 100% pass, no defects.
+- Files: `backend/email_service/routes.py`, `backend/documents/templates/email_templates.py`. Tests: `backend/tests/test_interior_email.py`.
+
 ## 2026-06-28 (bugfix) — Welcome Email: 4-PDF Attachment Pack & Preview Tab
 - **Bug A** (auto-welcome via public booking): only `PriceBreakup.pdf` + static `Total_Registration_Charges.pdf` were attached. Missing `BookingFormPreview.pdf` and `TermsAndConditions.pdf`. Fix in `backend/booking/__init__.py::_send_booking_welcome_email` — now renders form preview HTML + T&C HTML + Price Breakup HTML, attaches all 3 + the static asset (= 4 total). Comm-log content now lists each filename.
 - **Bug B** (composer preview): Total Registration Charges PDF was not previewable. Fix in `backend/email_service/routes.py::preview_welcome_email` — returns new `attachment_filename_4` + `attachment_pdf_base64_4` (base64 of the static PDF). `attachments[]` array updated to 4. Default body now lists item 4.

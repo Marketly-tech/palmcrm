@@ -256,6 +256,10 @@ INTERIOR_CTA_LINKS = {
     "consultation_whatsapp": "https://wa.me/919619995516?text=Hi%2C%20I%27d%20like%20to%20schedule%20a%20design%20consultation%20for%20my%20RRL%20Palm%20Altezze%20flat.",
     "catalog": "https://www.designhive.in",
     "instagram": "https://www.instagram.com/sunrise.designhive?igsh=MTYxbWlhM2dqbHdmNA==",
+    # Phone number used in both the displayed text and the tel: href — keep
+    # in lockstep with the wa.me number above.
+    "phone_display": "+91 96199 95516",
+    "phone_tel": "tel:+919619995516",
 }
 
 
@@ -313,6 +317,8 @@ def generate_interior_email_html(customer: dict, subject: str, body: str) -> str
     consultation_link = INTERIOR_CTA_LINKS["consultation_whatsapp"]
     catalog_link = INTERIOR_CTA_LINKS["catalog"]
     instagram_link = INTERIOR_CTA_LINKS["instagram"]
+    phone_tel = INTERIOR_CTA_LINKS["phone_tel"]
+    phone_display = INTERIOR_CTA_LINKS["phone_display"]
     cta_block = f'''
         <!-- CTA block: mobile-first, single-column, full-width buttons.
              Built with nested tables (email-client safest) and 100% width
@@ -334,8 +340,8 @@ def generate_interior_email_html(customer: dict, subject: str, body: str) -> str
                                     <div style="font-size: 11px; font-weight: 600; color: #128C7E; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">
                                         Call or WhatsApp Us Directly
                                     </div>
-                                    <a href="tel:+919619995516" style="display: block; font-size: 26px; font-weight: 700; color: #1A1A1A !important; text-decoration: none; letter-spacing: 0.5px; line-height: 1.2; margin-bottom: 12px;">
-                                        +91 96199 95516
+                                    <a href="{phone_tel}" style="display: block; font-size: 26px; font-weight: 700; color: #1A1A1A !important; text-decoration: none; letter-spacing: 0.5px; line-height: 1.2; margin-bottom: 12px;">
+                                        {phone_display}
                                     </a>
                                     <a href="{consultation_link}"
                                        style="display: inline-block; background: #25D366; color: #FFFFFF !important; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 15px; text-decoration: none; letter-spacing: 0.3px;">
