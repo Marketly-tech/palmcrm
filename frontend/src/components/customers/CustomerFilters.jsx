@@ -5,12 +5,15 @@ import { Card, CardContent } from "../ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../ui/select";
-import { Search, Filter, AlertTriangle, Building2 } from "lucide-react";
+import { Search, Filter, AlertTriangle, Building2, PhoneCall } from "lucide-react";
+
+const CALL_STATUS_OPTIONS = ["Dialed", "Connected", "Unanswered", "Follow-up", "Completed"];
 
 const CustomerFilters = ({
   search, setSearch, projectFilter, setProjectFilter,
   statusFilter, setStatusFilter, agreementFilter, setAgreementFilter,
   bankFilter, setBankFilter, banks,
+  callStatusFilter, setCallStatusFilter,
   projects, total,
 }) => (
   <Card>
@@ -63,7 +66,7 @@ const CustomerFilters = ({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button
             variant={agreementFilter === "overdue" ? "default" : "outline"} size="sm"
             onClick={() => setAgreementFilter(agreementFilter === "overdue" ? "" : "overdue")}
@@ -74,6 +77,38 @@ const CustomerFilters = ({
             Disbursement Overdue
             {agreementFilter === "overdue" && <Badge variant="secondary" className="ml-2 bg-white text-red-600">{total}</Badge>}
           </Button>
+
+          {/* Call-Status quick filter — sits next to the Overdue button so
+              the team can chain "Overdue + Unanswered" in one click. */}
+          <Select
+            value={callStatusFilter || "all"}
+            onValueChange={(v) => setCallStatusFilter?.(v === "all" ? "" : v)}
+          >
+            <SelectTrigger
+              className={`h-9 w-48 ${callStatusFilter ? "border-amber-400 bg-amber-50" : ""}`}
+              data-testid="filter-call-status-select"
+            >
+              <PhoneCall className="w-4 h-4 mr-2 text-amber-600" />
+              <SelectValue placeholder="All Call Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Call Statuses</SelectItem>
+              <SelectItem value="no_status">— Not Called Yet —</SelectItem>
+              {CALL_STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {callStatusFilter && (
+            <Badge
+              variant="secondary"
+              className="bg-amber-100 text-amber-800 border border-amber-200"
+              data-testid="filter-call-status-count"
+            >
+              {total} match{total === 1 ? "" : "es"}
+            </Badge>
+          )}
+
           {agreementFilter === "overdue" && (
             <span className="text-sm text-slate-500">Showing customers with pending payments as per current disbursement slab</span>
           )}

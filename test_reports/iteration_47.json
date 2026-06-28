@@ -1,0 +1,27 @@
+{
+  "summary": "Verified Call-Status filter dropdown on /customers (backend + frontend). 11/11 backend pytest passed. Frontend UI verified end-to-end: dropdown placement, all 7 options, amber active styling, match-count badge, combinable filters, no_status branch, denormalised latest_call_status maintenance across POST/PATCH/DELETE/quick-status follow-up mutations.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_call_status_filter.py",
+    "/app/test_reports/pytest/pytest_call_status_filter.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "customers/routes.py get_customers(): when call_status is set together with search/finance_bank (which already use $and/$or via _build_customer_query), the new ?call_status=no_status branch unconditionally assigns query['$or'] = [...] which can OVERWRITE a pre-existing top-level $or if any future filter introduces one at top level. Currently safe (existing $or lives inside $and), but worth wrapping the no_status condition into the and_clauses pattern for forward-safety.",
+    "CustomerFilters.jsx hard-codes CALL_STATUS_OPTIONS = ['Dialed','Connected','Unanswered','Follow-up','Completed'] — the same list also exists in the backend statuses payload and on the follow-up table. Consider sourcing from /api/customers/{id}/follow-ups statuses field or a shared constants module to avoid drift if a new status is ever added.",
+    "Badge pluralisation logic ('match' vs 'matches') is inline — fine for now, but if more match-count badges are added in the app, extract a small helper.",
+    "test_call_status_filter.py and several existing backend tests fall back to a hardcoded preview URL when REACT_APP_BACKEND_URL is missing — acceptable since runtime always sets it, but consider failing fast in tests to surface env misconfiguration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_call_status_filter.py (new)",
+    "/app/test_reports/pytest/pytest_call_status_filter.xml (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026 — Ramya customer 6d902613-5106-4294-bc3e-b907f85127f7 left at status 'Unanswered' (restored at test teardown).",
+  "seed_data_creation": "Only transient follow-up entries on the Ramya test customer; each test cleans up its own creations and the delete-all-restore test re-POSTs prior entries. Final state of Ramya at end of run: latest_call_status='Unanswered' (matches original).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_call_status_filter.py covers 7 filter behaviours (no filter, Connected, Unanswered, Completed, no_status, total-vs-page, combined w/ agreement_filter) and 4 denormalisation sequences (add, patch, delete-all, quick-status). Reuses Ramya customer; restores her follow_ups via re-POST after the delete-all test. Frontend Playwright sequence verified: dropdown options list, amber border-amber-400+bg-amber-50 trigger styling on non-default value, badge data-testid='filter-call-status-count' with singular/plural copy, URL params via captured network requests (call_status=, no_status=, combined agreement_filter+call_status). DB state at end: BESCOM Test User + Persist Test = no_status; JAYANTHI S = Completed; Ramya = Unanswered.",
+  "rca of the issue": "N/A — feature add verified working as specified. Backend filter uses denormalised latest_call_status with a $or fallback for no_status; in-memory derivation from follow_ups[] still runs for the Customer-list column rendering so legacy rows without the denormalised field still surface their status visually."
+}

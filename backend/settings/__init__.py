@@ -150,6 +150,31 @@ async def update_payment_due_date(customer_id: str, data: dict, user: dict = Dep
 
 
 # ==================== MULTI-LEVEL FOLLOW-UP TRACKER ====================
+async def _recompute_latest_call_status(db, customer_id: str) -> None:
+    """Denormalise the latest non-Completed call status onto the customer
+    document so the Customers list query can paginate + count cleanly when
+    filtering by call status (Mongo arrays don't index sub-document arrays
+    well enough for the same query to drive both filter and skip/limit).
+
+    Rule: latest_call_status = most-recent follow-up's status (any status,
+    including Completed). If no follow-ups exist the field is set to None.
+    """
+    doc = await db.customers.find_one(
+        {"id": customer_id}, {"_id": 0, "follow_ups": 1}
+    )
+    if not doc:
+        return
+    fus = doc.get("follow_ups") or []
+    if not fus:
+        latest = None
+    else:
+        latest = max(fus, key=lambda f: f.get("created_at") or "").get("status")
+    await db.customers.update_one(
+        {"id": customer_id},
+        {"$set": {"latest_call_status": latest}},
+    )
+
+
 async def _compute_overdue_stages(customer: dict) -> List[Dict[str, Any]]:
     """Return PAYMENT_STAGES entries where cumulative expected > total_received.
     Capped at the admin-set current stage (anything beyond that is "not yet due").
@@ -235,6 +260,7 @@ async def add_customer_follow_up(customer_id: str, data: dict, user: dict = Depe
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Customer not found")
+    await _recompute_latest_call_status(db, customer_id)
     await log_activity(
         user['id'], user['name'], "create", "follow_up", customer_id,
         f"Logged follow-up [{stage_info['name']}] status={status}"
@@ -250,6 +276,7 @@ async def delete_customer_follow_up(customer_id: str, follow_up_id: str, user: d
     )
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Follow-up not found")
+    await _recompute_latest_call_status(db, customer_id)
     await log_activity(user['id'], user['name'], "delete", "follow_up", customer_id, "Deleted follow-up")
     return {"message": "Follow-up deleted"}
 
@@ -289,6 +316,7 @@ async def quick_set_call_status(customer_id: str, data: dict, user: dict = Depen
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Customer not found")
+    await _recompute_latest_call_status(db, customer_id)
     await log_activity(
         user['id'], user['name'], "create", "follow_up", customer_id,
         f"Quick-set call status [{stage_info['name']}] → {status}"
@@ -324,6 +352,7 @@ async def update_customer_follow_up(
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Follow-up not found")
+    await _recompute_latest_call_status(db, customer_id)
     await log_activity(
         user['id'], user['name'], "update", "follow_up", customer_id,
         f"Updated follow-up status → {new_status}"

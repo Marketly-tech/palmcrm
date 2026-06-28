@@ -35,6 +35,7 @@ const CustomersPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [agreementFilter, setAgreementFilter] = useState("");
   const [bankFilter, setBankFilter] = useState("");
+  const [callStatusFilter, setCallStatusFilter] = useState("");
   const [banks, setBanks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -54,13 +55,13 @@ const CustomersPage = () => {
   // an empty page after narrowing the result set.
   useEffect(() => {
     setPage(0);
-  }, [search, projectFilter, statusFilter, agreementFilter, bankFilter, pageSize]);
+  }, [search, projectFilter, statusFilter, agreementFilter, bankFilter, callStatusFilter, pageSize]);
 
   useEffect(() => {
     fetchCustomers();
     fetchProjects();
     fetchBanks();
-  }, [search, projectFilter, statusFilter, agreementFilter, bankFilter, page, pageSize]);
+  }, [search, projectFilter, statusFilter, agreementFilter, bankFilter, callStatusFilter, page, pageSize]);
 
   const fetchCustomers = async () => {
     try {
@@ -70,6 +71,7 @@ const CustomersPage = () => {
       if (statusFilter) params.append("agreement_status", statusFilter);
       if (agreementFilter) params.append("agreement_filter", agreementFilter);
       if (bankFilter) params.append("finance_bank", bankFilter);
+      if (callStatusFilter) params.append("call_status", callStatusFilter);
       params.append("skip", String(page * pageSize));
       params.append("limit", String(pageSize));
       const response = await axios.get(`${API}/customers?${params.toString()}`);
@@ -162,6 +164,7 @@ const CustomersPage = () => {
         statusFilter={statusFilter} setStatusFilter={setStatusFilter}
         agreementFilter={agreementFilter} setAgreementFilter={setAgreementFilter}
         bankFilter={bankFilter} setBankFilter={setBankFilter} banks={banks}
+        callStatusFilter={callStatusFilter} setCallStatusFilter={setCallStatusFilter}
         projects={projects} total={total}
       />
 

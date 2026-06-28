@@ -178,6 +178,7 @@ async def get_customers(
     agreement_status: Optional[str] = None,
     agreement_filter: Optional[str] = None,
     finance_bank: Optional[str] = None,
+    call_status: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
     user: dict = Depends(get_current_user)
@@ -185,6 +186,18 @@ async def get_customers(
     """Get customers with filters."""
     db = get_database()
     query = _build_customer_query(search, project, agreement_status, finance_bank, agreement_filter)
+    # Call-status filter — relies on the denormalised ``latest_call_status``
+    # field maintained by settings._recompute_latest_call_status() on every
+    # follow-up mutation. ``no_status`` matches customers with no follow-ups
+    # yet (field absent or null).
+    if call_status:
+        if call_status == "no_status":
+            query["$or"] = [
+                {"latest_call_status": {"$exists": False}},
+                {"latest_call_status": None},
+            ]
+        else:
+            query["latest_call_status"] = call_status
 
     fetch_limit = limit * 2 if agreement_filter == "upcoming_due" else limit
     customers = await db.customers.find(query, {"_id": 0}).skip(skip).limit(fetch_limit).to_list(fetch_limit)
