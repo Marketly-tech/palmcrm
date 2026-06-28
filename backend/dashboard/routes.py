@@ -301,4 +301,15 @@ async def delete_orphan_transaction(transaction_id: str, user: dict = Depends(ge
             return {"error": "Refusing to delete — customer still exists. Use the per-customer payment-delete endpoint."}
 
     await db.payment_transactions.delete_one({"id": transaction_id})
+    # Compliance: financial mutations must always leave an audit trail.
+    try:
+        from settings import log_activity
+        await log_activity(
+            user["id"], user.get("name", "Unknown"),
+            "delete", "orphan_transaction", transaction_id,
+            f"Deleted orphan txn (customer_id={cid}, amount=₹{txn.get('amount', 0):,.0f})",
+        )
+    except Exception:
+        # Don't block the cleanup if the audit logger hiccups.
+        pass
     return {"deleted": True, "transaction_id": transaction_id, "amount": txn.get("amount", 0)}

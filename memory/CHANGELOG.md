@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-06-28 (feature) — Revenue Reconciliation Debug Card
+- New admin-only **Revenue Reconciliation** card on the main dashboard. Surfaces the gap between "Total Revenue Collected" (aggregate sum) and "Total Collected (Cumulative)" (per-customer loop) — current preview DB had 142 orphan transactions worth ₹9.22 Cr causing exactly this drift (customer_ids deleted while payment receipts stayed behind).
+- Backend endpoints (`backend/dashboard/routes.py`):
+  - `GET /api/dashboard/reconciliation` (admin-only) — returns both totals, difference, orphan list (cap 25, sorted by amount desc), verdict (`ok` / `orphans` / `unknown`) and a human-readable message.
+  - `POST /api/dashboard/reconciliation/delete-orphan/{transaction_id}` (admin-only) — hard-deletes an orphan txn; refuses if the customer_id still exists in customers (safety lock). Writes to `activity_logs` for audit compliance.
+- Frontend `ReconciliationCard.jsx`:
+  - 3-card grid (Total Revenue / Total Collected / Difference) with rose-red diff highlight when drift > ₹0.5.
+  - Inline orphan table with Trash button per row (shows 5 by default, "Show all" expands to 25). Optimistic removal after delete.
+  - Verdict-based theming (emerald=ok, amber=orphans, rose=unknown).
+  - Card returns null for non-admin roles (hidden silently — no error UI).
+- **Tested**: 8/8 backend pytest (`test_reconciliation.py`) + Playwright admin/sales role gating + delete-flow API. Iteration_48 — 100% pass, no defects.
+- Files: `backend/dashboard/routes.py`, `frontend/src/components/dashboard/ReconciliationCard.jsx` (new), `frontend/src/components/dashboard/index.js`, `frontend/src/pages/DashboardPage.js`. Tests: `backend/tests/test_reconciliation.py`.
+
 ## 2026-06-28 (feature) — Call-Status Filter on Customers List
 - New "All Call Statuses" Select dropdown on `/customers`, placed immediately next to the Disbursement Overdue button. Options: All / — Not Called Yet — / Dialed / Connected / Unanswered / Follow-up / Completed. Active selection gets amber styling + a "<n> match(es)" badge.
 - **Filter is combinable** — e.g. `Overdue + Unanswered` issues `?agreement_filter=overdue&call_status=Unanswered` to surface the highest-priority calls.

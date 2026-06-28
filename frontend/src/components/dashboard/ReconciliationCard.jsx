@@ -99,7 +99,11 @@ const ReconciliationCard = () => {
       toast.success(`Removed orphan transaction (${INR(txn.amount)})`);
       fetchReport({ silent: true });
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Failed to delete orphan");
+      // Backend returns {error: '...'} for admin-block / customer-still-exists,
+      // and {detail: '...'} for FastAPI HTTPException. Cover both.
+      const reason =
+        e?.response?.data?.error || e?.response?.data?.detail || "Failed to delete orphan";
+      toast.error(reason);
     } finally {
       setDeletingId(null);
     }
