@@ -173,3 +173,132 @@ async def get_upcoming_due_dates(user: dict = Depends(get_current_user)):
     upcoming.sort(key=lambda x: x['days_until_due'])
     
     return upcoming
+
+
+@router.get("/reconciliation")
+async def get_reconciliation_report(user: dict = Depends(get_current_user)):
+    """Reconcile the two revenue computations exposed on the dashboard.
+
+    Why this endpoint exists
+    ------------------------
+    The main "Total Revenue Collected" card uses a Mongo aggregation:
+        SUM(payment_transactions.amount)         ← every txn, ever
+    The "Total Collected (Cumulative)" card on the Payment Stage tile uses a
+    per-customer Python loop:
+        SUM_over_customers(SUM(their txns.amount))
+        ← only txns whose customer_id is still in the customers collection.
+
+    Difference between the two == ₹value of *orphan* transactions whose
+    customer_id no longer exists in customers (e.g. a lead/customer was hard
+    deleted while its payment receipts remained behind). Returns both totals,
+    the diff, and a sample list of the orphan rows so an admin can decide
+    whether to delete them or restore the missing customer.
+    """
+    if user.get("role") != "admin":
+        # Same access posture as the rest of the financial cards.
+        return {"error": "Admin role required to view reconciliation report."}
+
+    db = get_database()
+    # 1. Aggregation total — what the headline "Total Revenue Collected" shows
+    agg = await db.payment_transactions.aggregate([
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]).to_list(1)
+    aggregation_total = agg[0]["total"] if agg else 0
+    aggregation_count = agg[0]["count"] if agg else 0
+
+    # 2. Per-customer loop — what "Total Collected (Cumulative)" sums
+    customer_ids: set = set()
+    customer_index = {}
+    async for c in db.customers.find({}, {"_id": 0, "id": 1, "name": 1, "unit_number": 1, "project": 1}):
+        cid = c.get("id")
+        customer_ids.add(cid)
+        customer_index[cid] = c
+
+    txns = await db.payment_transactions.find({}, {"_id": 0}).to_list(100000)
+    loop_total = 0
+    loop_count = 0
+    orphan_total = 0
+    orphan_count = 0
+    null_amount_count = 0
+    orphans = []
+    for t in txns:
+        cid = t.get("customer_id")
+        amt = t.get("amount") or 0
+        if t.get("amount") is None:
+            null_amount_count += 1
+        if cid in customer_ids:
+            loop_total += amt
+            loop_count += 1
+        else:
+            orphan_total += amt
+            orphan_count += 1
+            orphans.append({
+                "transaction_id": t.get("id"),
+                "customer_id": cid,
+                "amount": amt,
+                "transaction_type": t.get("transaction_type"),
+                "transaction_date": t.get("transaction_date"),
+                "receipt_number": t.get("receipt_number"),
+                "narration": t.get("narration") or t.get("notes"),
+            })
+
+    # Surface the most impactful orphans first so the admin's "fix it" eyeball
+    # naturally lands on the biggest drift contributors.
+    orphans.sort(key=lambda o: o["amount"] or 0, reverse=True)
+    difference = aggregation_total - loop_total
+
+    if abs(difference) < 0.5:
+        verdict = "ok"
+        message = "Reconciled — both cards agree. No drift detected."
+    elif orphan_count > 0 and abs(difference - orphan_total) < 0.5:
+        verdict = "orphans"
+        message = (
+            f"Drift fully explained by {orphan_count} orphan transaction"
+            f"{'s' if orphan_count != 1 else ''} (₹{orphan_total:,.0f}). "
+            "These belong to customer IDs no longer in the customers collection — "
+            "likely from deleted leads. Resolve by either restoring the customer or deleting the orphan transactions."
+        )
+    else:
+        verdict = "unknown"
+        message = (
+            f"Drift of ₹{difference:,.0f} is NOT fully explained by orphan transactions. "
+            "Check for null amounts, duplicate txn rows, or schema-incompatible records."
+        )
+
+    return {
+        "aggregation_total": round(aggregation_total, 2),
+        "aggregation_count": aggregation_count,
+        "loop_total": round(loop_total, 2),
+        "loop_count": loop_count,
+        "difference": round(difference, 2),
+        "orphan_total": round(orphan_total, 2),
+        "orphan_count": orphan_count,
+        "null_amount_count": null_amount_count,
+        # Cap the sample at 25 — the UI shows a "View all" expander for the rest.
+        "orphan_samples": orphans[:25],
+        "verdict": verdict,
+        "message": message,
+    }
+
+
+@router.post("/reconciliation/delete-orphan/{transaction_id}")
+async def delete_orphan_transaction(transaction_id: str, user: dict = Depends(get_current_user)):
+    """Hard-delete a single orphan transaction (admin only). Refuses to act if
+    the transaction's customer_id IS in the customers collection — this is a
+    cleanup tool, not a generic delete endpoint.
+    """
+    if user.get("role") != "admin":
+        return {"error": "Admin role required."}
+
+    db = get_database()
+    txn = await db.payment_transactions.find_one({"id": transaction_id}, {"_id": 0})
+    if not txn:
+        return {"error": "Transaction not found."}
+    cid = txn.get("customer_id")
+    if cid:
+        exists = await db.customers.count_documents({"id": cid}, limit=1)
+        if exists:
+            return {"error": "Refusing to delete — customer still exists. Use the per-customer payment-delete endpoint."}
+
+    await db.payment_transactions.delete_one({"id": transaction_id})
+    return {"deleted": True, "transaction_id": transaction_id, "amount": txn.get("amount", 0)}

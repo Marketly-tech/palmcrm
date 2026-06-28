@@ -7,6 +7,7 @@ import { logError } from "../utils/logger";
 import {
   StatsCards, RevenueCards, PaymentStageCard, ExportDataCard,
   PaymentStatusChart, UpcomingPayments, DueDateCountdown, RecentActivity,
+  ReconciliationCard,
 } from "../components/dashboard";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -138,6 +139,11 @@ const DashboardPage = () => {
           formatCurrency={formatCurrency}
         />
       )}
+
+      {/* Reconciliation debug — admin-only. Surfaces and lets admin clean up
+          the gap between "Total Revenue Collected" (aggregate sum) and
+          "Total Collected (Cumulative)" (per-customer loop). */}
+      {hasRole("admin") && <ReconciliationCard />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {hasRole("admin") && <ExportDataCard onExport={handleExport} />}

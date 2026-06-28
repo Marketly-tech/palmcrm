@@ -6,3 +6,4 @@ export { default as PaymentStatusChart } from './PaymentStatusChart';
 export { default as UpcomingPayments } from './UpcomingPayments';
 export { default as DueDateCountdown } from './DueDateCountdown';
 export { default as RecentActivity } from './RecentActivity';
+export { default as ReconciliationCard } from './ReconciliationCard';
