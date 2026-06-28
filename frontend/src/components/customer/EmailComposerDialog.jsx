@@ -117,6 +117,11 @@ const EmailComposerDialog = ({
                         {emailComposerData.attachment_filename_3}
                       </Badge>
                     )}
+                    {emailComposerData.attachment_filename_4 && (
+                      <Badge variant="outline" className="text-xs">
+                        {emailComposerData.attachment_filename_4}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -135,8 +140,8 @@ const EmailComposerDialog = ({
           {/* Preview Tabs */}
           <div>
             <Tabs defaultValue="preview">
-              <TabsList className={`grid w-full max-w-2xl ${
-                emailComposerData.email_type === 'welcome' ? 'grid-cols-4' :
+              <TabsList className={`grid w-full max-w-3xl ${
+                emailComposerData.email_type === 'welcome' ? 'grid-cols-5' :
                 emailComposerData.email_type === 'interior' ? 'grid-cols-1' :
                 'grid-cols-3'
               }`}>
@@ -155,6 +160,9 @@ const EmailComposerDialog = ({
                 )}
                 {emailComposerData.attachment_html_3 && (
                   <TabsTrigger value="attachment3">Price Breakup</TabsTrigger>
+                )}
+                {emailComposerData.attachment_pdf_base64_4 && (
+                  <TabsTrigger value="attachment4">Registration Charges</TabsTrigger>
                 )}
               </TabsList>
               
@@ -177,6 +185,20 @@ const EmailComposerDialog = ({
               {emailComposerData.attachment_html_3 && (
                 <TabsContent value="attachment3" className="max-h-[300px] overflow-auto border rounded-lg mt-2 bg-white">
                   <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(emailComposerData.attachment_html_3) }} />
+                </TabsContent>
+              )}
+              
+              {emailComposerData.attachment_pdf_base64_4 && (
+                <TabsContent value="attachment4" className="max-h-[400px] border rounded-lg mt-2 bg-white">
+                  {/* Static PDF binary — rendered via iframe with a sandboxed
+                      data URL so the user can flip through the Total
+                      Registration Charges schedule directly in the dialog. */}
+                  <iframe
+                    title="Total Registration Charges Preview"
+                    src={`data:application/pdf;base64,${emailComposerData.attachment_pdf_base64_4}`}
+                    className="w-full h-[400px] border-0"
+                    data-testid="attachment-pdf-preview-4"
+                  />
                 </TabsContent>
               )}
             </Tabs>

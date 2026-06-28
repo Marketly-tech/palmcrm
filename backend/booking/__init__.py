@@ -22,7 +22,7 @@ from customers.models import Customer, DocumentChecklist, GoogleFormWebhook
 from documents.models import CommunicationLog
 from customers import generate_customer_id
 from utils.payment_helpers import auto_generate_booking_transaction
-from documents.templates import generate_welcome_email_html, generate_price_breakup_html, generate_booking_form_preview_html
+from documents.templates import generate_welcome_email_html, generate_price_breakup_html, generate_booking_form_preview_html, generate_terms_and_conditions_html
 from documents.templates.common import get_welcome_email_static_attachments
 
 logger = logging.getLogger(__name__)
@@ -132,23 +132,49 @@ def _calculate_pricing(data, fields):
 
 
 async def _send_booking_welcome_email(customer, doc):
-    """Send auto welcome email on booking submission."""
+    """Send auto welcome email on booking submission.
+
+    Attaches the full welcome-email document pack so the auto-sent email has
+    parity with the manual "Send Welcome Email" composer:
+      1. Booking Form Preview (snapshot of just-submitted form)
+      2. Terms & Conditions
+      3. Price Breakup
+      4. Static Total Registration Charges (asset)
+    """
     if not customer.email or not RESEND_API_KEY:
         return "not_sent"
     try:
         welcome_html = generate_welcome_email_html(doc)
+        customer_name_safe = customer.name.replace(' ', '_')
+        # Use the immutable snapshot captured at submission if present,
+        # otherwise fall back to live render (first-time booking path).
+        form_preview_html = (
+            doc.get('original_booking_form_html')
+            or generate_booking_form_preview_html(doc)
+        )
+        terms_conditions_html = generate_terms_and_conditions_html(doc)
         price_breakup_html = generate_price_breakup_html(doc)
+
         subject = f"Welcome to {customer.project} - Booking Confirmation & Terms"
         attachments = []
-        try:
-            pdf_bytes = HTML(string=price_breakup_html).write_pdf()
-            attachments.append({
-                "filename": f"RRL_PriceBreakup_{customer.name.replace(' ', '_')}.pdf",
-                "content": base64.b64encode(pdf_bytes).decode(),
-            })
-        except Exception as pdf_error:
-            logger.error(f"Error generating PDF for auto-email: {str(pdf_error)}")
-        # Append any static add-on PDFs (e.g. Total Registration Charges)
+        # Generate PDFs for each rendered HTML attachment. Individual failures
+        # are logged but don't block the email going out (e.g. if WeasyPrint
+        # chokes on one template, the others still ship).
+        rendered_pack = [
+            (f"RRL_BookingFormPreview_{customer_name_safe}.pdf", form_preview_html),
+            (f"RRL_TermsAndConditions_{customer_name_safe}.pdf", terms_conditions_html),
+            (f"RRL_PriceBreakup_{customer_name_safe}.pdf", price_breakup_html),
+        ]
+        for filename, html_str in rendered_pack:
+            try:
+                pdf_bytes = HTML(string=html_str).write_pdf()
+                attachments.append({
+                    "filename": filename,
+                    "content": base64.b64encode(pdf_bytes).decode(),
+                })
+            except Exception as pdf_error:
+                logger.error(f"Error generating PDF {filename} for auto-email: {pdf_error}")
+        # Append static welcome-email add-ons (e.g. Total Registration Charges)
         attachments.extend(get_welcome_email_static_attachments())
         params = {
             "from": f"{RESEND_FROM_NAME} <{RESEND_FROM_EMAIL}>",
@@ -163,8 +189,9 @@ async def _send_booking_welcome_email(customer, doc):
         result = await asyncio.to_thread(resend.Emails.send, params)
         if result.get("id"):
             db = get_database()
+            attachment_list = ", ".join(a["filename"] for a in attachments)
             log = CommunicationLog(customer_id=customer.id, channel="email", message_type="Auto Welcome Email",
-                content=f"To: {customer.email}\nSubject: {subject}\nResend ID: {result.get('id')}\n\n[Auto-sent on booking submission with Price Breakup PDF]",
+                content=f"To: {customer.email}\nSubject: {subject}\nResend ID: {result.get('id')}\nAttachments: {attachment_list}\n\n[Auto-sent on booking submission]",
                 status="sent", sent_by="system")
             log_doc = log.model_dump()
             log_doc['sent_at'] = log_doc['sent_at'].isoformat()

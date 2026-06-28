@@ -114,6 +114,12 @@ async def preview_welcome_email(customer_id: str, user: dict = Depends(get_curre
     filename_terms = f"RRL_TermsAndConditions_{customer_name_safe}.pdf"
     filename_price = f"RRL_PriceBreakup_{customer_name_safe}.pdf"
 
+    # Static welcome add-ons (e.g. Total Registration Charges) — these are
+    # raw PDF binaries on disk, so we surface them as base64 data URLs the
+    # composer can render in an <iframe>. Each entry has filename + content.
+    static_attachments = get_welcome_email_static_attachments()
+    static_4 = static_attachments[0] if static_attachments else None
+
     recipient_email = customer.get('email')
     subject = f"Welcome to {customer.get('project', 'RRL Builders')} - Booking Confirmation & Documents"
 
@@ -127,8 +133,13 @@ Please find attached the following documents for your reference:
 1. Booking Form Preview - Your submitted booking details
 2. Terms & Conditions - Important terms governing your allotment
 3. Price Breakup - Detailed price calculation
+4. Total Registration Charges - State registration & stamp duty schedule
 
 Your dedicated Relationship Director will connect with you personally to ensure that every interaction with us is seamless and tailored to your expectations."""
+
+    attachments_list = [filename_form, filename_terms, filename_price]
+    if static_4:
+        attachments_list.append(static_4["filename"])
 
     return {
         "email_type": "welcome",
@@ -143,7 +154,11 @@ Your dedicated Relationship Director will connect with you personally to ensure 
         "attachment_filename_2": filename_terms,
         "attachment_html_3": price_breakup_html,
         "attachment_filename_3": filename_price,
-        "attachments": [filename_form, filename_terms, filename_price],
+        # 4th slot — static PDF, served as base64 so the dialog can preview it
+        # via an <iframe> (binary blob has no HTML representation).
+        "attachment_filename_4": static_4["filename"] if static_4 else None,
+        "attachment_pdf_base64_4": static_4["content"] if static_4 else None,
+        "attachments": attachments_list,
         "has_sendgrid": bool(RESEND_API_KEY)
     }
 

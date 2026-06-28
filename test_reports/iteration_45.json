@@ -1,0 +1,32 @@
+{
+  "summary": "Verified bug fix for welcome email 4-PDF attachment pack. Backend: 5/5 pytest tests passed — preview endpoint returns all 4 attachment slots (3 HTML + 1 static PDF base64), public booking auto-send writes comm log listing all 4 filenames, manual send-welcome-email lists 4 attachments, send-document-email type=welcome still works. Frontend: Welcome dialog now shows 5 tabs and 4 attachment badges as designed; Registration Charges tab renders iframe with valid data:application/pdf;base64,... src. Sales Agreement dialog regression OK (no 4th tab).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_welcome_4_attachments.py",
+    "/app/test_reports/pytest/pytest_welcome_4_attachments.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "send-document-email/{cid} with email_type='welcome' attaches only 3 PDFs (no static Total_Registration_Charges). This is intentional per review_request ('that path didn't change') but inconsistent with send-welcome-email and the auto-booking flow. Consider unifying to always send 4 PDFs for welcome type.",
+    "Auto-send path in /app/backend/booking/__init__.py duplicates Resend params building (line ~179-189) instead of calling _resend_send() from email_service.routes — minor DRY violation; consider centralizing the Resend send helper.",
+    "communication_logs uses sent_by='system' as a literal string for auto-emails; UI/admin views may not resolve this gracefully. Consider standard SYSTEM_USER_ID constant."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_welcome_4_attachments.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026 — Ramya customer 6d902613-5106-4294-bc3e-b907f85127f7",
+  "seed_data_creation": "Auto-test creates temp customer with phone 9999000000 and unique unit TST-{hex6}; test cleans up via DELETE /api/customers/{id} in finally block.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_welcome_4_attachments.py covers all 4 paths (preview, manual send, public booking auto-send via comm log inspection, send-document-email). Cross-process mocking of resend.Emails.send is NOT possible (backend runs in supervisor); test validates via response payload + communication_logs entries. Interior email production failure is out-of-scope (requires redeployment).",
+  "rca of the issue": "Root cause: (1) Preview endpoint was returning only 3 attachments; fix added attachment_filename_4 + attachment_pdf_base64_4 from get_welcome_email_static_attachments(). (2) Auto-email in booking/_send_booking_welcome_email() only attached 2 PDFs; fix renders form_preview_html + terms_conditions_html + price_breakup_html PDFs and appends static asset, totalling 4. (3) Frontend EmailComposerDialog now uses grid-cols-5 for welcome and renders an iframe data-testid='attachment-pdf-preview-4' for the static PDF base64. All three layers validated."
+}
