@@ -304,43 +304,77 @@ Bangalore
 
 def generate_interior_email_html(customer: dict, subject: str, body: str) -> str:
     """Interior-specific email wrapper. Renders the editable body as before,
-    but appends three CTA buttons (Book Consultation / View Catalog /
-    Instagram) so the recipient can act in one click without needing the PDF
-    attachment.
+    but appends a mobile-friendly CTA section: a prominent WhatsApp number
+    block + three stacked, full-width CTA buttons (Book Consultation, View
+    Catalog, Instagram) so recipients can tap easily on phones without the
+    cramped 3-column layout we used before.
     """
     base_html = generate_document_email_html(customer, subject, body)
+    consultation_link = INTERIOR_CTA_LINKS["consultation_whatsapp"]
+    catalog_link = INTERIOR_CTA_LINKS["catalog"]
+    instagram_link = INTERIOR_CTA_LINKS["instagram"]
     cta_block = f'''
-        <div style="margin: 28px 0 8px 0; padding: 22px; background: #FFF8E1; border-left: 4px solid #D4AF37; border-radius: 6px;">
-            <div style="font-size: 13px; font-weight: 700; color: #1A1A1A; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;">Take the next step</div>
-            <div style="font-size: 13px; color: #555; margin-bottom: 18px;">
-                Connect with our Sunrise DesignHive team and start designing your dream home today.
-            </div>
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+        <!-- CTA block: mobile-first, single-column, full-width buttons.
+             Built with nested tables (email-client safest) and 100% width
+             anchors so on narrow screens nothing wraps awkwardly. -->
+        <div style="margin: 28px 0 8px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse: collapse;">
                 <tr>
-                    <td style="padding: 4px 6px 4px 0;">
-                        <a href="{INTERIOR_CTA_LINKS["consultation_whatsapp"]}"
-                           style="display: inline-block; background: #25D366; color: #FFFFFF !important; padding: 12px 22px; border-radius: 6px; font-weight: 600; font-size: 13px; text-decoration: none; text-align: center;">
-                            💬 Book a Design Consultation
-                        </a>
-                    </td>
-                    <td style="padding: 4px 6px;">
-                        <a href="{INTERIOR_CTA_LINKS["catalog"]}"
-                           style="display: inline-block; background: #1A1A1A; color: #D4AF37 !important; padding: 12px 22px; border-radius: 6px; font-weight: 600; font-size: 13px; text-decoration: none; text-align: center;">
-                            View Design Catalog
-                        </a>
-                    </td>
-                    <td style="padding: 4px 0 4px 6px;">
-                        <a href="{INTERIOR_CTA_LINKS["instagram"]}"
-                           style="display: inline-block; background: #FFFFFF; color: #1A1A1A !important; padding: 11px 22px; border: 1px solid #D4AF37; border-radius: 6px; font-weight: 600; font-size: 13px; text-decoration: none; text-align: center;">
-                            Follow on Instagram
-                        </a>
+                    <td style="padding: 22px; background: #FFF8E1; border-left: 4px solid #D4AF37; border-radius: 6px;">
+                        <!-- Headline -->
+                        <div style="font-size: 14px; font-weight: 700; color: #1A1A1A; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;">Take the next step</div>
+                        <div style="font-size: 14px; color: #555; line-height: 1.5; margin-bottom: 20px;">
+                            Connect with our Sunrise DesignHive team and start designing your dream home today.
+                        </div>
+
+                        <!-- Prominent phone block — big tap target, no need to squint -->
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse: collapse; margin-bottom: 18px;">
+                            <tr>
+                                <td style="background: #FFFFFF; border: 2px dashed #25D366; border-radius: 8px; padding: 16px 14px; text-align: center;">
+                                    <div style="font-size: 11px; font-weight: 600; color: #128C7E; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">
+                                        Call or WhatsApp Us Directly
+                                    </div>
+                                    <a href="tel:+919619995516" style="display: block; font-size: 26px; font-weight: 700; color: #1A1A1A !important; text-decoration: none; letter-spacing: 0.5px; line-height: 1.2; margin-bottom: 12px;">
+                                        +91 96199 95516
+                                    </a>
+                                    <a href="{consultation_link}"
+                                       style="display: inline-block; background: #25D366; color: #FFFFFF !important; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 15px; text-decoration: none; letter-spacing: 0.3px;">
+                                        Chat on WhatsApp →
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Stacked, full-width action buttons -->
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse: collapse;">
+                            <tr>
+                                <td style="padding-bottom: 10px;">
+                                    <a href="{consultation_link}"
+                                       style="display: block; background: #25D366; color: #FFFFFF !important; padding: 16px 20px; border-radius: 8px; font-weight: 700; font-size: 15px; text-decoration: none; text-align: center; line-height: 1.3;">
+                                        Book a Design Consultation
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding-bottom: 10px;">
+                                    <a href="{catalog_link}"
+                                       style="display: block; background: #1A1A1A; color: #D4AF37 !important; padding: 16px 20px; border-radius: 8px; font-weight: 700; font-size: 15px; text-decoration: none; text-align: center; line-height: 1.3;">
+                                        View Design Catalog
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="{instagram_link}"
+                                       style="display: block; background: #FFFFFF; color: #1A1A1A !important; padding: 15px 20px; border: 2px solid #D4AF37; border-radius: 8px; font-weight: 700; font-size: 15px; text-decoration: none; text-align: center; line-height: 1.3;">
+                                        Follow on Instagram
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
             </table>
-            <div style="margin-top: 14px; font-size: 11px; color: #888;">
-                Prefer a direct line? WhatsApp us at
-                <a href="{INTERIOR_CTA_LINKS["consultation_whatsapp"]}" style="color: #D4AF37; text-decoration: none;">+91 96199 95516</a>.
-            </div>
         </div>
     '''
     # Inject the CTA block just before the signature card. The base template

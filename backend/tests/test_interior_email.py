@@ -66,6 +66,50 @@ class TestInteriorPreview:
         # No cid: image refs
         assert "cid:" not in html, "cid: image ref present in interior email html"
 
+    def test_mobile_friendly_markers(self, headers):
+        """Verify mobile-friendly markup: viewport meta, media query,
+        big tel: link, WhatsApp button, and 3 stacked full-width CTAs."""
+        r = requests.get(
+            f"{BASE_URL}/api/communication/preview-interior-email/{TEST_CUSTOMER_ID}",
+            headers=headers,
+            timeout=20,
+        )
+        assert r.status_code == 200, r.text
+        html = r.json().get("email_html") or ""
+
+        # 1) viewport meta tag for mobile email clients
+        assert 'name="viewport"' in html, "viewport meta tag missing"
+        assert "width=device-width" in html, "viewport width missing"
+        assert "initial-scale=1.0" in html, "viewport initial-scale missing"
+
+        # 2) Mobile media query in base template
+        assert "@media only screen and (max-width: 600px)" in html, \
+            "mobile media query missing"
+
+        # 3) Prominent tel: link to +91 96199 95516 with 26px font
+        assert 'href="tel:+919619995516"' in html, "tel: link missing or wrong"
+        assert "font-size: 26px" in html, "26px phone font missing"
+
+        # 4) WhatsApp chat button text
+        assert "Chat on WhatsApp" in html, "Chat on WhatsApp button text missing"
+
+        # 5) wa.me link with the encoded prefilled message
+        assert "I%27d%20like%20to%20schedule" in html, \
+            "encoded prefilled WhatsApp message missing"
+
+        # 6) Three stacked full-width CTAs — display: block appears at least
+        #    3 times (phone tel anchor + 3 stacked CTA anchors = 4+).
+        display_block_count = html.count("display: block")
+        assert display_block_count >= 4, (
+            f"expected >=4 'display: block' occurrences for stacked CTAs + tel anchor, "
+            f"got {display_block_count}"
+        )
+
+        # 7) Confirm the three CTA labels still present (regression)
+        assert "Book a Design Consultation" in html
+        assert "View Design Catalog" in html
+        assert "Follow on Instagram" in html
+
     def test_preview_interior_subject(self, headers):
         r = requests.get(
             f"{BASE_URL}/api/communication/preview-interior-email/{TEST_CUSTOMER_ID}",
@@ -113,7 +157,8 @@ class TestRegressionOtherEmails:
         assert d.get("attachment_filename")
         assert d.get("attachment_filename_2")
         assert d.get("attachment_filename_3")
-        assert len(d.get("attachments", [])) == 3
+        # Welcome now has 4 attachments (added in iteration 45 — Total Registration Charges)
+        assert len(d.get("attachments", [])) == 4
 
     def test_sales_agreement_preview_has_2_attachments(self, headers):
         r = requests.get(
@@ -137,3 +182,28 @@ class TestRegressionOtherEmails:
         d = r.json()
         assert d.get("email_type") == "allotment_letter"
         assert d.get("attachment_filename")
+
+    def test_base_document_email_has_viewport_meta(self, headers):
+        """Regression: generate_document_email_html now contains the
+        viewport meta + mobile media query — verify it didn't break other
+        email types' render."""
+        # Sales agreement uses the base document template
+        r = requests.get(
+            f"{BASE_URL}/api/communication/preview-sales-agreement/{TEST_CUSTOMER_ID}",
+            headers=headers,
+            timeout=20,
+        )
+        assert r.status_code == 200
+        html = r.json().get("email_html") or ""
+        assert 'name="viewport"' in html, "viewport meta missing from sales email"
+        assert "@media only screen and (max-width: 600px)" in html, \
+            "mobile media query missing from sales email"
+
+        # Allotment letter also uses the base document template
+        r2 = requests.get(
+            f"{BASE_URL}/api/communication/preview-allotment-letter/{TEST_CUSTOMER_ID}",
+            headers=headers,
+            timeout=20,
+        )
+        html2 = r2.json().get("email_html") or ""
+        assert 'name="viewport"' in html2, "viewport meta missing from allotment email"

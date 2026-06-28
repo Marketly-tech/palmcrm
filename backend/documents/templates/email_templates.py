@@ -264,12 +264,21 @@ def generate_document_email_html(customer: dict, subject: str, body: str) -> str
     <html>
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="x-apple-disable-message-reformatting">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+            /* Mobile email rendering — narrow viewports get tighter padding so
+               the gold-bordered card and its CTA buttons aren't cropped. */
+            @media only screen and (max-width: 600px) {{
+                .rrl-card {{ border-radius: 6px !important; }}
+                .rrl-body {{ padding: 24px 18px !important; }}
+                .rrl-shell {{ padding: 14px !important; }}
+            }}
         </style>
     </head>
-    <body style="font-family: 'Roboto', Arial, sans-serif; background: #f5f5f5; padding: 30px; margin: 0; color: #1A1A1A;">
-        <div style="background: #fff; border: 2px solid #D4AF37; border-radius: 8px; max-width: 700px; margin: 0 auto; overflow: hidden;">
+    <body class="rrl-shell" style="font-family: 'Roboto', Arial, sans-serif; background: #f5f5f5; padding: 30px; margin: 0; color: #1A1A1A;">
+        <div class="rrl-card" style="background: #fff; border: 2px solid #D4AF37; border-radius: 8px; max-width: 700px; margin: 0 auto; overflow: hidden;">
             <!-- Header -->
             <div style="background: #1A1A1A; padding: 20px; display: flex; align-items: center;">
                 <div style="margin-right: 15px;">{get_logo_img_tag(80)}</div>
@@ -280,7 +289,7 @@ def generate_document_email_html(customer: dict, subject: str, body: str) -> str
             </div>
             
             <!-- Content -->
-            <div style="padding: 30px 35px; line-height: 1.8;">
+            <div class="rrl-body" style="padding: 30px 35px; line-height: 1.8;">
                 <div style="font-size: 14px; color: #333;">{body_html}</div>
                 
                 <!-- Signature -->

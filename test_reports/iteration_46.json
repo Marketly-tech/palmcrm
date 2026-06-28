@@ -1,0 +1,34 @@
+{
+  "summary": "Verified mobile-friendly interior email rewrite. Backend pytest 8/8 PASSED — preview returns HTML with viewport meta, @media max-width:600px query, tel:+919619995516 (26px), 'Chat on WhatsApp →' button, wa.me link with encoded 'I%27d%20like%20to%20schedule' message, and 3 stacked display:block CTAs (Book Consultation / View Catalog / Follow Instagram). Visual rendering at 420×900 (mobile) and 1280×1200 (desktop) confirms vertical CTA stack with full-width buttons, no horizontal scroll, gold-bordered card centred, dashed-green phone block does NOT overflow. send-document-email/{id} with email_type='interior' returns 200 sent with attachments=[]. Regression: welcome/sales/allotment previews unaffected; base document email template now also carries viewport meta + media query.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_interior_email.py",
+    "/app/test_reports/pytest/pytest_interior_email_mobile.xml",
+    "/app/test_reports/render_interior_email.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "generate_interior_email_html() builds the CTA block via string interpolation appended to a base template — works, but couples template structure to the '<!-- Signature -->' anchor string. If the base template is refactored, fallback inserts before </body>. Consider passing CTA content as a kwarg into generate_document_email_html for safer composition.",
+    "INTERIOR_CTA_LINKS is a module-level dict; phone number +91 96199 95516 is hardcoded inline in generate_interior_email_html (3 places: tel: href, displayed text, accessibility). Recommend lifting to the constant for single-source-of-truth (mirrors how URLs are already centralised).",
+    "_resend_send still treated as silently 'mocked' when RESEND_API_KEY is unset — fine for dev, but could mask a missing-key prod misconfig. Add a startup warning log when settings.RESEND_API_KEY is empty."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_interior_email.py (added test_mobile_friendly_markers + test_base_document_email_has_viewport_meta; corrected stale welcome attachments=3 → 4 from iteration 45)",
+    "/app/test_reports/render_interior_email.py (new helper to dump preview HTML for visual inspection)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026 — Ramya customer 6d902613-5106-4294-bc3e-b907f85127f7",
+  "seed_data_creation": "None. Send test uses recipient_email override (admin's own inbox) to avoid contacting the test customer.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_interior_email.py now has 8 tests covering preview shape, mobile markers (viewport meta, media query, tel:+919619995516 with 26px font, Chat on WhatsApp button, wa.me with I%27d%20like%20to%20schedule encoded prefill, ≥4 display:block occurrences), send path, and regression for welcome (4 attachments), sales (2), allotment (1), and base template viewport meta. Visual proof captured at /app/.screenshots/interior_email_mobile.png, interior_email_desktop.png, interior_email_cta_mobile.png. Phone tel anchor measurement: 26px font, display:block, width 272px inside parent 300px (no overflow). All 3 CTAs stack vertically on both mobile (tops 2070/2131/2193) and desktop (tops 1643/1704/1766) — intentional per UX spec.",
+  "rca of the issue": "Original bug: interior email CTAs were 3 columns wide on desktop, squeezing labels and wrapping on mobile. Fix replaces the 3-column row with a single-column nested-table layout where every CTA anchor has display:block with text-align:center, plus a dedicated dashed-green block containing the phone number as a 26px tel: link and a green 'Chat on WhatsApp' inline-block button. Base document email template (generate_document_email_html) gained <meta viewport> and a max-width:600px media query that tightens .rrl-body / .rrl-shell / .rrl-card padding on phones. Verified via pytest + Playwright headless render at 420×900 and 1280×1200."
+}
