@@ -410,6 +410,16 @@ async def send_document_email(customer_id: str, data: EmailSendRequest, user: di
         attachments_data.append({"filename": f"RRL_BookingFormPreview_{customer_name_safe}.pdf", "html": form_preview_html, "doc_type": DocumentType.WELCOME_LETTER})
         attachments_data.append({"filename": f"RRL_TermsAndConditions_{customer_name_safe}.pdf", "html": terms_conditions_html, "doc_type": DocumentType.WELCOME_LETTER})
         attachments_data.append({"filename": f"RRL_PriceBreakup_{customer_name_safe}.pdf", "html": price_breakup_html, "doc_type": DocumentType.PRICE_BREAKUP})
+        # Static add-ons (e.g. Total Registration Charges) — appended directly
+        # as base64 bytes so PDF rendering is skipped and the user-uploaded
+        # asset goes out byte-for-byte. Parity with /send-welcome-email and
+        # the public-booking auto-email path.
+        for static_att in get_welcome_email_static_attachments():
+            attachments_data.append({
+                "filename": static_att["filename"],
+                "static_bytes": base64.b64decode(static_att["content"]),
+                "doc_type": None,
+            })
     elif data.email_type == "sales_agreement":
         schedule = await db.payment_schedules.find_one({"customer_id": customer_id}, {"_id": 0})
         schedule_items = schedule.get('items', []) if schedule else []

@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-28 (bugfix) — Welcome Email: 4-PDF Attachment Pack & Preview Tab
+- **Bug A** (auto-welcome via public booking): only `PriceBreakup.pdf` + static `Total_Registration_Charges.pdf` were attached. Missing `BookingFormPreview.pdf` and `TermsAndConditions.pdf`. Fix in `backend/booking/__init__.py::_send_booking_welcome_email` — now renders form preview HTML + T&C HTML + Price Breakup HTML, attaches all 3 + the static asset (= 4 total). Comm-log content now lists each filename.
+- **Bug B** (composer preview): Total Registration Charges PDF was not previewable. Fix in `backend/email_service/routes.py::preview_welcome_email` — returns new `attachment_filename_4` + `attachment_pdf_base64_4` (base64 of the static PDF). `attachments[]` array updated to 4. Default body now lists item 4.
+- **Frontend** (`EmailComposerDialog.jsx`): 5th tab `Registration Charges` renders the static PDF in an `<iframe data-testid="attachment-pdf-preview-4">`. 4th badge added to the Attachments box. Tabs grid bumped to `grid-cols-5 max-w-3xl` for welcome.
+- **Parity fix**: `send-document-email` with `email_type=welcome` also now appends the static asset (was 3 attachments, now 4) — matches `_send_booking_welcome_email` + `send-welcome-email`.
+- **Interior email "not going" in prod**: verified send works in preview/dev. Production-only failure — user needs to redeploy to push these fixes (and earlier interior email refactor) to https://rrlcrm.com.
+- **Tested**: 5/5 backend pytest (`backend/tests/test_welcome_4_attachments.py`) + Playwright frontend (iteration_45 — 100% pass).
+- Files: `backend/booking/__init__.py`, `backend/email_service/routes.py`, `frontend/src/components/customer/EmailComposerDialog.jsx`.
+
 ## 2026-06-27 (hardening) — XSS Sanitisation + Lint Cleanup
 - New shared utility `frontend/src/utils/sanitize.js` exporting `sanitizeEmailHtml()` and `sanitizeText()`. Forbids `<script>/<iframe>/<object>/<embed>/<link>/<base>/<form>/<input>/<button>/<textarea>/<select>/<option>`, all `on*` event handlers, `formaction`, `srcdoc`. Auto-stamps `rel="noopener noreferrer"` on every `<a target=_blank>` via a `DOMPurify.addHook` registered once at module-load.
 - `frontend/src/utils/safePreview.js`: hardened. `openSafePreviewWindow` uses the strict config; new `openSafePdfPreview` validates the `data:application/pdf;` scheme prefix and escapes quotes before stamping into the iframe `src`. Both open the new window with `noopener,noreferrer`. Hook registration delegated to `sanitize.js` (no double-register).
