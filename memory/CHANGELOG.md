@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-28 (feature) — Call-Status Filter on Customers List
+- New "All Call Statuses" Select dropdown on `/customers`, placed immediately next to the Disbursement Overdue button. Options: All / — Not Called Yet — / Dialed / Connected / Unanswered / Follow-up / Completed. Active selection gets amber styling + a "<n> match(es)" badge.
+- **Filter is combinable** — e.g. `Overdue + Unanswered` issues `?agreement_filter=overdue&call_status=Unanswered` to surface the highest-priority calls.
+- **Backend**: new `call_status` query param on `GET /api/customers`. `no_status` matches customers whose `latest_call_status` field is missing or null. Special-cased in a future-safe `$and` merge so it doesn't clobber any pre-existing `$or` clause.
+- **Denormalisation**: new `_recompute_latest_call_status()` helper in `settings/__init__.py` writes a top-level `latest_call_status` field on the customer document whenever a follow-up is added/updated/deleted/quick-set. Backfilled current DB.
+- The in-memory derivation in `GET /api/customers` is kept as a fallback so legacy rows still render their status in the Call Status column.
+- Tested: 11/11 backend pytest (`test_call_status_filter.py`) + Playwright e2e — iter_47, 100% pass.
+- Files: `backend/customers/routes.py`, `backend/settings/__init__.py`, `frontend/src/components/customers/CustomerFilters.jsx`, `frontend/src/pages/CustomersPage.js`.
+
 ## 2026-06-28 (UX) — Interior Email: Mobile-Friendly + Prominent WhatsApp/Phone Block
 - **Bug**: 3-column CTA row squeezed on narrow viewports — button text wrapped vertically ("Book a Design / Consultation"). Phone number relegated to small print at the bottom.
 - **Fix** in `generate_interior_email_html`:

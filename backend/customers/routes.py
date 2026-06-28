@@ -192,10 +192,18 @@ async def get_customers(
     # yet (field absent or null).
     if call_status:
         if call_status == "no_status":
-            query["$or"] = [
+            no_status_clause = {"$or": [
                 {"latest_call_status": {"$exists": False}},
                 {"latest_call_status": None},
-            ]
+            ]}
+            # Merge defensively — if some future filter adds a top-level $or
+            # this would otherwise clobber it. Wrapping in $and keeps both
+            # conditions live.
+            if "$or" in query:
+                query.setdefault("$and", []).append({"$or": query.pop("$or")})
+                query["$and"].append(no_status_clause)
+            else:
+                query.update(no_status_clause)
         else:
             query["latest_call_status"] = call_status
 
