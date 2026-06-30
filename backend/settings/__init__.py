@@ -362,22 +362,61 @@ async def update_customer_follow_up(
 
 @followups_router.get("/follow-ups/pending")
 async def get_pending_follow_ups(user: dict = Depends(get_current_user)):
-    """Return all follow-ups whose status is not 'Completed', across every
-    customer. Used by the header notification bell — sorted with overdue at
-    the top, then by next_follow_up_date, then by created_at desc.
+    """Return at most ONE follow-up per (customer × stage) — the latest
+    non-Completed entry — so the header notification bell isn't flooded with
+    historical log rows for the same customer/stage. Also DROPS follow-ups
+    whose stage is no longer overdue for that specific customer (i.e. the
+    customer has already paid the cumulative amount expected at that stage),
+    so old slabs disappear automatically as payments come in.
+
+    Sort: past-due first, then today, then future by date+time, then
+    unscheduled (newest created first).
     """
     db = get_database()
     today_str = datetime.now(timezone.utc).date().isoformat()
     cursor = db.customers.find(
         {"follow_ups": {"$exists": True, "$ne": []}},
         {"_id": 0, "id": 1, "name": 1, "customer_id": 1, "unit_number": 1,
-         "tower": 1, "follow_ups": 1}
+         "tower": 1, "follow_ups": 1, "total_price": 1}
     )
-    pending = []
+
+    # Pre-load every customer's txn total once so we can compute "is this
+    # stage still overdue?" per (customer × stage) without N+1 round-trips.
+    pending: List[Dict[str, Any]] = []
     async for customer in cursor:
+        total_price = customer.get("total_price", 0) or 0
+        # Sum this customer's transactions (single query per customer — same
+        # pattern as _compute_overdue_stages).
+        txns = await db.payment_transactions.find(
+            {"customer_id": customer["id"]}, {"_id": 0, "amount": 1}
+        ).to_list(1000)
+        total_received = sum(t.get("amount", 0) or 0 for t in txns)
+
+        # 1. Collapse to latest entry per stage_key (drop old log rows for
+        #    the same customer × stage — fixes the "Connected + Follow-up
+        #    duplicate per customer" the user reported).
+        latest_per_stage: Dict[str, Dict[str, Any]] = {}
         for fu in customer.get("follow_ups", []) or []:
             if fu.get("status") == "Completed":
                 continue
+            stage_key = fu.get("stage_key") or ""
+            existing = latest_per_stage.get(stage_key)
+            if (not existing) or (
+                (fu.get("created_at") or "") > (existing.get("created_at") or "")
+            ):
+                latest_per_stage[stage_key] = fu
+
+        # 2. Drop stages this customer has already cleared (no longer overdue
+        #    at that slab) so the bell doesn't keep nagging about resolved
+        #    older slabs after payments come in.
+        for stage_key, fu in latest_per_stage.items():
+            stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+            if stage_info and total_price > 0:
+                expected_at_stage = (total_price * stage_info["cumulative"]) / 100
+                if total_received + 1 >= expected_at_stage:
+                    # Customer has already paid up to / past this slab → drop.
+                    continue
+
             d = fu.get("next_follow_up_date") or ""
             is_past_due = bool(d) and d < today_str
             is_today = bool(d) and d == today_str

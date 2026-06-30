@@ -1,0 +1,52 @@
+{
+  "summary": "Validated the notification-bell dedup + stage-paid-drop fix on GET /api/follow-ups/pending. Extended /app/backend/tests/test_notification_bell.py with 7 new test cases targeting the fix (dedup-to-latest, no cross-stage collapse, drop paid stage, keep unpaid far stage, keep next-unpaid stage, <2s perf, global no-duplicates invariant). All 18 tests in the file pass (11 existing + 7 new). Also ran an end-to-end UI/API verification: seeded 5 follow-ups on Ramya (3 on 'handover' same stage with different statuses, 1 on already-paid 'podium', 1 on unpaid '2nd_floor') and confirmed via the real API that the response was collapsed to exactly 2 rows (handover→latest 'Follow-up' status; 2nd_floor kept; podium dropped). All seeded data cleaned up.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/follow-ups/upcoming",
+        "issue": "Returns follow-ups with status='Completed' — observed 'JAYANTHI S | Completed' appearing in /upcoming response and rendering as an in-app reminder toast. Same Completed filter that /pending applies (line 400) is missing in /upcoming. Out of scope for this iteration's fix, but should be addressed since it produces a misleading 'Follow-up due' toast for an already-completed entry. Worth a separate fix that mirrors the /pending logic."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "NotificationBell popover",
+        "issues": [
+          "Only one data-testid ('notification-bell-btn') exists — no per-item testids (e.g. notification-item-{id}) or popover container testid. Makes targeted Playwright assertions on individual rows brittle. Low priority since fix is server-side and rendering is unchanged."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notification_bell.py",
+    "/app/test_reports/pytest/pytest_notification_bell_iter49.xml"
+  ],
+  "action_items": [
+    "OPTIONAL (not part of this iteration): Apply the same 'status != Completed' filter to GET /api/follow-ups/upcoming so the in-app reminder toast doesn't show already-completed follow-ups.",
+    "OPTIONAL (testability): Add data-testid={'notification-item-' + follow_up_id} and data-testid='notification-bell-popover' on the NotificationBell list and container for finer-grained Playwright assertions."
+  ],
+  "critical_code_review_comments": [
+    "Fix in /app/backend/settings/__init__.py lines 386-418 is correct, idempotent, and uses the same +1 INR tolerance as _compute_overdue_stages — internally consistent.",
+    "Dedup tie-breaker uses string comparison of created_at ISO strings (line 405). This is safe for ISO-8601 UTC timestamps but relies on consistent format — a small risk if a future writer stores naive/local timestamps. Consider a strict datetime.fromisoformat compare with a fallback.",
+    "Performance is one Mongo .to_list(1000) per customer for txn sum. Acceptable at preview-DB scale (verified <2s with 4 customers) but will not scale to thousands of customers. Future optimisation: a single $group aggregation indexed on customer_id, OR materialise total_received on the customer document.",
+    "Edge case total_price=0: the 'if stage_info and total_price > 0' guard at line 414 means follow-ups on a zero-priced customer are ALL KEPT (drop logic skipped). Documented behaviour — graceful, no division-by-zero. Verified by code review (no live zero-price customer in DB to test against).",
+    "/follow-ups/upcoming endpoint does NOT filter Completed status — confirmed via curl (JAYANTHI S | Completed appears in response). Same bug pattern as the /pending fix but in a sibling endpoint."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_notification_bell.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 pytest tests passing, including 7 new tests for iteration_49 fix)",
+    "frontend": "100% on the server-side correctness checks (API behavior verified via in-page fetch from authenticated session). NotificationBell DOM-level inspection limited because the Radix portal renders outside the captured viewport in the test harness; the underlying API the component reads from is fully validated."
+  },
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026 — confirmed working. Test customer 6d902613-5106-4294-bc3e-b907f85127f7 (Ramya) total_price=211655.79, total_received=85560 → ~40.4% paid (podium @ 40% is paid-up, 2nd_floor @ 45% is the next unpaid stage).",
+  "seed_data_creation": "During UI test, transiently seeded 5 TEST_ follow-ups on Ramya across stages handover/podium/2nd_floor. ALL 5 deleted at end of run (5x DELETE 200). Backend pytest also seeds and cleans up TEST_ follow-ups via the autouse cleanup_test_followups fixture (purges before+after the module).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iteration_49 dedup + stage-paid-drop fix on /api/follow-ups/pending is verified working at both unit-test and live-API level. Note that /api/follow-ups/upcoming has a SIMILAR bug (does not filter Completed status) — observed JAYANTHI S Completed entry in the toast notification. If main agent decides to fix /upcoming, mirror the 'if fu.status == Completed: continue' filter from /pending (settings/__init__.py line 400). Existing test_notification_bell.py file now contains 18 tests and is the regression suite for the notification bell.",
+  "rca of the issue": "Original bug: GET /api/follow-ups/pending returned a row PER raw follow_up sub-document, so a single customer-stage with multiple historical log entries (Dialed → Connected → Follow-up) produced 3 rows in the bell. Additionally, follow-ups whose stage the customer had already paid past were still emitted. Fix in /app/backend/settings/__init__.py lines 386-418: (1) Group by (customer × stage_key) into latest_per_stage dict, keeping the entry with max created_at and skipping any with status='Completed'. (2) For each remaining stage_key, look up PAYMENT_STAGES.cumulative% and drop the entry if total_received + 1 >= total_price * cumulative / 100 (with the 1 INR tolerance from _compute_overdue_stages for parity). Both branches verified by new tests; live API exercise on Ramya showed correct collapse and correct paid-stage drop."
+}

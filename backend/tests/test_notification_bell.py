@@ -47,9 +47,11 @@ def accounts_token():
 
 
 # ---------- Helpers ----------
-def _create_follow_up(token, *, status="Follow-up", next_date=None, next_time=None, notes="TEST_bell"):
+def _create_follow_up(token, *, status="Follow-up", next_date=None, next_time=None, notes="TEST_bell", stage_key="handover"):
+    # Default stage is `handover` (100%) so by default the follow-up is NOT
+    # auto-dropped by the new "paid-up stage" filter (Ramya is ~40% paid).
     payload = {
-        "stage_key": "podium",
+        "stage_key": stage_key,
         "status": status,
         "notes": notes,
         "next_follow_up_date": next_date,
@@ -100,8 +102,9 @@ class TestPendingEndpoint:
 
     def test_returns_list_and_excludes_completed(self, admin_token):
         # create two entries: one open Follow-up, one already Completed
-        open_fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_open")
-        done_fu = _create_follow_up(admin_token, status="Completed", notes="TEST_done")
+        # Use distinct unpaid stages so dedup doesn't drop either.
+        open_fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_open", stage_key="handover")
+        done_fu = _create_follow_up(admin_token, status="Completed", notes="TEST_done", stage_key="flooring")
         try:
             r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
             assert r.status_code == 200
@@ -129,10 +132,10 @@ class TestPendingEndpoint:
         today_str = today.isoformat()
         future_str = (today + timedelta(days=5)).isoformat()
 
-        past_fu = _create_follow_up(admin_token, next_date=past_str, notes="TEST_past")
-        today_fu = _create_follow_up(admin_token, next_date=today_str, next_time="10:00", notes="TEST_today")
-        future_fu = _create_follow_up(admin_token, next_date=future_str, notes="TEST_future")
-        unsched_fu = _create_follow_up(admin_token, next_date=None, notes="TEST_unsched")
+        past_fu = _create_follow_up(admin_token, next_date=past_str, notes="TEST_past", stage_key="2nd_floor")
+        today_fu = _create_follow_up(admin_token, next_date=today_str, next_time="10:00", notes="TEST_today", stage_key="6th_floor")
+        future_fu = _create_follow_up(admin_token, next_date=future_str, notes="TEST_future", stage_key="10th_floor")
+        unsched_fu = _create_follow_up(admin_token, next_date=None, notes="TEST_unsched", stage_key="handover")
         created = [past_fu["id"], today_fu["id"], future_fu["id"], unsched_fu["id"]]
         try:
             r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
@@ -266,3 +269,136 @@ class TestPatchFollowUp:
             assert r.status_code == 200
         finally:
             _delete_follow_up(admin_token, fu["id"])
+
+
+
+# ============================================================
+# iteration_49: Dedup + stage-paid-drop logic
+# ============================================================
+# PAYMENT_STAGES cumulative %s (from /app/backend/utils/payment_helpers.py):
+#   podium=40, 2nd_floor=45, 6th_floor=50, 10th_floor=55, 14th_floor=60,
+#   18th_floor=65, 22nd_floor=70, top_roof=80, flooring=90, handover=100
+# Ramya is ~40.4% paid → podium (40%) is fully cleared (paid-up), so any
+# follow-up on `podium` MUST be dropped. 2nd_floor (45%) is the next unpaid
+# stage and `handover` (100%) is the furthest unpaid stage.
+import time
+
+
+class TestDedupAndStageDropLogic:
+    """iteration_49 — collapse historical log entries to one row per
+    (customer × stage) and drop stages already paid-up by the customer."""
+
+    def test_dedup_to_latest_status_per_stage(self, admin_token):
+        """Seed 3 follow-ups on the SAME unpaid stage with different statuses
+        and verify only the LATEST (by created_at) appears in /pending."""
+        # Use 22nd_floor (70% cumulative) — well above Ramya's 40% paid
+        f1 = _create_follow_up(admin_token, status="Dialed", notes="TEST_dedup_1", stage_key="22nd_floor")
+        time.sleep(1.2)  # ensure created_at strictly increases (ISO sort)
+        f2 = _create_follow_up(admin_token, status="Connected", notes="TEST_dedup_2", stage_key="22nd_floor")
+        time.sleep(1.2)
+        f3 = _create_follow_up(admin_token, status="Follow-up", notes="TEST_dedup_3", stage_key="22nd_floor")
+        ids = {f1["id"], f2["id"], f3["id"]}
+        try:
+            r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
+            assert r.status_code == 200, r.text
+            data = r.json()
+            mine = [x for x in data
+                    if x["customer_id"] == TEST_CUSTOMER
+                    and x.get("stage_key") == "22nd_floor"
+                    and x["follow_up_id"] in ids]
+            # Exactly ONE entry — the latest by created_at — for this stage
+            assert len(mine) == 1, f"Expected 1 entry for 22nd_floor, got {len(mine)}: {mine}"
+            assert mine[0]["follow_up_id"] == f3["id"], (
+                f"Latest follow-up should be returned, got {mine[0]['follow_up_id']} (expected {f3['id']})"
+            )
+            assert mine[0]["status"] == "Follow-up"
+            assert mine[0]["notes"] == "TEST_dedup_3"
+        finally:
+            for fid in ids:
+                _delete_follow_up(admin_token, fid)
+
+    def test_dedup_does_not_collapse_different_stages(self, admin_token):
+        """Two follow-ups on DIFFERENT (unpaid) stages must both appear."""
+        a = _create_follow_up(admin_token, status="Follow-up", notes="TEST_diff_a", stage_key="2nd_floor")
+        b = _create_follow_up(admin_token, status="Follow-up", notes="TEST_diff_b", stage_key="handover")
+        try:
+            r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
+            assert r.status_code == 200
+            ids = {x["follow_up_id"] for x in r.json()}
+            assert a["id"] in ids, "Follow-up on 2nd_floor (45%) should appear (unpaid)"
+            assert b["id"] in ids, "Follow-up on handover (100%) should appear (unpaid)"
+        finally:
+            _delete_follow_up(admin_token, a["id"])
+            _delete_follow_up(admin_token, b["id"])
+
+    def test_drop_follow_up_on_paid_stage(self, admin_token):
+        """A follow-up logged on a stage the customer has ALREADY PAID
+        (podium @ 40% for Ramya who is at 40.4%) must NOT appear in /pending."""
+        fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_paid_stage_drop", stage_key="podium")
+        try:
+            r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
+            assert r.status_code == 200
+            ids = {x["follow_up_id"] for x in r.json()}
+            assert fu["id"] not in ids, (
+                "Follow-up on already-paid stage 'podium' (40%) MUST be dropped "
+                f"for Ramya (~40.4% paid). Got entry in response."
+            )
+            # Sanity: verify the follow-up DOES still exist on the customer
+            # record (we only drop from /pending, not from history).
+            g = requests.get(f"{API}/customers/{TEST_CUSTOMER}/follow-ups",
+                             headers=_hdr(admin_token), timeout=10)
+            assert g.status_code == 200
+            assert any(x["id"] == fu["id"] for x in g.json().get("follow_ups", [])), \
+                "Follow-up history should still contain the entry"
+        finally:
+            _delete_follow_up(admin_token, fu["id"])
+
+    def test_keep_follow_up_on_unpaid_far_stage(self, admin_token):
+        """A follow-up on a far-future unpaid stage (handover @ 100%) MUST
+        appear in /pending for a partially-paid customer."""
+        fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_unpaid_far", stage_key="handover")
+        try:
+            r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
+            assert r.status_code == 200
+            row = next((x for x in r.json() if x["follow_up_id"] == fu["id"]), None)
+            assert row is not None, \
+                "Follow-up on unpaid stage 'handover' (100%) should appear for ~40%-paid Ramya"
+            assert row["stage_key"] == "handover"
+            assert row["customer_id"] == TEST_CUSTOMER
+        finally:
+            _delete_follow_up(admin_token, fu["id"])
+
+    def test_keep_follow_up_on_next_unpaid_stage(self, admin_token):
+        """The immediately-next unpaid stage (2nd_floor @ 45% for Ramya
+        ~40.4%) must still appear."""
+        fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_next_unpaid", stage_key="2nd_floor")
+        try:
+            r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
+            assert r.status_code == 200
+            assert any(x["follow_up_id"] == fu["id"] for x in r.json()), \
+                "Follow-up on 2nd_floor (45%) MUST appear — customer only at ~40.4%"
+        finally:
+            _delete_follow_up(admin_token, fu["id"])
+
+    def test_endpoint_performance_under_2s(self, admin_token):
+        """Endpoint should complete in <2s even at current preview-DB scale."""
+        t0 = time.time()
+        r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=5)
+        elapsed = time.time() - t0
+        assert r.status_code == 200
+        assert elapsed < 2.0, f"Endpoint took {elapsed:.2f}s — possible N+1 explosion"
+
+    def test_no_duplicate_customer_stage_pairs_across_all_data(self, admin_token):
+        """Global invariant: response must never contain two rows sharing the
+        same (customer_id, stage_key). This is the user-reported screenshot
+        bug."""
+        r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
+        assert r.status_code == 200
+        seen = {}
+        dupes = []
+        for row in r.json():
+            key = (row.get("customer_id"), row.get("stage_key"))
+            if key in seen:
+                dupes.append(key)
+            seen[key] = row
+        assert not dupes, f"Duplicate (customer × stage) rows found in /pending: {dupes}"
