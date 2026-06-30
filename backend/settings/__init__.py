@@ -477,6 +477,10 @@ async def get_upcoming_follow_ups(within_minutes: int = 120, user: dict = Depend
     upcoming = []
     async for customer in cursor:
         for fu in customer.get("follow_ups", []) or []:
+            # Mirror /follow-ups/pending — skip already-completed entries so
+            # the reminder toast doesn't fire for resolved follow-ups.
+            if fu.get("status") == "Completed":
+                continue
             d = fu.get("next_follow_up_date")
             if not d:
                 continue

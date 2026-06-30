@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-06-28 (bugfix) — Notification Bell: De-dupe & Stage-Aware Filtering
+- **Bug 1** (user-reported, visible in screenshot): same customer × same stage appeared multiple times in the bell because every historical follow-up log entry was emitted (e.g. *Deepankar Dutta · 1-1303* listed once as `Connected` and again as `Follow-up`, both for the same '6th Floor Roof Slab' stage).
+- **Bug 2** (user-reported): old-stage follow-ups never dropped off even after the customer paid past that slab — the bell kept nagging on resolved stages.
+- **Bug 3** (caught by testing agent in same iteration): `/api/follow-ups/upcoming` did NOT filter `status='Completed'` — already-resolved entries still fired in-app reminder toasts.
+- **Fix** in `backend/settings/__init__.py::get_pending_follow_ups()`:
+  - Collapse to ONE entry per (customer × stage_key) — keep the latest by `created_at`, skip Completed.
+  - Drop the entry if `total_received + 1 INR ≥ total_price × stage.cumulative% / 100` (same +1 INR tolerance as `_compute_overdue_stages`) — so paid-up stages auto-clear.
+- **Fix** in `backend/settings/__init__.py::get_upcoming_follow_ups()`: also skip Completed entries.
+- Tested: 18/18 pytest in `test_notification_bell.py` (11 existing + 7 new) — iteration_49, 100% pass.
+- Files: `backend/settings/__init__.py`. Tests: `backend/tests/test_notification_bell.py`.
+
 ## 2026-06-28 (feature) — Revenue Reconciliation Debug Card
 - New admin-only **Revenue Reconciliation** card on the main dashboard. Surfaces the gap between "Total Revenue Collected" (aggregate sum) and "Total Collected (Cumulative)" (per-customer loop) — current preview DB had 142 orphan transactions worth ₹9.22 Cr causing exactly this drift (customer_ids deleted while payment receipts stayed behind).
 - Backend endpoints (`backend/dashboard/routes.py`):
