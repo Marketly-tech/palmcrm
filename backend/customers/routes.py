@@ -280,6 +280,7 @@ async def delete_customer(customer_id: str, user: dict = Depends(check_role([Use
     await db.document_checklists.delete_one({"customer_id": customer_id})
     await db.generated_documents.delete_many({"customer_id": customer_id})
     await db.communication_logs.delete_many({"customer_id": customer_id})
+    await db.payment_transactions.delete_many({"customer_id": customer_id})
     
     await log_activity(user['id'], user['name'], "delete", "customer", customer_id, "Deleted customer")
     return {"message": "Customer deleted"}

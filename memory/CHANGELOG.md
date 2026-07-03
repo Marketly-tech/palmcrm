@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-07-03 (feature) — Bulk-Delete Across All 8 Delete Surfaces
+- **Backend**: 8 new admin-only `POST /api/.../bulk-delete` endpoints, all accept `{ids: [...]}`:
+  - `POST /api/users/bulk-delete` — silently strips current user's id (self-lockout guard)
+  - `POST /api/customers/bulk-delete` — cascades to payment_schedules, document_checklists, generated_documents, communication_logs, payment_transactions
+  - `POST /api/templates/bulk-delete` — reverts overrides to defaults
+  - `POST /api/documents/bulk-delete` — generated documents
+  - `POST /api/customers/{customer_id}/documents/bulk-delete` — uploaded docs + strips pointers from customer.uploaded_documents
+  - `POST /api/transactions/{customer_id}/bulk-delete` — recomputes customer totals/percentages
+  - `POST /api/customers/{customer_id}/notes/bulk-delete` — MongoDB $pull with $in
+  - `POST /api/customers/{customer_id}/follow-ups/bulk-delete` — recomputes latest_call_status
+- **Parity fix**: single-delete `DELETE /api/customers/{id}` now also cascades to payment_transactions (previously orphaned; flagged by iteration_52 testing agent).
+- **Frontend reusable pieces**: `hooks/useBulkSelect.js` (Set-based O(1) toggle, isAllSelected/isPartiallySelected/clear helpers) + `components/common/BulkDeleteBar.jsx` (sticky red toolbar + AlertDialog listing up to 20 preview names).
+- **Wired into 8 surfaces**: Customers list, Users, Document Templates (chip-style multi-select), Generated Documents (regular + NOC), Uploaded Docs, Transactions, Notes, Follow-ups.
+- **Safety rails**: admin-only via `check_role([UserRole.ADMIN])` on every endpoint; UI toolbar only renders for `isAdmin=true`; empty/missing/non-array ids → 400; non-existent ids → 200 with `deleted_count:0` (no 500).
+- **Tested**: iteration_52 — 48/48 pytest cases green (`backend/tests/test_bulk_delete_iteration52.py`), 3/3 Playwright flows verified.
+- Files: `auth/routes.py`, `customers/routes.py`, `documents/routes.py`, `payments/routes.py`, `settings/__init__.py`, `hooks/useBulkSelect.js`, `components/common/BulkDeleteBar.jsx`, `pages/CustomersPage.js`, `pages/SettingsPage.js`, `pages/CustomerDetailPage.js`, `hooks/useCustomerPage.js`, `components/customers/CustomerTable.jsx`, `components/settings/UserManagementCard.jsx`, `components/settings/DocumentTemplatesTab.jsx`, `components/customer/{NotesTab,DocumentsTab,UploadsTab,FollowUpTracker,PaymentTrackingTab}.jsx`, `components/customer/payment/TransactionsTable.jsx`.
+
+## 2026-07-03 (feature) — Master Template Placeholder Coverage
+- Extended `_scrub_customer_values_to_placeholders` (now async) to also scrub word-form amounts (`{total_price_words}`, `{booking_amount_words}`, `{total_received_words}`), Indian-formatted amounts (both decimal variants) into `{*_formatted}`, applicant/co-applicant block into `{applicant_details_block}`, payment-schedule rows into `{payment_schedule_rows}`, booking/agreement transaction rows into `{transaction_rows}`, and the sales-agreement date string into `{agreement_date_text}`.
+- Extended `_build_placeholders` (now async, takes `db`) to resolve those same placeholders at render time.
+- Extracted 4 shared helpers into `documents/templates/common.py` (`build_agreement_date_text`, `build_applicant_details_block`, `build_payment_schedule_rows_html`, `build_transaction_rows_html`); refactored `sales_agreement_html.py` to use them for scrub↔render parity.
+- Files: `backend/documents/routes.py`, `backend/documents/generators.py`, `backend/documents/templates/common.py`, `backend/documents/templates/sales_agreement_html.py`.
+
+
 ## 2026-06-28 (feature) — Notification Bell: current_stage Filter
 - Both `/api/follow-ups/pending` and `/api/follow-ups/upcoming` now filter out follow-ups whose `stage_key` is past the admin-set `current_stage`. Reason: stages beyond current are not yet being collected — surfacing them in the bell is noise.
 - New helper `_valid_stage_keys(current_stage_key)` in `backend/settings/__init__.py` mirrors the walking logic in `_compute_overdue_stages()`. Fall-open semantics: unknown / missing / null current_stage → empty set → filter skipped (no accidental bell blackout).
