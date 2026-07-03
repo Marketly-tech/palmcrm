@@ -150,6 +150,29 @@ async def update_payment_due_date(customer_id: str, data: dict, user: dict = Dep
 
 
 # ==================== MULTI-LEVEL FOLLOW-UP TRACKER ====================
+def _valid_stage_keys(current_stage_key: Optional[str]) -> set:
+    """Return the set of ``stage_key`` values from ``PAYMENT_STAGES`` up to
+    and including ``current_stage_key`` (inclusive). Mirrors the walking
+    logic in ``_compute_overdue_stages()`` — anything past the admin-set
+    current stage is considered "not yet due" and should be filtered out of
+    the notification bell + reminder toasts.
+
+    Returns an empty set when ``current_stage_key`` is falsy or not present
+    in ``PAYMENT_STAGES`` — callers should treat an empty set as "no filter
+    can be applied" (they typically fall back to skipping the filter step
+    entirely so we don't accidentally drop every row).
+    """
+    if not current_stage_key:
+        return set()
+    valid: set = set()
+    for stage in PAYMENT_STAGES:
+        valid.add(stage["key"])
+        if stage["key"] == current_stage_key:
+            return valid
+    # current_stage_key wasn't in PAYMENT_STAGES → treat as "no filter".
+    return set()
+
+
 async def _recompute_latest_call_status(db, customer_id: str) -> None:
     """Denormalise the latest non-Completed call status onto the customer
     document so the Customers list query can paginate + count cleanly when
@@ -374,6 +397,12 @@ async def get_pending_follow_ups(user: dict = Depends(get_current_user)):
     """
     db = get_database()
     today_str = datetime.now(timezone.utc).date().isoformat()
+    # Load current disbursement stage once — used to filter out follow-ups
+    # whose stage_key is beyond what's currently being collected.
+    settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    current_stage_key = (settings_doc or {}).get("current_stage")
+    valid_stage_keys = _valid_stage_keys(current_stage_key)
+
     cursor = db.customers.find(
         {"follow_ups": {"$exists": True, "$ne": []}},
         {"_id": 0, "id": 1, "name": 1, "customer_id": 1, "unit_number": 1,
@@ -400,6 +429,10 @@ async def get_pending_follow_ups(user: dict = Depends(get_current_user)):
             if fu.get("status") == "Completed":
                 continue
             stage_key = fu.get("stage_key") or ""
+            # Drop stages beyond the admin-set current disbursement stage —
+            # these aren't due yet, so surfacing them in the bell is noise.
+            if valid_stage_keys and stage_key not in valid_stage_keys:
+                continue
             existing = latest_per_stage.get(stage_key)
             if (not existing) or (
                 (fu.get("created_at") or "") > (existing.get("created_at") or "")
@@ -470,6 +503,12 @@ async def get_upcoming_follow_ups(within_minutes: int = 120, user: dict = Depend
     db = get_database()
     now = datetime.now(timezone.utc)
     today_str = now.date().isoformat()
+    # Same current-stage filter as /follow-ups/pending — reminders should
+    # only fire for stages that are currently being collected.
+    settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    current_stage_key = (settings_doc or {}).get("current_stage")
+    valid_stage_keys = _valid_stage_keys(current_stage_key)
+
     cursor = db.customers.find(
         {"follow_ups": {"$exists": True, "$ne": []}},
         {"_id": 0, "id": 1, "name": 1, "customer_id": 1, "follow_ups": 1}
@@ -480,6 +519,10 @@ async def get_upcoming_follow_ups(within_minutes: int = 120, user: dict = Depend
             # Mirror /follow-ups/pending — skip already-completed entries so
             # the reminder toast doesn't fire for resolved follow-ups.
             if fu.get("status") == "Completed":
+                continue
+            # Drop stages beyond the admin-set current disbursement stage.
+            stage_key = fu.get("stage_key") or ""
+            if valid_stage_keys and stage_key not in valid_stage_keys:
                 continue
             d = fu.get("next_follow_up_date")
             if not d:

@@ -75,6 +75,32 @@ def _delete_follow_up(token, fid):
     )
 
 
+# ---------- Stage-scope fixture ----------
+def _set_current_stage(admin_token, stage_key):
+    """Set the admin's current disbursement stage (module-wide side effect —
+    always restore in a finally/teardown)."""
+    return requests.post(
+        f"{API}/settings/current-stage",
+        json={"current_stage": stage_key},
+        headers=_hdr(admin_token),
+        timeout=10,
+    )
+
+
+@pytest.fixture(autouse=True, scope="module")
+def stage_at_handover(admin_token):
+    """Bump admin's current_stage to ``handover`` for the module so the
+    generic bell tests can freely use any stage_key. Preserves + restores the
+    original stage in teardown. The stage-filter-specific tests scope their
+    own current_stage (they save/restore via try/finally).
+    """
+    prev = requests.get(f"{API}/settings/current-stage", headers=_hdr(admin_token), timeout=10)
+    prev_stage = prev.json().get("current_stage") if prev.status_code == 200 else "podium"
+    _set_current_stage(admin_token, "handover")
+    yield
+    _set_current_stage(admin_token, prev_stage or "podium")
+
+
 # ---------- Cleanup fixture: kills every TEST_ follow-up on Ramya before+after ----------
 @pytest.fixture(autouse=True, scope="module")
 def cleanup_test_followups(admin_token):
@@ -354,31 +380,43 @@ class TestDedupAndStageDropLogic:
             _delete_follow_up(admin_token, fu["id"])
 
     def test_keep_follow_up_on_unpaid_far_stage(self, admin_token):
-        """A follow-up on a far-future unpaid stage (handover @ 100%) MUST
-        appear in /pending for a partially-paid customer."""
-        fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_unpaid_far", stage_key="handover")
+        """Stages BEYOND the admin's current disbursement stage MUST be
+        filtered out of /pending — they aren't due yet, so surfacing them in
+        the bell is noise. This test scopes current_stage to 'podium' so that
+        'handover' (100%) is beyond it.
+        """
+        _set_current_stage(admin_token, "podium")
+        fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_beyond_current", stage_key="handover")
         try:
             r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
             assert r.status_code == 200
             row = next((x for x in r.json() if x["follow_up_id"] == fu["id"]), None)
-            assert row is not None, \
-                "Follow-up on unpaid stage 'handover' (100%) should appear for ~40%-paid Ramya"
-            assert row["stage_key"] == "handover"
-            assert row["customer_id"] == TEST_CUSTOMER
+            assert row is None, (
+                "Follow-up on 'handover' (100%) MUST be filtered out — it's "
+                "beyond the admin's current stage ('podium')."
+            )
         finally:
             _delete_follow_up(admin_token, fu["id"])
+            _set_current_stage(admin_token, "handover")
 
     def test_keep_follow_up_on_next_unpaid_stage(self, admin_token):
-        """The immediately-next unpaid stage (2nd_floor @ 45% for Ramya
-        ~40.4%) must still appear."""
-        fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_next_unpaid", stage_key="2nd_floor")
+        """Sibling assertion: stages just past the admin's current stage
+        (e.g. '2nd_floor' 45% when current is 'podium' 30%) are also filtered
+        out — same rationale as the far-stage test above.
+        """
+        _set_current_stage(admin_token, "podium")
+        fu = _create_follow_up(admin_token, status="Follow-up", notes="TEST_next_stage", stage_key="2nd_floor")
         try:
             r = requests.get(f"{API}/follow-ups/pending", headers=_hdr(admin_token), timeout=15)
             assert r.status_code == 200
-            assert any(x["follow_up_id"] == fu["id"] for x in r.json()), \
-                "Follow-up on 2nd_floor (45%) MUST appear — customer only at ~40.4%"
+            row = next((x for x in r.json() if x["follow_up_id"] == fu["id"]), None)
+            assert row is None, (
+                "Follow-up on '2nd_floor' (45%) MUST be filtered out — it's "
+                "beyond the admin's current stage ('podium')."
+            )
         finally:
             _delete_follow_up(admin_token, fu["id"])
+            _set_current_stage(admin_token, "handover")
 
     def test_endpoint_performance_under_2s(self, admin_token):
         """Endpoint should complete in <2s even at current preview-DB scale."""
