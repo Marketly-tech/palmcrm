@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-07-03 (bug fix) — Co-Applicant Missing From Restored Sales Agreement
+- **Bug**: After "Restore to Default" or Save-As-Master + regenerate, the Sales Agreement signature block showed `{customer_name} AND {co_applicant_name}` as literal placeholder text instead of the customer's real co-applicant name.
+- **Root cause**: `_scrub_customer_values_to_placeholders` was correctly scrubbing co-applicant scalars (`co_applicant_name`, `_father_name`, `_pan`, `_aadhar`, `_email`, `_phone`, `_address`) into `{co_applicant_*}` tokens, but `_build_placeholders` (used by the override-template render path) did not resolve those tokens back to customer data at render time. Same issue for `{customer_names}`, `{age}`, `{salutation}`, `{aadhaar_number}`, `{floor_ordinal}`, `{additional_parking}`, `{additional_parking_text}`, `{possession_date}`, `{base_price_formatted}`, `{club_house_formatted}`, `{parking_charges_formatted}`, `{labour_cess_formatted}`, `{gst_formatted}`, `{logo_img}`, `{company_name}` — all present in `sales_agreement_html.py` but missing from the fallback builder.
+- **Fix**: extended `_build_placeholders` in `documents/generators.py` to resolve every placeholder emitted by `sales_agreement_html.py`, so any Sales Agreement master template saved via `save_master_from_document` now re-renders correctly for any target customer (with or without a co-applicant).
+- **Verified**: iteration_52 91/91 pytest cases green. Manual check: signature block correctly renders `Ramya test lead AND Marketly` and PURCHASER block correctly renders the `Co-Applicant:` paragraph. Zero unresolved `{...}` tokens in the final doc.
+- Files: `backend/documents/generators.py`.
+
+
 ## 2026-07-03 (feature) — Bulk-Delete Across All 8 Delete Surfaces
 - **Backend**: 8 new admin-only `POST /api/.../bulk-delete` endpoints, all accept `{ids: [...]}`:
   - `POST /api/users/bulk-delete` — silently strips current user's id (self-lockout guard)

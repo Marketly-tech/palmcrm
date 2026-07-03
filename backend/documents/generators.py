@@ -34,8 +34,13 @@ from documents.templates.common import (
     build_applicant_details_block,
     build_payment_schedule_rows_html,
     build_transaction_rows_html,
+    format_customer_names,
+    calculate_age,
+    get_salutation,
+    get_logo_img_tag,
+    COMPANY_NAME,
 )
-from utils import number_to_indian_words
+from utils import number_to_indian_words, get_ordinal_suffix
 
 
 # Simple synchronous generators (no DB lookups beyond the customer doc)
@@ -184,8 +189,32 @@ async def _build_placeholders(
         format_indian_currency(total_received) if total_received else "0"
     )
 
+    # Sales-Agreement-style derived fields (kept in sync with sales_agreement_html.py
+    # so a master template saved from a Sales Agreement re-renders correctly).
+    base_price = customer.get('base_price', 0) or 0
+    club_house = customer.get('club_house_charges', 200000) or 200000
+    parking_charges = customer.get('additional_parking_charges', 0) or 0
+    labour_cess = customer.get('labour_cess', 0) or 0
+    gst_amount = customer.get('gst_amount', 0) or 0
+    additional_parking = customer.get('additional_parking', 0) or 0
+    additional_parking_text = (
+        f" + {additional_parking} additional parking space(s)"
+        if additional_parking else ""
+    )
+    floor_val = customer.get('floor', 0) or 0
+    try:
+        floor_int = int(floor_val)
+    except (TypeError, ValueError):
+        floor_int = 0
+    floor_ordinal = (
+        f"{floor_int}{get_ordinal_suffix(floor_int)}" if floor_int > 0 else "Ground"
+    )
+
     placeholders = {
         "{customer_name}": customer.get('name', ''),
+        "{customer_names}": format_customer_names(customer),
+        "{age}": calculate_age(customer.get('date_of_birth')),
+        "{salutation}": get_salutation(customer.get('gender')),
         "{customer_id}": customer.get('customer_id', ''),
         "{unit_number}": customer.get('unit_number', ''),
         "{tower}": customer.get('tower', ''),
@@ -199,23 +228,49 @@ async def _build_placeholders(
         "{booking_amount_formatted}": booking_amount_formatted,
         "{booking_amount_words}": number_to_indian_words(booking_amount),
         "{booking_date}": customer.get('booking_date', ''),
+        "{possession_date}": customer.get('possession_date', '30-09-2030'),
         "{date}": datetime.now().strftime("%d-%m-%Y"),
+        # Main-applicant scalars
         "{father_name}": customer.get('father_name', ''),
         "{pan_number}": customer.get('pan_number', ''),
+        "{aadhaar_number}": (
+            customer.get('aadhar_number', '') or customer.get('aadhaar_number', '')
+        ),
         "{phone}": customer.get('phone', ''),
         "{email}": customer.get('email', ''),
         "{address}": customer.get('address', ''),
+        # Co-applicant scalars — required so signature blocks and paragraphs
+        # scrubbed by save-as-master resolve correctly for the new customer.
+        "{co_applicant_name}": customer.get('co_applicant_name', ''),
+        "{co_applicant_father_name}": customer.get('co_applicant_father_name', ''),
+        "{co_applicant_aadhar}": customer.get('co_applicant_aadhar', ''),
+        "{co_applicant_pan}": customer.get('co_applicant_pan', ''),
+        "{co_applicant_email}": customer.get('co_applicant_email', ''),
+        "{co_applicant_phone}": customer.get('co_applicant_phone', ''),
+        "{co_applicant_address}": customer.get('co_applicant_address', ''),
+        # Property & pricing scalars
         "{bhk_type}": customer.get('bhk_type', ''),
         "{floor}": str(customer.get('floor', '')),
+        "{floor_ordinal}": floor_ordinal,
+        "{additional_parking}": str(additional_parking),
+        "{additional_parking_text}": additional_parking_text,
         "{rate_per_sqft}": str(customer.get('rate_per_sqft', 0)),
-        "{base_price}": str(customer.get('base_price', 0)),
-        "{gst_amount}": str(customer.get('gst_amount', 0)),
-        "{labour_cess}": str(customer.get('labour_cess', 0)),
-        "{club_house_charges}": str(customer.get('club_house_charges', 0)),
+        "{base_price}": str(base_price),
+        "{base_price_formatted}": format_indian_currency(base_price) if base_price else "0",
+        "{gst_amount}": str(gst_amount),
+        "{gst_formatted}": format_indian_currency(gst_amount) if gst_amount else "0",
+        "{labour_cess}": str(labour_cess),
+        "{labour_cess_formatted}": format_indian_currency(labour_cess) if labour_cess else "0",
+        "{club_house_charges}": str(club_house),
+        "{club_house_formatted}": format_indian_currency(club_house) if club_house else "0",
+        "{parking_charges_formatted}": (
+            format_indian_currency(parking_charges) if parking_charges else "0"
+        ),
         "{interest_amount}": str(customer.get('interest_amount', 0)),
-        # New row-heavy / narrative placeholders. Kept in sync with the
-        # authoritative sales_agreement_html.py generator so that a template
-        # saved from a Sales Agreement re-renders correctly for any customer.
+        # Branding
+        "{logo_img}": get_logo_img_tag(120),
+        "{company_name}": COMPANY_NAME,
+        # Narrative / row-heavy placeholders
         "{total_received}": str(total_received),
         "{total_received_formatted}": total_received_formatted,
         "{total_received_words}": number_to_indian_words(int(total_received)),
