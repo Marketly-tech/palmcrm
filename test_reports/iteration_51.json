@@ -1,0 +1,40 @@
+{
+  "summary": "Verified BUG FIX for POST /api/calculator/generate-schedule/{customer_id}. Every schedule item now has a real ISO YYYY-MM-DD due_date computed from booking_date + days_offset. 9/9 new pytest cases pass, and downstream endpoints (/api/payments/overview) now bucketize Ramya's items correctly (10 pending + 3 overdue) where previously they were silently skipped due to empty due_date strings.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/calculator/generate-schedule/{customer_id}", "issue": "Parser slice trick `booking_date_raw[:len(fmt)+6]` is fragile: for the first format '%Y-%m-%d' it slices to 14 chars, so an ISO datetime string like '2026-03-30T12:34:56' becomes '2026-03-30T12:' which fails strptime and then falls through to the next format — works today but adding a 4th shorter format later could cause silent mis-parsing. Consider explicit split('T')[0] for the date-only branch."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "UpcomingPayments dashboard widget", "issue": "Missing data-testid='upcoming-payments' on the outer Card (problem statement referenced this selector). Card is only locatable by its heading text.", "selector": "/app/frontend/src/components/dashboard/UpcomingPayments.jsx (line 6)", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_generate_schedule_duedates.py",
+    "/app/test_reports/pytest/pytest_generate_schedule_duedates.xml"
+  ],
+  "action_items": [
+    "Optional: add data-testid='upcoming-payments' on the UpcomingPayments Card so dashboard automation can pin the widget without heading fallback.",
+    "Optional hardening: replace `booking_date_raw[:len(fmt)+6]` slice heuristic in payments/routes.py with an explicit `booking_date_raw.split('T')[0]` for the date-only branch — parser works correctly today but the slice math is a latent hazard for future format additions."
+  ],
+  "critical_code_review_comments": [
+    "Fix is correct and defensive: (1) DEFAULT_PAYMENT_SCHEDULE now carries a days_offset on every stage (10→1200) matching the spec exactly; (2) generate_payment_schedule_for_customer parses booking_date via a strptime format-fallback list, computes due_date = booking_date + timedelta(days=days_offset), and never emits an empty string; (3) fallback to datetime.now(timezone.utc).date() when booking_date is missing/malformed — dashboard widgets stay live on legacy rows.",
+    "Downstream: /api/payments/overview (payments/routes.py:139-142) uses `datetime.strptime(item['due_date'], '%Y-%m-%d').date()` inside a try/continue — previously this silently dropped every item because due_date was ''. Now it correctly buckets items into pending/overdue/upcoming. No code change needed here — the fix at the source flows through.",
+    "GET /api/calculator/payment-schedule-template returns all 13 items with days_offset field (test confirms) — frontend can now consume it for preview if needed.",
+    "Regression: percentages sum to 100 (10+10+10+10+5+5+5+5+5+5+10+10+10), cumulative amounts match running total (verified in test)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_generate_schedule_duedates.py (new file, 9 test cases)"
+  ],
+  "success_rate": {"backend": "100% (9/9 new tests pass; unrelated pre-existing test_payment_stages/test_booking_transactions/test_export_features/test_rrl_crm_api failures caused by data drift or legacy auth-response-shape assumptions — NOT caused by this fix)", "frontend": "Visual smoke pass — dashboard loads, Overdue rollup surfaces 3 customers @ ₹1,33,56,266 (previously 0 because empty due_dates); UpcomingPayments (This Week) shows empty state which is correct as no schedule items fall in the current 7-day window from today (Jan 2026) vs Ramya's booking anchor of 2026-03-30."},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Two TEST_-prefixed scratch customers created (TEST_scratch_no_booking and TEST_scratch_iso_parser) — both DELETE'd in per-class teardown. Ramya's booking_date snapshot+restore via module fixture (still 2026-03-30). Ramya's payment_schedule was regenerated (per problem-statement guidance) with real due_dates.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iteration_51 verified the due_date fix end-to-end. Key artifacts: (a) /app/backend/tests/test_generate_schedule_duedates.py — 9 tests, all green; safe to re-run. (b) Ramya's regenerated schedule anchored on 2026-03-30 → booking 2026-04-09, agreement 2026-04-29, foundation 2026-06-28, podium 2026-09-26, 2nd_floor 2026-11-25. (c) /api/payments/overview now returns pending:10 overdue:3 upcoming:0 for the DB state — the '0 upcoming' is correct (no items in current 7-day window), NOT a regression. (d) The unrelated failures in test_booking_transactions (kuldeep/reddimasi 'customer not found', reddimasi 7 vs 8 transactions) and test_e2e_complete/test_rrl_crm_api/test_export_features are pre-existing data drift / legacy auth-response-shape assumptions — flagged for cleanup but out of scope for this iteration. (e) UpcomingPayments.jsx widget is missing a data-testid; only heading text 'Upcoming Payments (This Week)' works as a selector today.",
+  "rca of the issue": "Root cause was in payments/routes.py:generate_payment_schedule_for_customer — the item dict emitted `'due_date': ''` (hardcoded empty string). Every downstream consumer that parsed due_date via strptime (payments/routes.py:140, DueDateCountdown, overdue rollup, payment_due_date derivation) hit ValueError and either silently skipped the item (overview endpoint) or rendered blank UI. Fix applied by E1: (i) added days_offset to each DEFAULT_PAYMENT_SCHEDULE entry, (ii) parse customer.booking_date with strptime format-fallback list, (iii) compute due_date = booking_date + timedelta(days=offset), (iv) fallback anchor is today() when booking_date is missing/unparseable. Reproduction: prior to fix, POST /api/calculator/generate-schedule/{customer_id} returned items where item['due_date']==''; overview endpoint returned empty upcoming/overdue/pending buckets for those customers. Mitigation: fix already merged in payments/routes.py and payments/models.py; validated by 9 pytest cases and a live /api/payments/overview probe (now returns 10 pending + 3 overdue for Ramya)."
+}

@@ -404,7 +404,14 @@ async def get_payment_schedule_template(total_amount: float = 0):
 
 @calculator_router.post("/generate-schedule/{customer_id}")
 async def generate_payment_schedule_for_customer(customer_id: str, user: dict = Depends(get_current_user)):
-    """Auto-generate payment schedule based on customer's total price."""
+    """Auto-generate payment schedule based on customer's total price.
+
+    Each item's ``due_date`` is computed as ``booking_date + days_offset``
+    (from ``DEFAULT_PAYMENT_SCHEDULE``) so dashboard widgets (upcoming
+    payments, overdue rollup, DueDateCountdown) have a real anchor to work
+    against. Falls back to today's date when the customer has no
+    ``booking_date`` on file — better than leaving the field empty.
+    """
     db = get_database()
     customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
     if not customer:
@@ -413,12 +420,26 @@ async def generate_payment_schedule_for_customer(customer_id: str, user: dict = 
     total_amount = customer.get("total_price", 0)
     if total_amount <= 0:
         raise HTTPException(status_code=400, detail="Customer has no total price set")
-    
+
+    # Parse booking_date once — accept common ISO variants. Fallback to today
+    # keeps the widget wiring alive on legacy rows without a booking_date.
+    booking_date_raw = customer.get("booking_date") or ""
+    booking_date_obj = None
+    for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"):
+        try:
+            booking_date_obj = datetime.strptime(booking_date_raw[:len(fmt) + 6], fmt).date()
+            break
+        except (ValueError, TypeError):
+            continue
+    if booking_date_obj is None:
+        booking_date_obj = datetime.now(timezone.utc).date()
+
     items = []
     cumulative = 0
     for item in DEFAULT_PAYMENT_SCHEDULE:
         amount = total_amount * (item["percentage"] / 100)
         cumulative += amount
+        due_date = booking_date_obj + timedelta(days=int(item.get("days_offset", 0)))
         items.append({
             "id": str(uuid.uuid4()),
             "installment_name": item["installment_name"],
@@ -427,7 +448,7 @@ async def generate_payment_schedule_for_customer(customer_id: str, user: dict = 
             "percentage": item["percentage"],
             "amount": round(amount, 2),
             "cumulative": round(cumulative, 2),
-            "due_date": "",
+            "due_date": due_date.isoformat(),
             "payment_status": "pending",
             "payment_date": None
         })
