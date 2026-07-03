@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 52 — Verified bulk-delete across all 8 surfaces (customers, users, documents, uploads, transactions, notes, follow-ups, templates). Backend: 48/48 pytest cases pass (validation 400s, role gating 403s, non-existent-id -> deleted_count:0, cascade delete, self-lockout on users bulk-delete, totals recompute on transactions bulk-delete, uploaded_documents pointer-map strip, latest_call_status recompute on follow-ups bulk-delete). Frontend: BulkDeleteBar renders correctly on /customers (bar hidden at 0, appears at count>=1 with red style, dialog opens with preview list, Cancel/Clear work). Ramya detail tabs expose bulk-select checkboxes on Notes (2), Follow-ups (5), Uploads (3), Transactions (4), Documents (40+). Settings > User Management shows disabled self checkbox for the current admin.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/customers/{id} (single-delete)", "issue": "Single-delete does NOT cascade to payment_transactions, but POST /api/customers/bulk-delete DOES. Problem statement asserts 'parity with the single-delete' but the parity is actually broken by the single-delete path leaving orphan payment_transactions behind. Bulk-delete is strictly more thorough. Recommend adding db.payment_transactions.delete_many() to /app/backend/customers/routes.py:delete_customer (line 270)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bulk_delete_iteration52.py",
+    "/app/test_reports/pytest/pytest_bulk_delete_iteration52.xml"
+  ],
+  "action_items": [
+    "Optional parity fix: add `await db.payment_transactions.delete_many({\"customer_id\": customer_id})` to DELETE /api/customers/{id} single-delete handler (customers/routes.py line ~283) — bulk-delete already does this but single-delete leaves orphan txns."
+  ],
+  "critical_code_review_comments": [
+    "useBulkSelect hook is clean and reusable: exposes selectedIds/toggle/toggleAll/isAllSelected/isPartiallySelected/clear as promised. Set-based state is O(1) toggle. Header checkbox toggle correctly handles the mixed-selection case.",
+    "BulkDeleteBar returns null on selectedCount===0 (matches spec 'renders nothing when count=0'). Preview shows first 20 with a '…and N more' suffix. All 7 required test-ids per instance are wired (root, count, clear, trigger, dialog, preview, cancel, confirm). AlertDialog blocks close during delete (setDeleting guard on onOpenChange).",
+    "All 8 backend bulk-delete endpoints use check_role([UserRole.ADMIN]) as required. Validation is uniformly {ids:[]}->400, missing ids->400, non-array ids->400 (via `body.get('ids') or []` + isinstance check).",
+    "Users bulk-delete strips current_user.id server-side (line 215) — verified via test: admin passes [own_id, other_id] gets deleted_count=1 and /me still works.",
+    "Transactions bulk-delete correctly recomputes customer.total_received/balance_amount/percentages after delete_many.",
+    "Uploaded documents bulk-delete strips entries from customer.uploaded_documents pointer map (line 796-802).",
+    "Follow-ups bulk-delete calls _recompute_latest_call_status after $pull — verified: latest_call_status flips back after bulk-delete removes the newest entries.",
+    "Notes bulk-delete uses $pull with $in — atomic, no race condition.",
+    "Customers bulk-delete cascades to 5 collections (payment_schedules, document_checklists, generated_documents, communication_logs, payment_transactions). Note: this is MORE than single-delete cascades (single-delete misses payment_transactions) — flagged as minor above.",
+    "Templates bulk-delete removes overrides so defaults are restored — behavior matches single-delete /api/templates/{id}."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_bulk_delete_iteration52.py (new file, 48 test cases)"
+  ],
+  "success_rate": {"backend": "100% (48/48 pytest cases pass)", "frontend": "100% — CustomersPage bulk-delete E2E (checkbox column, bar visibility, count, clear, dialog, preview, cancel) all pass; customer-detail tabs (Notes/Follow-ups/Uploads/Transactions/Documents) expose bulk-select checkboxes with correct test-id prefixes; Settings > User Management disables the current admin's own row."},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026, Sales sales@rrlrprojects.com / sales123 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Backend tests create TEST_-prefixed throwaway customers (5 customers, 2 uploaded docs, 2 transactions, 2 generated docs, 2 notes on Ramya, 2 follow-ups on Ramya, 1 throwaway user) — all cleaned up by the bulk-delete path under test. No real data touched.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 52 verified all 8 bulk-delete surfaces end-to-end. Regression-safe test file: /app/backend/tests/test_bulk_delete_iteration52.py — 48 tests, all green, safe to re-run. Only minor finding: DELETE /api/customers/{id} single-delete doesn't cascade to payment_transactions while bulk-delete does — a pre-existing inconsistency, not caused by this iteration. The frontend Documents tab per-row checkbox uses testid prefix 'bulk-select-doc-' (not 'bulk-select-document-'); this differs from other tabs (bulk-select-note-, bulk-select-upload-, bulk-select-transaction-, bulk-select-follow-up-, bulk-select-user-, bulk-select-customer-) but the bulk-delete bar test-ids follow the standard bulk-delete-{surface} convention correctly.",
+  "rca of the issue": "N/A — feature completed correctly. All contract points (role gating, empty-ids 400, non-existent-ids returning deleted_count:0 without 500, self-lockout on users, cascade on customers, totals recompute on transactions, pointer-map strip on uploads, latest_call_status recompute on follow-ups) verified by 48 pytest cases + 3 Playwright flows."
+}

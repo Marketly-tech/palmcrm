@@ -135,6 +135,32 @@ async def delete_customer_note(customer_id: str, note_id: str, user: dict = Depe
     return {"message": "Note deleted"}
 
 
+@notes_router.post("/customers/{customer_id}/notes/bulk-delete")
+async def bulk_delete_customer_notes(
+    customer_id: str, body: Dict[str, Any],
+    user: dict = Depends(check_role([UserRole.ADMIN])),
+):
+    """Bulk delete notes for a customer (admin only). Body: ``{"ids": [...]}``."""
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids (non-empty list) is required")
+    ids = [i for i in ids if isinstance(i, str) and i]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    db = get_database()
+    result = await db.customers.update_one(
+        {"id": customer_id},
+        {"$pull": {"notes": {"id": {"$in": ids}}}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    await log_activity(
+        user['id'], user['name'], "bulk_delete", "note", customer_id,
+        f"Bulk deleted {len(ids)} notes",
+    )
+    return {"message": "Notes deleted", "deleted_count": len(ids)}
+
+
 @notes_router.put("/customers/{customer_id}/payment-due-date")
 async def update_payment_due_date(customer_id: str, data: dict, user: dict = Depends(get_current_user)):
     db = get_database()
@@ -302,6 +328,35 @@ async def delete_customer_follow_up(customer_id: str, follow_up_id: str, user: d
     await _recompute_latest_call_status(db, customer_id)
     await log_activity(user['id'], user['name'], "delete", "follow_up", customer_id, "Deleted follow-up")
     return {"message": "Follow-up deleted"}
+
+
+@followups_router.post("/customers/{customer_id}/follow-ups/bulk-delete")
+async def bulk_delete_customer_follow_ups(
+    customer_id: str, body: Dict[str, Any],
+    user: dict = Depends(check_role([UserRole.ADMIN])),
+):
+    """Bulk delete follow-up entries for a customer (admin only). Body:
+    ``{"ids": [...]}``. Recomputes the ``latest_call_status`` denormalised
+    field so the Customers list stays in sync."""
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids (non-empty list) is required")
+    ids = [i for i in ids if isinstance(i, str) and i]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    db = get_database()
+    result = await db.customers.update_one(
+        {"id": customer_id},
+        {"$pull": {"follow_ups": {"id": {"$in": ids}}}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    await _recompute_latest_call_status(db, customer_id)
+    await log_activity(
+        user['id'], user['name'], "bulk_delete", "follow_up", customer_id,
+        f"Bulk deleted {len(ids)} follow-ups",
+    )
+    return {"message": "Follow-ups deleted", "deleted_count": len(ids)}
 
 
 @followups_router.post("/customers/{customer_id}/follow-ups/quick-status")

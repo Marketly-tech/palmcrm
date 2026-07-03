@@ -8,7 +8,8 @@ from fastapi import APIRouter, HTTPException, Depends
 import uuid
 
 from database import get_database
-from auth import get_current_user, log_activity
+from utils.enums import UserRole
+from auth import get_current_user, log_activity, check_role
 from payments.models import (
     PaymentScheduleCreate, PaymentScheduleItem, PaymentTransaction, PaymentTransactionCreate,
     PriceCalculation, PriceResult, DisbursementCalculation, DisbursementResult, PaymentTrackingResult,
@@ -300,6 +301,52 @@ async def delete_transaction(customer_id: str, transaction_id: str, user: dict =
     await log_activity(user['id'], user['name'], "delete", "transaction", transaction_id, f"Deleted transaction for customer {customer_id}")
     
     return {"message": "Transaction deleted"}
+
+
+@transactions_router.post("/{customer_id}/bulk-delete")
+async def bulk_delete_transactions(
+    customer_id: str, body: Dict[str, Any],
+    user: dict = Depends(check_role([UserRole.ADMIN])),
+):
+    """Bulk delete transactions for a customer (admin only). Body:
+    ``{"ids": ["<txn_id>", ...]}``. Recomputes the customer's total_received /
+    balance / received & pending percentages afterwards."""
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids (non-empty list) is required")
+    ids = [i for i in ids if isinstance(i, str) and i]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    db = get_database()
+    result = await db.payment_transactions.delete_many(
+        {"id": {"$in": ids}, "customer_id": customer_id}
+    )
+
+    # Recompute customer totals
+    customer = await db.customers.find_one(
+        {"$or": [{"id": customer_id}, {"customer_id": customer_id}]}
+    )
+    if customer:
+        all_transactions = await db.payment_transactions.find(
+            {"customer_id": customer_id}, {"_id": 0, "amount": 1}
+        ).to_list(1000)
+        total_received = sum(t.get('amount', 0) or 0 for t in all_transactions)
+        total_price = customer.get('total_price', 0) or 0
+        balance_amount = total_price - total_received
+        await db.customers.update_one(
+            {"$or": [{"id": customer_id}, {"customer_id": customer_id}]},
+            {"$set": {
+                "total_received": total_received,
+                "balance_amount": balance_amount,
+                "payment_received_percentage": round((total_received / total_price) * 100, 2) if total_price > 0 else 0,
+                "payment_pending_percentage": round((balance_amount / total_price) * 100, 2) if total_price > 0 else 100,
+            }},
+        )
+    await log_activity(
+        user['id'], user['name'], "bulk_delete", "transaction", customer_id,
+        f"Bulk deleted {result.deleted_count} transactions",
+    )
+    return {"message": "Transactions deleted", "deleted_count": result.deleted_count}
 
 
 # ==================== PRICE CALCULATOR ====================

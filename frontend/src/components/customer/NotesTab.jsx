@@ -9,18 +9,25 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Separator } from "../ui/separator";
+import { Checkbox } from "../ui/checkbox";
 import { Plus, Loader2, Trash2, FileText } from "lucide-react";
 import FollowUpTracker from "./FollowUpTracker";
+import BulkDeleteBar from "../common/BulkDeleteBar";
+import useBulkSelect from "../../hooks/useBulkSelect";
 
 const NotesTab = ({
   notes,
   onAddNote,
   onDeleteNote,
+  onBulkDeleteNotes,
+  isAdmin = false,
   isAccountsRole = false,
   customerId,
 }) => {
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  const bulk = useBulkSelect(notes.map((n) => n.id));
+  const selectedNotes = notes.filter((n) => bulk.isSelected(n.id));
 
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
@@ -33,15 +40,31 @@ const NotesTab = ({
     }
   };
 
+  const handleBulk = async () => {
+    await onBulkDeleteNotes?.(bulk.selectedIds);
+    bulk.clear();
+  };
+
   return (
     <div className="space-y-6">
-      {customerId && <FollowUpTracker customerId={customerId} />}
+      {customerId && <FollowUpTracker customerId={customerId} isAdmin={isAdmin} />}
       <Card>
       <CardHeader>
         <CardTitle>Customer Notes</CardTitle>
         <CardDescription>Keep track of important information and follow-ups</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {isAdmin && (
+          <BulkDeleteBar
+            selectedCount={bulk.selectedCount}
+            onClear={bulk.clear}
+            onConfirm={handleBulk}
+            entityLabel="note"
+            entityLabelPlural="notes"
+            previewNames={selectedNotes.map((n) => (n.content || "").slice(0, 80))}
+            testId="bulk-delete-notes"
+          />
+        )}
         {/* Add Note Input */}
         <div className="flex gap-2">
           <Textarea
@@ -75,7 +98,16 @@ const NotesTab = ({
           <div className="space-y-3">
             {notes.map((note) => (
               <div key={note.id} className="p-4 bg-slate-50 rounded-lg border">
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-3">
+                  {isAdmin && (
+                    <Checkbox
+                      checked={bulk.isSelected(note.id)}
+                      onCheckedChange={() => bulk.toggle(note.id)}
+                      aria-label="Select note"
+                      className="mt-1"
+                      data-testid={`bulk-select-note-${note.id}`}
+                    />
+                  )}
                   <div className="flex-1">
                     <p className="text-slate-800 whitespace-pre-wrap">{note.content}</p>
                     <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">

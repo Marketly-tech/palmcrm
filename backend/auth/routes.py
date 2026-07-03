@@ -200,3 +200,25 @@ async def delete_user(user_id: str, user: dict = Depends(check_role([UserRole.AD
     
     await log_activity(user['id'], user['name'], "delete", "user", user_id, "Deleted user")
     return {"message": "User deleted"}
+
+
+@users_router.post("/bulk-delete")
+async def bulk_delete_users(
+    body: Dict[str, Any], user: dict = Depends(check_role([UserRole.ADMIN]))
+):
+    """Bulk delete users (admin only). Body: ``{"ids": ["<user_id>", ...]}``.
+    Skips the current user's own ID to prevent self-lockout.
+    """
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids (non-empty list) is required")
+    ids = [i for i in ids if isinstance(i, str) and i and i != user['id']]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No deletable IDs provided")
+    db = get_database()
+    result = await db.users.delete_many({"id": {"$in": ids}})
+    await log_activity(
+        user['id'], user['name'], "bulk_delete", "user", ",".join(ids),
+        f"Bulk deleted {result.deleted_count} users",
+    )
+    return {"message": "Users deleted", "deleted_count": result.deleted_count}

@@ -1,5 +1,6 @@
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
+import { Checkbox } from "../../ui/checkbox";
 import {
   Table,
   TableBody,
@@ -9,6 +10,8 @@ import {
   TableRow,
 } from "../../ui/table";
 import { Edit, Trash2, CreditCard, Receipt } from "lucide-react";
+import BulkDeleteBar from "../../common/BulkDeleteBar";
+import useBulkSelect from "../../../hooks/useBulkSelect";
 
 const stageClass = (stage) => {
   switch (stage) {
@@ -29,10 +32,20 @@ const TransactionsTable = ({
   transactions,
   formatCurrency,
   isAccountsRole,
+  isAdmin = false,
   handleEditTransaction,
   handleDeleteTransaction,
+  handleBulkDeleteTransactions,
   handleGenerateReceipt,
 }) => {
+  const bulk = useBulkSelect(transactions.map((t) => t.id));
+  const selectedTxns = transactions.filter((t) => bulk.isSelected(t.id));
+
+  const handleBulk = async () => {
+    await handleBulkDeleteTransactions?.(bulk.selectedIds);
+    bulk.clear();
+  };
+
   if (transactions.length === 0) {
     return (
       <div className="text-center py-8 text-slate-500">
@@ -44,74 +57,107 @@ const TransactionsTable = ({
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Receipt No.</TableHead>
-          <TableHead>Stage</TableHead>
-          <TableHead>Date</TableHead>
-          <TableHead>Bank Name</TableHead>
-          <TableHead>Transaction No.</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-          <TableHead>Notes</TableHead>
-          <TableHead className="text-center">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {transactions.map((txn) => (
-          <TableRow key={txn.id}>
-            <TableCell className="font-mono text-xs text-slate-600">
-              {txn.receipt_number || <span className="text-slate-300">—</span>}
-            </TableCell>
-            <TableCell>
-              <Badge className={stageClass(txn.transaction_stage)}>
-                {stageLabel(txn.transaction_stage)}
-              </Badge>
-            </TableCell>
-            <TableCell>{txn.transaction_date}</TableCell>
-            <TableCell>{txn.bank_name}</TableCell>
-            <TableCell className="font-mono text-sm">{txn.transaction_number}</TableCell>
-            <TableCell className="text-right font-medium">{txn.amount ? formatCurrency(txn.amount) : '-'}</TableCell>
-            <TableCell className="max-w-xs truncate" title={txn.notes}>{txn.notes || '-'}</TableCell>
-            <TableCell className="text-center">
-              <div className="flex justify-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleGenerateReceipt(txn)}
-                  data-testid={`receipt-transaction-${txn.id}`}
-                  title="Generate Payment Receipt"
-                  className="text-emerald-600 hover:text-emerald-700"
-                >
-                  <Receipt className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleEditTransaction(txn)}
-                  data-testid={`edit-transaction-${txn.id}`}
-                  title="Edit Transaction"
-                >
-                  <Edit className="w-4 h-4" />
-                </Button>
-                {!isAccountsRole && (
+    <div>
+      {isAdmin && (
+        <BulkDeleteBar
+          selectedCount={bulk.selectedCount}
+          onClear={bulk.clear}
+          onConfirm={handleBulk}
+          entityLabel="transaction"
+          entityLabelPlural="transactions"
+          previewNames={selectedTxns.map((t) => `${t.receipt_number || t.transaction_number || t.id.slice(0, 8)} — ${formatCurrency(t.amount || 0)}`)}
+          testId="bulk-delete-transactions"
+        />
+      )}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {isAdmin && (
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={bulk.isAllSelected ? true : bulk.isPartiallySelected ? "indeterminate" : false}
+                  onCheckedChange={bulk.toggleAll}
+                  aria-label="Select all transactions"
+                  data-testid="bulk-select-all-transactions"
+                />
+              </TableHead>
+            )}
+            <TableHead>Receipt No.</TableHead>
+            <TableHead>Stage</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Bank Name</TableHead>
+            <TableHead>Transaction No.</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Notes</TableHead>
+            <TableHead className="text-center">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {transactions.map((txn) => (
+            <TableRow key={txn.id}>
+              {isAdmin && (
+                <TableCell className="w-10">
+                  <Checkbox
+                    checked={bulk.isSelected(txn.id)}
+                    onCheckedChange={() => bulk.toggle(txn.id)}
+                    aria-label="Select transaction"
+                    data-testid={`bulk-select-transaction-${txn.id}`}
+                  />
+                </TableCell>
+              )}
+              <TableCell className="font-mono text-xs text-slate-600">
+                {txn.receipt_number || <span className="text-slate-300">—</span>}
+              </TableCell>
+              <TableCell>
+                <Badge className={stageClass(txn.transaction_stage)}>
+                  {stageLabel(txn.transaction_stage)}
+                </Badge>
+              </TableCell>
+              <TableCell>{txn.transaction_date}</TableCell>
+              <TableCell>{txn.bank_name}</TableCell>
+              <TableCell className="font-mono text-sm">{txn.transaction_number}</TableCell>
+              <TableCell className="text-right font-medium">{txn.amount ? formatCurrency(txn.amount) : '-'}</TableCell>
+              <TableCell className="max-w-xs truncate" title={txn.notes}>{txn.notes || '-'}</TableCell>
+              <TableCell className="text-center">
+                <div className="flex justify-center gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-500 hover:text-red-700"
-                    onClick={() => handleDeleteTransaction(txn.id)}
-                    data-testid={`delete-transaction-${txn.id}`}
-                    title="Delete Transaction"
+                    onClick={() => handleGenerateReceipt(txn)}
+                    data-testid={`receipt-transaction-${txn.id}`}
+                    title="Generate Payment Receipt"
+                    className="text-emerald-600 hover:text-emerald-700"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Receipt className="w-4 h-4" />
                   </Button>
-                )}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditTransaction(txn)}
+                    data-testid={`edit-transaction-${txn.id}`}
+                    title="Edit Transaction"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  {!isAccountsRole && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700"
+                      onClick={() => handleDeleteTransaction(txn.id)}
+                      data-testid={`delete-transaction-${txn.id}`}
+                      title="Delete Transaction"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 

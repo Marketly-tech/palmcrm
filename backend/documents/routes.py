@@ -262,6 +262,28 @@ async def delete_template(template_id: str, user: dict = Depends(check_role([Use
     return {"message": "Template removed, default restored"}
 
 
+@router.post("/templates/bulk-delete")
+async def bulk_delete_templates(
+    body: Dict[str, Any], user: dict = Depends(check_role([UserRole.ADMIN]))
+):
+    """Bulk-remove admin override templates (admin only). Body: ``{"ids": [...]}``.
+    Reverts each affected doc_type to the built-in default.
+    """
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids (non-empty list) is required")
+    ids = [i for i in ids if isinstance(i, str) and i]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    db = get_database()
+    result = await db.document_templates.delete_many({"id": {"$in": ids}})
+    await log_activity(
+        user['id'], user['name'], "bulk_delete", "template", ",".join(ids),
+        f"Bulk removed {result.deleted_count} override templates",
+    )
+    return {"message": "Templates removed, defaults restored", "deleted_count": result.deleted_count}
+
+
 @router.post("/templates/snapshot/{doc_type}")
 async def snapshot_default_template(doc_type: DocumentType, body: Dict[str, Any], user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER]))):
     """Render the default document for a sample customer and save the HTML as
@@ -520,6 +542,26 @@ async def delete_generated_document(doc_id: str, user: dict = Depends(get_curren
     return {"message": "Document deleted successfully"}
 
 
+@router.post("/documents/bulk-delete")
+async def bulk_delete_generated_documents(
+    body: Dict[str, Any], user: dict = Depends(check_role([UserRole.ADMIN]))
+):
+    """Bulk delete generated documents (admin only). Body: ``{"ids": [...]}``."""
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids (non-empty list) is required")
+    ids = [i for i in ids if isinstance(i, str) and i]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    db = get_database()
+    result = await db.generated_documents.delete_many({"id": {"$in": ids}})
+    await log_activity(
+        user['id'], user['name'], "bulk_delete", "document", ",".join(ids),
+        f"Bulk deleted {result.deleted_count} generated documents",
+    )
+    return {"message": "Documents deleted", "deleted_count": result.deleted_count}
+
+
 # ==================== PAYMENT RECEIPT ====================
 async def _ensure_receipt_number(db, transaction: dict) -> dict:
     """Backfill a receipt_number on legacy transactions that don't have one."""
@@ -729,6 +771,40 @@ async def delete_uploaded_document(customer_id: str, doc_id: str, user: dict = D
 
     await log_activity(user['id'], user['name'], "delete", "uploaded_document", doc_id, f"Deleted uploaded document: {doc.get('filename', doc.get('doc_type'))}")
     return {"message": "Document deleted successfully"}
+
+
+@upload_router.post("/customers/{customer_id}/documents/bulk-delete")
+async def bulk_delete_uploaded_documents(
+    customer_id: str, body: Dict[str, Any],
+    user: dict = Depends(check_role([UserRole.ADMIN])),
+):
+    """Bulk delete uploaded documents for a customer (admin only). Body:
+    ``{"ids": ["<doc_id>", ...]}``. Also strips the pointers from the
+    customer's ``uploaded_documents`` map."""
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids (non-empty list) is required")
+    ids = [i for i in ids if isinstance(i, str) and i]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    db = get_database()
+    result = await db.customer_documents.delete_many(
+        {"id": {"$in": ids}, "customer_id": customer_id}
+    )
+    # Strip these ids from the customer's uploaded_documents pointer map
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if customer:
+        uploaded_docs = customer.get('uploaded_documents', {}) or {}
+        pruned = {k: v for k, v in uploaded_docs.items() if v not in ids}
+        if pruned != uploaded_docs:
+            await db.customers.update_one(
+                {"id": customer_id}, {"$set": {"uploaded_documents": pruned}}
+            )
+    await log_activity(
+        user['id'], user['name'], "bulk_delete", "uploaded_document",
+        customer_id, f"Bulk deleted {result.deleted_count} uploaded documents",
+    )
+    return {"message": "Documents deleted", "deleted_count": result.deleted_count}
 
 
 # ==================== DOCUMENT CHECKLIST ====================

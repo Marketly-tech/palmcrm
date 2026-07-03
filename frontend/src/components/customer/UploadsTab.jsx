@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Checkbox } from "../ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Upload, FileText, Eye, Download, Trash2, Loader2 } from "lucide-react";
+import BulkDeleteBar from "../common/BulkDeleteBar";
+import useBulkSelect from "../../hooks/useBulkSelect";
 
 const UploadsTab = ({
   uploadedDocs,
@@ -28,12 +31,21 @@ const UploadsTab = ({
   onPreview,
   onDownload,
   onDelete,
+  onBulkDelete,
+  isAdmin = false,
   isAccountsRole = false,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [docType, setDocType] = useState("");
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const bulk = useBulkSelect(uploadedDocs.map((d) => d.id));
+  const selectedDocs = uploadedDocs.filter((d) => bulk.isSelected(d.id));
+
+  const handleBulk = async () => {
+    await onBulkDelete?.(bulk.selectedIds);
+    bulk.clear();
+  };
 
   const handleUpload = async () => {
     if (!docType || !file) return;
@@ -110,11 +122,30 @@ const UploadsTab = ({
         </Dialog>
       </CardHeader>
       <CardContent>
+        {isAdmin && (
+          <BulkDeleteBar
+            selectedCount={bulk.selectedCount}
+            onClear={bulk.clear}
+            onConfirm={handleBulk}
+            entityLabel="upload"
+            entityLabelPlural="uploads"
+            previewNames={selectedDocs.map((d) => `${d.doc_type} — ${d.filename}`)}
+            testId="bulk-delete-uploads"
+          />
+        )}
         {uploadedDocs.length > 0 ? (
           <div className="space-y-4">
             {uploadedDocs.map((doc) => (
               <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-4">
+                  {isAdmin && (
+                    <Checkbox
+                      checked={bulk.isSelected(doc.id)}
+                      onCheckedChange={() => bulk.toggle(doc.id)}
+                      aria-label="Select upload"
+                      data-testid={`bulk-select-upload-${doc.id}`}
+                    />
+                  )}
                   <FileText className="w-8 h-8 text-blue-500" />
                   <div>
                     <p className="font-medium capitalize">{doc.doc_type.replace(/_/g, " ")}</p>

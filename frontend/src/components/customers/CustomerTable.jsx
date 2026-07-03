@@ -1,6 +1,7 @@
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
+import { Checkbox } from "../ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "../ui/table";
@@ -32,14 +33,18 @@ const callStatusClass = (status) => {
 const CustomerTable = ({
   customers, loading, isAccountsRole, agreementFilter, bankFilter,
   onNavigate, onDeleteClick, onAgreementStatusChange, onCallStatusChange,
+  isAdmin = false, bulk = null, bulkBar = null,
 }) => {
   const showOverdue = !!bankFilter || agreementFilter === "overdue";
   const totalOverdue = showOverdue
     ? customers.reduce((sum, c) => sum + (c._overdue_amount || 0), 0)
     : 0;
+  const showBulkColumn = isAdmin && bulk;
 
   return (
-    <Card>
+    <div>
+      {bulkBar}
+      <Card>
       <CardContent className="p-0">
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -49,6 +54,16 @@ const CustomerTable = ({
           <Table>
             <TableHeader>
               <TableRow>
+                {showBulkColumn && (
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={bulk.isAllSelected ? true : bulk.isPartiallySelected ? "indeterminate" : false}
+                      onCheckedChange={bulk.toggleAll}
+                      aria-label="Select all customers"
+                      data-testid="bulk-select-all-customers"
+                    />
+                  </TableHead>
+                )}
                 <TableHead>Booking ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Project</TableHead>
@@ -69,6 +84,16 @@ const CustomerTable = ({
             <TableBody>
               {customers.map((customer) => (
                 <TableRow key={customer.id} className="cursor-pointer hover:bg-slate-50" onClick={() => onNavigate(`/customers/${customer.id}`)} data-testid={`customer-row-${customer.id}`}>
+                  {showBulkColumn && (
+                    <TableCell onClick={(e) => e.stopPropagation()} className="w-10">
+                      <Checkbox
+                        checked={bulk.isSelected(customer.id)}
+                        onCheckedChange={() => bulk.toggle(customer.id)}
+                        aria-label={`Select ${customer.name}`}
+                        data-testid={`bulk-select-customer-${customer.id}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-mono text-sm">{customer.booking_number || customer.customer_id}</TableCell>
                   <TableCell>
                     <div>
@@ -131,7 +156,7 @@ const CustomerTable = ({
               ))}
               {showOverdue && bankFilter && (
                 <TableRow className="bg-slate-900 hover:bg-slate-900" data-testid="overdue-total-row">
-                  <TableCell colSpan={6} className="text-right font-semibold text-white text-sm">
+                  <TableCell colSpan={showBulkColumn ? 7 : 6} className="text-right font-semibold text-white text-sm">
                     Total Overdue ({bankFilter})
                   </TableCell>
                   <TableCell className="text-right font-mono font-bold text-amber-400 text-base" data-testid="overdue-total-amount">
@@ -151,6 +176,7 @@ const CustomerTable = ({
         )}
       </CardContent>
     </Card>
+    </div>
   );
 };
 

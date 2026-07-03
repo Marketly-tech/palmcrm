@@ -27,6 +27,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
+import { Checkbox } from "../ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../ui/select";
@@ -34,6 +35,8 @@ import {
   PhoneCall, Loader2, Plus, Trash2, AlertTriangle, Bell, CalendarClock,
 } from "lucide-react";
 import { playFollowUpChime } from "../../utils/followUpSound";
+import BulkDeleteBar from "../common/BulkDeleteBar";
+import useBulkSelect from "../../hooks/useBulkSelect";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -46,7 +49,7 @@ const STATUS_COLORS = {
   Completed: "bg-violet-100 text-violet-700 border-violet-200",
 };
 
-const FollowUpTracker = ({ customerId }) => {
+const FollowUpTracker = ({ customerId, isAdmin = false }) => {
   const [data, setData] = useState({
     follow_ups: [],
     overdue_stages: [],
@@ -56,6 +59,7 @@ const FollowUpTracker = ({ customerId }) => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const bulk = useBulkSelect(data.follow_ups.map((fu) => fu.id));
 
   // Form state
   const [stageKey, setStageKey] = useState("");
@@ -126,6 +130,20 @@ const FollowUpTracker = ({ customerId }) => {
       await fetchFollowUps();
     } catch {
       toast.error("Failed to delete follow-up");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      const res = await axios.post(
+        `${API}/customers/${customerId}/follow-ups/bulk-delete`,
+        { ids: bulk.selectedIds },
+      );
+      toast.success(`Deleted ${res.data?.deleted_count ?? bulk.selectedIds.length} follow-ups`);
+      bulk.clear();
+      await fetchFollowUps();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to bulk-delete follow-ups");
     }
   };
 
@@ -321,6 +339,22 @@ const FollowUpTracker = ({ customerId }) => {
           </div>
         ) : (
           <div className="space-y-4" data-testid="follow-up-history">
+            {isAdmin && (
+              <BulkDeleteBar
+                selectedCount={bulk.selectedCount}
+                onClear={bulk.clear}
+                onConfirm={handleBulkDelete}
+                entityLabel="follow-up"
+                entityLabelPlural="follow-ups"
+                previewNames={data.follow_ups
+                  .filter((fu) => bulk.isSelected(fu.id))
+                  .map((fu) => {
+                    const stage = data.all_stages.find((s) => s.key === fu.stage_key);
+                    return `${stage?.name || fu.stage_key} • ${fu.status}`;
+                  })}
+                testId="bulk-delete-follow-ups"
+              />
+            )}
             {Object.entries(groupedByStage).map(([key, items]) => {
               const stage = data.all_stages.find((s) => s.key === key);
               const isOverdue = overdueKeys.has(key);
@@ -360,6 +394,15 @@ const FollowUpTracker = ({ customerId }) => {
                           data-testid={`follow-up-entry-${fu.id}`}
                         >
                           <div className="flex items-start justify-between gap-3">
+                            {isAdmin && (
+                              <Checkbox
+                                checked={bulk.isSelected(fu.id)}
+                                onCheckedChange={() => bulk.toggle(fu.id)}
+                                aria-label="Select follow-up"
+                                className="mt-1"
+                                data-testid={`bulk-select-follow-up-${fu.id}`}
+                              />
+                            )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge

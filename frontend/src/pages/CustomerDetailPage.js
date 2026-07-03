@@ -90,6 +90,7 @@ const CustomerDetailPage = () => {
             customer={h.customer} transactions={h.transactions}
             overdueInfo={h.overdueInfo} formatCurrency={h.formatCurrency}
             isAccountsRole={h.isAccountsRole}
+            isAdmin={h.isAdmin}
             disbursementPercentage={h.disbursementPercentage}
             setDisbursementPercentage={h.setDisbursementPercentage}
             editingDueDate={h.editingDueDate} setEditingDueDate={h.setEditingDueDate}
@@ -103,6 +104,7 @@ const CustomerDetailPage = () => {
             handleSaveTransaction={h.handleSaveTransaction}
             handleEditTransaction={h.handleEditTransaction}
             handleDeleteTransaction={h.handleDeleteTransaction}
+            handleBulkDeleteTransactions={h.handleBulkDeleteTransactions}
             handleGenerateReceipt={h.handleGenerateReceipt}
           />
         </TabsContent>
@@ -132,6 +134,7 @@ const CustomerDetailPage = () => {
         <TabsContent value="documents">
           <DocumentsTab
             documents={h.documents} isAccountsRole={h.isAccountsRole}
+            isAdmin={h.isAdmin}
             customer={h.customer}
             onGenerateDocument={async (docType) => {
               try {
@@ -145,6 +148,7 @@ const CustomerDetailPage = () => {
             onPreviewDocument={h.handlePreviewDocument}
             onDownloadDocument={h.handleDownloadDocument}
             onDeleteDocument={h.handleDeleteDocClick}
+            onBulkDeleteDocuments={h.handleBulkDeleteGeneratedDocs}
             onGenerateNoc={h.handleGenerateNoc}
             generatingNoc={h.generatingNoc}
           />
@@ -153,6 +157,7 @@ const CustomerDetailPage = () => {
         <TabsContent value="uploads">
           <UploadsTab
             uploadedDocs={h.uploadedDocs} isAccountsRole={h.isAccountsRole}
+            isAdmin={h.isAdmin}
             onUpload={async (docType, file) => {
               const formData = new FormData();
               formData.append("file", file);
@@ -166,6 +171,7 @@ const CustomerDetailPage = () => {
             onPreview={h.handlePreviewUploadedDoc}
             onDownload={h.handleDownloadUploadedDoc}
             onDelete={h.handleDeleteDocClick}
+            onBulkDelete={h.handleBulkDeleteUploadedDocs}
           />
         </TabsContent>
 
@@ -202,7 +208,9 @@ const CustomerDetailPage = () => {
                 toast.success("Note deleted");
               } catch { toast.error("Failed to delete note"); }
             }}
+            onBulkDeleteNotes={h.handleBulkDeleteNotes}
             isAccountsRole={h.isAccountsRole}
+            isAdmin={h.isAdmin}
           />
         </TabsContent>
       </Tabs>

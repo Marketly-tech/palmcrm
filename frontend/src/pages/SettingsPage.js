@@ -118,6 +118,16 @@ const SettingsPage = () => {
     } catch { toast.error("Failed to delete user"); }
   };
 
+  const handleBulkDeleteUsers = async (ids) => {
+    try {
+      const res = await axios.post(`${API}/users/bulk-delete`, { ids });
+      toast.success(`Deleted ${res.data?.deleted_count ?? ids.length} users`);
+      fetchUsers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to bulk-delete users");
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="settings-page">
       <div>
@@ -143,6 +153,8 @@ const SettingsPage = () => {
               onResetPassword={(u) => { setResetPasswordUser(u); setNewPassword(""); setConfirmPassword(""); setShowNewPassword(false); setResetPasswordDialogOpen(true); }}
               onToggleStatus={handleToggleUserStatus}
               onDeleteUser={handleDeleteUser}
+              onBulkDeleteUsers={handleBulkDeleteUsers}
+              isAdmin={hasRole("admin")}
               getRoleBadge={getRoleBadge}
             />
           ) : (

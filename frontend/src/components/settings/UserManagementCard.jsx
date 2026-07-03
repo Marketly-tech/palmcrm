@@ -3,6 +3,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
+import { Checkbox } from "../ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "../ui/table";
@@ -15,116 +16,162 @@ import {
 import {
   UserPlus, Loader2, Edit, KeyRound, Trash2,
 } from "lucide-react";
+import BulkDeleteBar from "../common/BulkDeleteBar";
+import useBulkSelect from "../../hooks/useBulkSelect";
 
 const UserManagementCard = ({
   users, loading, currentUserId, isAccountsRole,
   userDialogOpen, setUserDialogOpen, newUser, setNewUser, saving,
   onCreateUser, onEditUser, onResetPassword, onToggleStatus, onDeleteUser,
+  onBulkDeleteUsers, isAdmin = false,
   getRoleBadge,
-}) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between">
-      <div>
-        <CardTitle>User Management</CardTitle>
-        <CardDescription>Manage CRM users and their roles</CardDescription>
-      </div>
-      <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
-        <DialogTrigger asChild>
-          <Button data-testid="add-user-btn">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add User
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New User</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Full Name *</Label>
-              <Input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="John Doe" data-testid="user-name-input" />
-            </div>
-            <div className="space-y-2">
-              <Label>Email *</Label>
-              <Input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="john@rrlbuilders.com" data-testid="user-email-input" />
-            </div>
-            <div className="space-y-2">
-              <Label>Password *</Label>
-              <Input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="Minimum 6 characters" data-testid="user-password-input" />
-            </div>
-            <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} placeholder="9876543210" />
-            </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
-                <SelectTrigger data-testid="user-role-select"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="accounts">Accounts</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="support">Support</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={onCreateUser} className="w-full" disabled={saving} data-testid="save-user-btn">
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Create User
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </CardHeader>
-    <CardContent>
-      {loading ? (
-        <div className="flex items-center justify-center h-32">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+}) => {
+  // Exclude the current user's ID from bulk-select so they can't self-lockout.
+  const selectableIds = users.filter((u) => u.id !== currentUserId).map((u) => u.id);
+  const bulk = useBulkSelect(selectableIds);
+  const selectedUsers = users.filter((u) => bulk.isSelected(u.id));
+  const handleBulk = async () => {
+    await onBulkDeleteUsers(bulk.selectedIds);
+    bulk.clear();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>User Management</CardTitle>
+          <CardDescription>Manage CRM users and their roles</CardDescription>
         </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.name}</TableCell>
-                <TableCell>{u.email}</TableCell>
-                <TableCell><Badge className={getRoleBadge(u.role)}>{u.role}</Badge></TableCell>
-                <TableCell>
-                  <Badge variant={u.is_active ? "default" : "secondary"}>{u.is_active ? "Active" : "Inactive"}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" size="sm" onClick={() => onEditUser(u)} title="Edit User" data-testid={`edit-user-${u.id}`}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => onResetPassword(u)} title="Reset Password" data-testid={`reset-password-${u.id}`}>
-                      <KeyRound className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => onToggleStatus(u.id, u.is_active)} disabled={u.id === currentUserId} title={u.is_active ? "Deactivate" : "Activate"}>
-                      {u.is_active ? "Deactivate" : "Activate"}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => onDeleteUser(u.id)} disabled={u.id === currentUserId} title="Delete User">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="add-user-btn">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add User
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New User</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Full Name *</Label>
+                <Input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="John Doe" data-testid="user-name-input" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email *</Label>
+                <Input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="john@rrlbuilders.com" data-testid="user-email-input" />
+              </div>
+              <div className="space-y-2">
+                <Label>Password *</Label>
+                <Input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="Minimum 6 characters" data-testid="user-password-input" />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} placeholder="9876543210" />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                  <SelectTrigger data-testid="user-role-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="accounts">Accounts</SelectItem>
+                    <SelectItem value="sales">Sales</SelectItem>
+                    <SelectItem value="support">Support</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={onCreateUser} className="w-full" disabled={saving} data-testid="save-user-btn">
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Create User
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        {isAdmin && (
+          <BulkDeleteBar
+            selectedCount={bulk.selectedCount}
+            onClear={bulk.clear}
+            onConfirm={handleBulk}
+            entityLabel="user"
+            entityLabelPlural="users"
+            previewNames={selectedUsers.map((u) => `${u.name} <${u.email}>`)}
+            testId="bulk-delete-users"
+          />
+        )}
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {isAdmin && (
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={bulk.isAllSelected ? true : bulk.isPartiallySelected ? "indeterminate" : false}
+                      onCheckedChange={bulk.toggleAll}
+                      aria-label="Select all users"
+                      data-testid="bulk-select-all-users"
+                    />
+                  </TableHead>
+                )}
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </CardContent>
-  </Card>
-);
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.id}>
+                  {isAdmin && (
+                    <TableCell className="w-10">
+                      <Checkbox
+                        checked={bulk.isSelected(u.id)}
+                        onCheckedChange={() => bulk.toggle(u.id)}
+                        disabled={u.id === currentUserId}
+                        aria-label={`Select ${u.name}`}
+                        data-testid={`bulk-select-user-${u.id}`}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell className="font-medium">{u.name}</TableCell>
+                  <TableCell>{u.email}</TableCell>
+                  <TableCell><Badge className={getRoleBadge(u.role)}>{u.role}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant={u.is_active ? "default" : "secondary"}>{u.is_active ? "Active" : "Inactive"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" size="sm" onClick={() => onEditUser(u)} title="Edit User" data-testid={`edit-user-${u.id}`}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => onResetPassword(u)} title="Reset Password" data-testid={`reset-password-${u.id}`}>
+                        <KeyRound className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => onToggleStatus(u.id, u.is_active)} disabled={u.id === currentUserId} title={u.is_active ? "Deactivate" : "Activate"}>
+                        {u.is_active ? "Deactivate" : "Activate"}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => onDeleteUser(u.id)} disabled={u.id === currentUserId} title="Delete User">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 export default UserManagementCard;

@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { toast } from "sonner";
 import { Users, Loader2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { CreateCustomerDialog, CustomerFilters, CustomerTable } from "../components/customers";
+import BulkDeleteBar from "../components/common/BulkDeleteBar";
+import useBulkSelect from "../hooks/useBulkSelect";
 import { logError } from "../utils/logger";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -26,6 +28,7 @@ const CustomersPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAccountsRole = user?.role === "accounts";
+  const isAdmin = user?.role === "admin";
 
   const [customers, setCustomers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -144,6 +147,21 @@ const CustomersPage = () => {
     finally { setDeleting(false); }
   };
 
+  // Bulk-select state for admin bulk-delete
+  const bulk = useBulkSelect(customers.map((c) => c.id));
+  const selectedCustomers = customers.filter((c) => bulk.isSelected(c.id));
+
+  const handleBulkDelete = async () => {
+    try {
+      const res = await axios.post(`${API}/customers/bulk-delete`, { ids: bulk.selectedIds });
+      toast.success(`Deleted ${res.data?.deleted_count ?? bulk.selectedIds.length} customers`);
+      bulk.clear();
+      fetchCustomers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to bulk-delete customers");
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="customers-page">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -199,6 +217,21 @@ const CustomersPage = () => {
         onDeleteClick={(customer, e) => { e.stopPropagation(); setCustomerToDelete(customer); setDeleteDialogOpen(true); }}
         onAgreementStatusChange={handleAgreementStatusChange}
         onCallStatusChange={handleCallStatusChange}
+        isAdmin={isAdmin}
+        bulk={bulk}
+        bulkBar={
+          isAdmin && (
+            <BulkDeleteBar
+              selectedCount={bulk.selectedCount}
+              onClear={bulk.clear}
+              onConfirm={handleBulkDelete}
+              entityLabel="customer"
+              entityLabelPlural="customers"
+              previewNames={selectedCustomers.map((c) => `${c.name} (${c.booking_number || c.customer_id})`)}
+              testId="bulk-delete-customers"
+            />
+          )
+        }
       />
 
       {total > pageSize && (

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
+import { Checkbox } from "../ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,8 @@ import {
 import { Plus, FileText, Eye, Download, Trash2, Loader2, Building2, Lock } from "lucide-react";
 import { getStatusBadge } from "./utils";
 import axios from "axios";
+import BulkDeleteBar from "../common/BulkDeleteBar";
+import useBulkSelect from "../../hooks/useBulkSelect";
 
 const NOC_TYPES = [
   { key: "noc_hdfc", label: "HDFC Bank", color: "red" },
@@ -35,15 +38,24 @@ const DocumentsTab = ({
   documents,
   customer,
   isAccountsRole,
+  isAdmin = false,
   onGenerateDocument,
   onPreviewDocument,
   onDownloadDocument,
   onDeleteDocument,
+  onBulkDeleteDocuments,
   onGenerateNoc,
   generatingNoc,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [docType, setDocType] = useState("");
+  const bulk = useBulkSelect(documents.map((d) => d.id));
+  const selectedDocs = documents.filter((d) => bulk.isSelected(d.id));
+
+  const handleBulk = async () => {
+    await onBulkDeleteDocuments?.(bulk.selectedIds);
+    bulk.clear();
+  };
 
   const handleGenerate = async () => {
     if (!docType) return;
@@ -208,11 +220,30 @@ const DocumentsTab = ({
           </Dialog>
         </CardHeader>
         <CardContent>
+          {isAdmin && (
+            <BulkDeleteBar
+              selectedCount={bulk.selectedCount}
+              onClear={bulk.clear}
+              onConfirm={handleBulk}
+              entityLabel="document"
+              entityLabelPlural="documents"
+              previewNames={selectedDocs.map((d) => (d.doc_type || "Document").replace(/_/g, " "))}
+              testId="bulk-delete-documents"
+            />
+          )}
           {regularDocuments.length > 0 ? (
             <div className="space-y-4">
               {regularDocuments.map((doc) => (
                 <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-4">
+                    {isAdmin && (
+                      <Checkbox
+                        checked={bulk.isSelected(doc.id)}
+                        onCheckedChange={() => bulk.toggle(doc.id)}
+                        aria-label="Select document"
+                        data-testid={`bulk-select-doc-${doc.id}`}
+                      />
+                    )}
                     <FileText className="w-8 h-8 text-primary" />
                     <div>
                       <p className="font-medium capitalize">{doc.doc_type.replace(/_/g, " ")}</p>
@@ -303,6 +334,14 @@ const DocumentsTab = ({
                 {nocDocuments.map((doc) => (
                   <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
                     <div className="flex items-center gap-3">
+                      {isAdmin && (
+                        <Checkbox
+                          checked={bulk.isSelected(doc.id)}
+                          onCheckedChange={() => bulk.toggle(doc.id)}
+                          aria-label="Select NOC"
+                          data-testid={`bulk-select-noc-${doc.id}`}
+                        />
+                      )}
                       <FileText className="w-6 h-6 text-primary" />
                       <div>
                         <p className="font-medium text-sm">{getNocLabel(doc.doc_type)}</p>

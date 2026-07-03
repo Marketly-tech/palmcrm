@@ -285,6 +285,34 @@ async def delete_customer(customer_id: str, user: dict = Depends(check_role([Use
     return {"message": "Customer deleted"}
 
 
+@router.post("/bulk-delete")
+async def bulk_delete_customers(
+    body: Dict[str, Any], user: dict = Depends(check_role([UserRole.ADMIN]))
+):
+    """Bulk delete customers (admin only). Body: ``{"ids": [...]}``.
+    Cascades to related payment schedules, checklists, generated documents and
+    communication logs — matching the single-delete behaviour above.
+    """
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids (non-empty list) is required")
+    ids = [i for i in ids if isinstance(i, str) and i]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    db = get_database()
+    result = await db.customers.delete_many({"id": {"$in": ids}})
+    await db.payment_schedules.delete_many({"customer_id": {"$in": ids}})
+    await db.document_checklists.delete_many({"customer_id": {"$in": ids}})
+    await db.generated_documents.delete_many({"customer_id": {"$in": ids}})
+    await db.communication_logs.delete_many({"customer_id": {"$in": ids}})
+    await db.payment_transactions.delete_many({"customer_id": {"$in": ids}})
+    await log_activity(
+        user['id'], user['name'], "bulk_delete", "customer", ",".join(ids),
+        f"Bulk deleted {result.deleted_count} customers",
+    )
+    return {"message": "Customers deleted", "deleted_count": result.deleted_count}
+
+
 
 @router.post("/admin/backfill-booking-form-snapshots")
 async def backfill_booking_form_snapshots(user: dict = Depends(check_role([UserRole.ADMIN]))):

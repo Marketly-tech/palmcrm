@@ -40,6 +40,8 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { FileText, Save, Trash2, RefreshCw, Loader2, Eye, Code } from "lucide-react";
+import BulkDeleteBar from "../common/BulkDeleteBar";
+import useBulkSelect from "../../hooks/useBulkSelect";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
@@ -202,6 +204,32 @@ const DocumentTemplatesTab = () => {
   const activeForType = (type) =>
     templates.some((t) => t.doc_type === type && t.is_active);
 
+  // ---- Bulk-revert (admin) ----
+  const activeOverrides = templates.filter((t) => t.is_active);
+  const bulk = useBulkSelect(activeOverrides.map((t) => t.id));
+  const selectedTemplates = activeOverrides.filter((t) => bulk.isSelected(t.id));
+
+  const handleBulkRevert = async () => {
+    try {
+      const res = await axios.post(`${API}/templates/bulk-delete`, { ids: bulk.selectedIds });
+      toast.success(
+        `Reverted ${res.data?.deleted_count ?? bulk.selectedIds.length} templates to defaults`,
+      );
+      bulk.clear();
+      await refreshTemplates();
+      // If the currently-open one was reverted, clear the editor
+      if (currentTemplate && bulk.selectedIds.includes(currentTemplate.id)) {
+        setCurrentTemplate(null);
+        setContent("");
+      }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to bulk-revert templates");
+    }
+  };
+
+  const docTypeLabel = (dtype) =>
+    DOC_TYPES.find((d) => d.value === dtype)?.label || dtype;
+
   return (
     <Card>
       <CardHeader>
@@ -215,6 +243,61 @@ const DocumentTemplatesTab = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Bulk-revert active overrides */}
+        {activeOverrides.length > 0 && (
+          <div className="rounded-lg border bg-slate-50 p-3" data-testid="active-overrides-panel">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">
+                  Active Custom Templates ({activeOverrides.length})
+                </p>
+                <p className="text-xs text-slate-500">
+                  Select one or more to revert to the built-in default.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={bulk.toggleAll}
+                className="text-xs text-slate-600 hover:text-slate-800 underline"
+                data-testid="bulk-select-all-templates"
+              >
+                {bulk.isAllSelected ? "Deselect all" : "Select all"}
+              </button>
+            </div>
+            <BulkDeleteBar
+              selectedCount={bulk.selectedCount}
+              onClear={bulk.clear}
+              onConfirm={handleBulkRevert}
+              entityLabel="template"
+              entityLabelPlural="templates"
+              previewNames={selectedTemplates.map((t) => docTypeLabel(t.doc_type))}
+              testId="bulk-delete-templates"
+            />
+            <div className="flex flex-wrap gap-2">
+              {activeOverrides.map((t) => (
+                <label
+                  key={t.id}
+                  className={`inline-flex items-center gap-2 px-2 py-1 rounded border text-xs cursor-pointer ${
+                    bulk.isSelected(t.id)
+                      ? "bg-red-50 border-red-300 text-red-800"
+                      : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+                  }`}
+                  data-testid={`template-chip-${t.doc_type}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={bulk.isSelected(t.id)}
+                    onChange={() => bulk.toggle(t.id)}
+                    className="rounded"
+                    data-testid={`bulk-select-template-${t.doc_type}`}
+                  />
+                  {docTypeLabel(t.doc_type)}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label>Document Type</Label>

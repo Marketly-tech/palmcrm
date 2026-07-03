@@ -13,6 +13,7 @@ export function useCustomerPage(id) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAccountsRole = user?.role === "accounts";
+  const isAdmin = user?.role === "admin";
 
   // Core data
   const [customer, setCustomer] = useState(null);
@@ -408,6 +409,49 @@ export function useCustomerPage(id) {
     }
   };
 
+  const handleBulkDeleteTransactions = async (ids) => {
+    try {
+      const res = await axios.post(`${API}/transactions/${id}/bulk-delete`, { ids });
+      await refreshTransactions();
+      toast.success(`Deleted ${res.data?.deleted_count ?? ids.length} transactions`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to bulk-delete transactions");
+    }
+  };
+
+  const handleBulkDeleteGeneratedDocs = async (ids) => {
+    try {
+      const res = await axios.post(`${API}/documents/bulk-delete`, { ids });
+      setDocuments(documents.filter((d) => !ids.includes(d.id)));
+      toast.success(`Deleted ${res.data?.deleted_count ?? ids.length} documents`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to bulk-delete documents");
+    }
+  };
+
+  const handleBulkDeleteUploadedDocs = async (ids) => {
+    try {
+      const res = await axios.post(
+        `${API}/customers/${id}/documents/bulk-delete`,
+        { ids },
+      );
+      setUploadedDocs(uploadedDocs.filter((d) => !ids.includes(d.id)));
+      toast.success(`Deleted ${res.data?.deleted_count ?? ids.length} uploads`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to bulk-delete uploads");
+    }
+  };
+
+  const handleBulkDeleteNotes = async (ids) => {
+    try {
+      const res = await axios.post(`${API}/customers/${id}/notes/bulk-delete`, { ids });
+      setNotes(notes.filter((n) => !ids.includes(n.id)));
+      toast.success(`Deleted ${res.data?.deleted_count ?? ids.length} notes`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to bulk-delete notes");
+    }
+  };
+
   const handleGenerateReceipt = async (txn) => {
     try {
       const res = await axios.post(`${API}/documents/payment-receipt/${id}/${txn.id}`);
@@ -727,7 +771,7 @@ export function useCustomerPage(id) {
 
   return {
     // Router / Auth
-    navigate, user, isAccountsRole,
+    navigate, user, isAccountsRole, isAdmin,
     // Core data
     customer, loading, paymentSchedule, setPaymentSchedule,
     checklist, documents, setDocuments, uploadedDocs, setUploadedDocs,
@@ -758,6 +802,7 @@ export function useCustomerPage(id) {
     editingTransaction, setEditingTransaction,
     newTransaction, setNewTransaction,
     handleSaveTransaction, handleEditTransaction, handleDeleteTransaction,
+    handleBulkDeleteTransactions,
     handleGenerateReceipt,
     // Documents
     previewDialogOpen, setPreviewDialogOpen, previewContent, previewDoc,
@@ -765,7 +810,10 @@ export function useCustomerPage(id) {
     docDeleteType, docDeleting, generatingNoc,
     handlePreviewDocument, handleDownloadDocument,
     handleGenerateNoc, handleDeleteDocClick, handleConfirmDeleteDoc,
+    handleBulkDeleteGeneratedDocs, handleBulkDeleteUploadedDocs,
     handlePreviewUploadedDoc, handleDownloadUploadedDoc, handleGeneratePriceBreakup,
+    // Notes
+    handleBulkDeleteNotes,
     // Email
     sendingWelcome, emailComposerOpen, setEmailComposerOpen,
     emailComposerData, editedEmailSubject, setEditedEmailSubject,
