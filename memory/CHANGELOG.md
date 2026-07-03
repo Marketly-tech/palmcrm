@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-06-28 (feature) — Notification Bell: current_stage Filter
+- Both `/api/follow-ups/pending` and `/api/follow-ups/upcoming` now filter out follow-ups whose `stage_key` is past the admin-set `current_stage`. Reason: stages beyond current are not yet being collected — surfacing them in the bell is noise.
+- New helper `_valid_stage_keys(current_stage_key)` in `backend/settings/__init__.py` mirrors the walking logic in `_compute_overdue_stages()`. Fall-open semantics: unknown / missing / null current_stage → empty set → filter skipped (no accidental bell blackout).
+- Composes with the existing filters (Completed skip + paid-stage drop + dedup per customer × stage) — a follow-up must clear all four gates to appear.
+- Test updates in `backend/tests/test_notification_bell.py`:
+  - New module-scope fixture `stage_at_handover` bumps current_stage to `handover` for the whole module so the pre-existing tests can freely seed follow-ups on any stage_key; restores the original value at teardown.
+  - `test_keep_follow_up_on_unpaid_far_stage` inverted per user request — now asserts a `handover` follow-up is FILTERED OUT when current_stage='podium'.
+  - `test_keep_follow_up_on_next_unpaid_stage` mirrored to check `2nd_floor` filtering (same rationale).
+- Tested: 18/18 pytest in `test_notification_bell.py` + 4/4 in `test_stage_filter_iter50.py` (helper unit + endpoint variations). Iteration_50 — 100% pass, DB `current_stage` correctly preserved + restored.
+- Files: `backend/settings/__init__.py`, `backend/tests/test_notification_bell.py`, `backend/tests/test_stage_filter_iter50.py` (new).
+
 ## 2026-06-28 (bugfix) — Notification Bell: De-dupe & Stage-Aware Filtering
 - **Bug 1** (user-reported, visible in screenshot): same customer × same stage appeared multiple times in the bell because every historical follow-up log entry was emitted (e.g. *Deepankar Dutta · 1-1303* listed once as `Connected` and again as `Follow-up`, both for the same '6th Floor Roof Slab' stage).
 - **Bug 2** (user-reported): old-stage follow-ups never dropped off even after the customer paid past that slab — the bell kept nagging on resolved stages.
