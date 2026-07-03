@@ -2,217 +2,50 @@
 from datetime import datetime
 from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
 from documents.templates.common import (
-    format_inr, format_applicant_block, calculate_age, get_salutation,
-    get_logo_img_tag, COMPANY_NAME, format_customer_names
+    format_inr, calculate_age, get_salutation,
+    get_logo_img_tag, COMPANY_NAME, format_customer_names,
+    build_agreement_date_text, build_applicant_details_block,
+    build_payment_schedule_rows_html, build_transaction_rows_html,
 )
 from documents.templates.sales_agreement_template import generate_sales_agreement_template
 
+
 def generate_sales_agreement_html(customer: dict, schedule_items: list, transactions: list = None) -> str:
     """Generate Sales Agreement HTML with customer data filled in"""
-    
-    # Helper function to convert year to words
-    def year_to_words(year):
-        """Convert year like 2026 to 'Two Thousand and Twenty Six'"""
-        ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-                'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-                'Seventeen', 'Eighteen', 'Nineteen']
-        tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
-        
-        year = int(year)
-        thousands = year // 1000
-        hundreds = (year % 1000) // 100
-        remainder = year % 100
-        
-        result = []
-        if thousands == 2:
-            result.append("Two Thousand")
-        elif thousands == 1:
-            result.append("One Thousand")
-        
-        if hundreds > 0:
-            result.append(ones[hundreds] + " Hundred")
-        
-        if remainder > 0:
-            if result:
-                result.append("and")
-            if remainder < 20:
-                result.append(ones[remainder])
-            else:
-                tens_word = tens[remainder // 10]
-                ones_word = ones[remainder % 10]
-                if ones_word:
-                    result.append(tens_word + " " + ones_word)
-                else:
-                    result.append(tens_word)
-        
-        return " ".join(result)
-    
-    # Format dates - "14th Day of February, Two Thousand and Twenty Six- (14-02-2026)"
-    agreement_date = datetime.now()
-    day_ordinal = str(agreement_date.day) + get_ordinal_suffix(agreement_date.day)
-    month_name = agreement_date.strftime("%B")
-    year_words = year_to_words(agreement_date.year)
-    date_numeric = agreement_date.strftime("%d-%m-%Y")
-    agreement_date_text = f"{day_ordinal} Day of {month_name}, {year_words}- ({date_numeric})"
-    
+
+    # Sales Agreement date string
+    agreement_date_text = build_agreement_date_text(datetime.now())
     possession_date = "30-09-2030"  # Fixed possession date for all agreements
-    
-    # Format currency amounts
+
+    # Format currency amounts (Rs. 12,34,567.00 style)
     def fmt(amount):
         return format_indian_currency(amount)
-    
-    # Calculate age from date_of_birth using common utility
+
+    # Personal details
     age = calculate_age(customer.get('date_of_birth'))
-    
-    # Generate salutation based on gender using common utility
     salutation = get_salutation(customer.get('gender'))
-    
-    # Build applicant details block for the template
-    applicant_block = format_applicant_block(customer)
-    co_applicant_block = format_applicant_block(customer, prefix="co_applicant_")
-    
-    applicant_details_html = f'<p>{applicant_block}</p>'
-    if co_applicant_block:
-        applicant_details_html += f'<p style="margin-top: 10px;"><strong>Co-Applicant:</strong><br/>{co_applicant_block}</p>'
-    
-    # Generate floor ordinal (1st, 2nd, 3rd, etc.)
+    applicant_details_html = build_applicant_details_block(customer)
+
+    # Floor ordinal (1st, 2nd, 3rd, etc.)
     floor = customer.get('floor', 0) or 0
     floor_int = int(floor) if floor else 0
     floor_ordinal = str(floor_int) + get_ordinal_suffix(floor_int) if floor_int > 0 else "Ground"
-    
-    # Additional parking text
+
     additional_parking = customer.get('additional_parking', 0) or 0
     additional_parking_text = f" + {additional_parking} additional parking space(s)" if additional_parking > 0 else ""
-    
-    # Get AADHAAR number from top-level field (not custom_fields)
+
     aadhaar_number = customer.get('aadhar_number', '') or customer.get('aadhaar_number', '') or ''
-    
-    # ==================== PAYMENT SCHEDULE (Milestones from Payment Schedule Tab) ====================
-    payment_schedule_rows = ""
-    total = customer.get('total_price', 0) or 0
-    booking_amount = customer.get('booking_amount', 0) or 0
-    cumulative_pct = 0  # Track cumulative percentage
-    
-    # Use schedule_items from Payment Schedule tab (the 13-point milestone schedule)
-    if schedule_items and len(schedule_items) > 0:
-        for i, item in enumerate(schedule_items, 1):
-            milestone_name = item.get('installment_name', '') or item.get('milestone', '')
-            percentage = item.get('percentage', 0) or 0
-            amount = item.get('amount', 0) or 0
-            cumulative_pct += percentage  # Add to cumulative
-            
-            # If amount is 0 but we have percentage and total, calculate
-            if amount == 0 and percentage > 0 and total > 0:
-                amount = total * percentage / 100
-            
-            payment_schedule_rows += f'''
-            <tr>
-                <td style="text-align: center;">{i}</td>
-                <td>{milestone_name}</td>
-                <td style="text-align: center;">{percentage}%</td>
-                <td style="text-align: center;">{cumulative_pct}%</td>
-                <td class="amount">{fmt(amount)}</td>
-            </tr>
-            '''
-    else:
-        # Use default 13-point payment schedule if no schedule_items
-        default_milestones = [
-            ("Initial Booking Amount (within 10 days of Booking)", 10),
-            ("Post Execution of Agreement", 10),
-            ("On Completion of Foundation", 10),
-            ("On Completion of Podium Slab", 10),
-            ("Upon Completion of 2nd Floor Roof Slab", 5),
-            ("Upon Completion of 6th Floor Roof Slab", 5),
-            ("Upon Completion of 10th Floor Roof Slab", 5),
-            ("Upon Completion of 14th Floor Roof Slab", 5),
-            ("Upon Completion of 18th Floor Roof Slab", 5),
-            ("Upon Completion of 22nd Floor Roof Slab", 5),
-            ("Upon Completion of Top Roof Slab", 10),
-            ("Upon Completion of Flooring of Particular Property", 10),
-            ("Upon Handover / Possession / Registration", 10),
-        ]
-        cumulative_pct = 0
-        for i, (name, pct) in enumerate(default_milestones, 1):
-            cumulative_pct += pct
-            amount = total * pct / 100 if total > 0 else 0
-            payment_schedule_rows += f'''
-            <tr>
-                <td style="text-align: center;">{i}</td>
-                <td>{name}</td>
-                <td style="text-align: center;">{pct}%</td>
-                <td style="text-align: center;">{cumulative_pct}%</td>
-                <td class="amount">{fmt(amount)}</td>
-            </tr>
-            '''
-    
-    # ==================== TRANSACTION DETAILS (Booking + Agreement Payments) ====================
-    transaction_rows = ""
-    total_received_amount = 0
-    row_num = 1
-    
-    # Total received = sum of ALL transactions (not just booking/agreement)
+
+    # Payment schedule + transaction row HTML (shared with fallback renderer)
+    payment_schedule_rows = build_payment_schedule_rows_html(customer, schedule_items)
+    transaction_rows = build_transaction_rows_html(customer, transactions or [])
+
+    # Total received = sum of ALL transactions
     all_txn_total = sum(float(t.get('amount', 0) or 0) for t in (transactions or []))
-    
-    # Build transaction rows from actual transaction records
-    if transactions and len(transactions) > 0:
-        for txn in transactions:
-            # Check both legacy 'transaction_type' and new 'transaction_stage' fields
-            stage = (txn.get('transaction_stage', '') or txn.get('transaction_type', '') or '').lower()
-            # Include booking and agreement stage transactions
-            if stage in ['booking', 'booking_amount', 'agreement', 'agreement_amount', 'post_agreement']:
-                amount = txn.get('amount', 0) or 0
-                total_received_amount += amount
-                stage_display = 'Booking' if 'booking' in stage else 'Agreement'
-                txn_date = txn.get('transaction_date', '')
-                bank = txn.get('bank_name', '') or ''
-                txn_no = txn.get('transaction_number', '') or ''
-                bank_ref = f"{bank} - {txn_no}" if bank or txn_no else stage_display + " Payment"
-                
-                transaction_rows += f'''
-                <tr>
-                    <td style="text-align: center;">{row_num}</td>
-                    <td>{txn_date}</td>
-                    <td>{stage_display}</td>
-                    <td>{bank_ref}</td>
-                    <td class="amount">{fmt(amount)}</td>
-                </tr>
-                '''
-                row_num += 1
-    
-    # Fallback: if no booking transactions found but customer has booking_amount, add it
-    if booking_amount > 0 and not any(
-        (txn.get('transaction_stage', '') or txn.get('transaction_type', '') or '').lower() in ['booking', 'booking_amount']
-        for txn in (transactions or [])
-    ):
-        total_received_amount += booking_amount
-        booking_date_val = customer.get('booking_date', '')
-        txn_bank = customer.get('transaction_bank', '') or ''
-        txn_ref = customer.get('transaction_details', '') or ''
-        bank_ref = f"{txn_bank} - {txn_ref}" if txn_bank or txn_ref else "Booking Payment"
-        
-        transaction_rows = f'''
-        <tr>
-            <td style="text-align: center;">1</td>
-            <td>{booking_date_val}</td>
-            <td>Booking</td>
-            <td>{bank_ref}</td>
-            <td class="amount">{fmt(booking_amount)}</td>
-        </tr>
-        ''' + transaction_rows
-        # Re-number remaining rows
-        row_num += 1
-    
-    # If no transactions and no booking amount
-    if not transaction_rows:
-        transaction_rows = '''
-        <tr>
-            <td colspan="5" style="text-align: center; color: #666; padding: 15px;">No payments received yet</td>
-        </tr>
-        '''
-    
-    # Get template and fill in values using string replacement to avoid CSS conflicts
+
+    # Fill template
     template = generate_sales_agreement_template()
-    
+
     replacements = {
         '{agreement_date_text}': agreement_date_text,
         '{customer_name}': customer.get('name', ''),
@@ -253,12 +86,11 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
         '{company_name}': COMPANY_NAME,
         '{applicant_details_block}': applicant_details_html,
         '{date}': datetime.now().strftime("%d/%m/%Y"),
-        '{customer_id}': customer.get('customer_id', '')
+        '{customer_id}': customer.get('customer_id', ''),
     }
-    
+
     filled_html = template
     for placeholder, value in replacements.items():
         filled_html = filled_html.replace(placeholder, str(value))
-    
-    return filled_html
 
+    return filled_html

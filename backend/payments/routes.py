@@ -424,13 +424,16 @@ async def generate_payment_schedule_for_customer(customer_id: str, user: dict = 
     # Parse booking_date once — accept common ISO variants. Fallback to today
     # keeps the widget wiring alive on legacy rows without a booking_date.
     booking_date_raw = customer.get("booking_date") or ""
+    # Trim any time component up-front — Mongo often stores booking_date as
+    # an ISO datetime string, and every remaining parse path only cares about
+    # the YYYY-MM-DD prefix. Avoids the brittle slice heuristic we used before.
+    date_only = booking_date_raw.split("T", 1)[0].strip() if booking_date_raw else ""
     booking_date_obj = None
-    for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"):
+    if date_only:
         try:
-            booking_date_obj = datetime.strptime(booking_date_raw[:len(fmt) + 6], fmt).date()
-            break
+            booking_date_obj = datetime.strptime(date_only, "%Y-%m-%d").date()
         except (ValueError, TypeError):
-            continue
+            booking_date_obj = None
     if booking_date_obj is None:
         booking_date_obj = datetime.now(timezone.utc).date()
 

@@ -174,6 +174,178 @@ def format_customer_names(customer, uppercase=False):
 
 
 
+def _year_to_words(year: int) -> str:
+    """Convert a 4-digit year like 2026 to 'Two Thousand and Twenty Six'."""
+    ones_w = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+              'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+              'Seventeen', 'Eighteen', 'Nineteen']
+    tens_w = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+    year = int(year)
+    thousands = year // 1000
+    hundreds = (year % 1000) // 100
+    remainder = year % 100
+    parts: list[str] = []
+    if thousands == 2:
+        parts.append("Two Thousand")
+    elif thousands == 1:
+        parts.append("One Thousand")
+    if hundreds > 0:
+        parts.append(ones_w[hundreds] + " Hundred")
+    if remainder > 0:
+        if parts:
+            parts.append("and")
+        if remainder < 20:
+            parts.append(ones_w[remainder])
+        else:
+            t_word = tens_w[remainder // 10]
+            o_word = ones_w[remainder % 10]
+            parts.append((t_word + " " + o_word).strip() if o_word else t_word)
+    return " ".join(parts)
+
+
+def build_agreement_date_text(agreement_date: datetime = None) -> str:
+    """Return the Sales-Agreement style date string.
+
+    Example: '14th Day of February, Two Thousand and Twenty Six- (14-02-2026)'.
+    """
+    if agreement_date is None:
+        agreement_date = datetime.now()
+    day_ordinal = str(agreement_date.day) + get_ordinal_suffix(agreement_date.day)
+    month_name = agreement_date.strftime("%B")
+    year_words = _year_to_words(agreement_date.year)
+    date_numeric = agreement_date.strftime("%d-%m-%Y")
+    return f"{day_ordinal} Day of {month_name}, {year_words}- ({date_numeric})"
+
+
+def build_applicant_details_block(customer: dict) -> str:
+    """Build the <p>applicant</p> + optional <p>Co-Applicant</p> HTML block used
+    by templates that expose the {applicant_details_block} placeholder.
+    """
+    applicant_block = format_applicant_block(customer)
+    co_applicant_block = format_applicant_block(customer, prefix="co_applicant_")
+    html = f'<p>{applicant_block}</p>' if applicant_block else ''
+    if co_applicant_block:
+        html += (
+            f'<p style="margin-top: 10px;"><strong>Co-Applicant:</strong>'
+            f'<br/>{co_applicant_block}</p>'
+        )
+    return html
+
+
+# Default 13-milestone payment schedule used when the customer has no explicit
+# schedule saved. Kept here so both the Sales Agreement generator and the
+# fallback template renderer produce identical row HTML.
+_DEFAULT_SALES_AGREEMENT_MILESTONES: list[tuple[str, int]] = [
+    ("Initial Booking Amount (within 10 days of Booking)", 10),
+    ("Post Execution of Agreement", 10),
+    ("On Completion of Foundation", 10),
+    ("On Completion of Podium Slab", 10),
+    ("Upon Completion of 2nd Floor Roof Slab", 5),
+    ("Upon Completion of 6th Floor Roof Slab", 5),
+    ("Upon Completion of 10th Floor Roof Slab", 5),
+    ("Upon Completion of 14th Floor Roof Slab", 5),
+    ("Upon Completion of 18th Floor Roof Slab", 5),
+    ("Upon Completion of 22nd Floor Roof Slab", 5),
+    ("Upon Completion of Top Roof Slab", 10),
+    ("Upon Completion of Flooring of Particular Property", 10),
+    ("Upon Handover / Possession / Registration", 10),
+]
+
+
+def build_payment_schedule_rows_html(customer: dict, schedule_items: list) -> str:
+    """Render the <tr>...</tr> rows for the Sales Agreement / Payment Schedule
+    tables. Falls back to a default 13-milestone template when the customer has
+    no schedule saved.
+    """
+    total = customer.get('total_price', 0) or 0
+    rows = ""
+    cumulative_pct = 0
+    if schedule_items and len(schedule_items) > 0:
+        for i, item in enumerate(schedule_items, 1):
+            milestone_name = item.get('installment_name', '') or item.get('milestone', '')
+            percentage = item.get('percentage', 0) or 0
+            amount = item.get('amount', 0) or 0
+            cumulative_pct += percentage
+            if amount == 0 and percentage > 0 and total > 0:
+                amount = total * percentage / 100
+            rows += f'''
+            <tr>
+                <td style="text-align: center;">{i}</td>
+                <td>{milestone_name}</td>
+                <td style="text-align: center;">{percentage}%</td>
+                <td style="text-align: center;">{cumulative_pct}%</td>
+                <td class="amount">{format_indian_currency(amount)}</td>
+            </tr>
+            '''
+    else:
+        for i, (name, pct) in enumerate(_DEFAULT_SALES_AGREEMENT_MILESTONES, 1):
+            cumulative_pct += pct
+            amount = total * pct / 100 if total > 0 else 0
+            rows += f'''
+            <tr>
+                <td style="text-align: center;">{i}</td>
+                <td>{name}</td>
+                <td style="text-align: center;">{pct}%</td>
+                <td style="text-align: center;">{cumulative_pct}%</td>
+                <td class="amount">{format_indian_currency(amount)}</td>
+            </tr>
+            '''
+    return rows
+
+
+def build_transaction_rows_html(customer: dict, transactions: list) -> str:
+    """Render the <tr>...</tr> rows for the Sales Agreement 'Transaction Details'
+    table (booking + agreement stage payments)."""
+    booking_amount = customer.get('booking_amount', 0) or 0
+    rows = ""
+    row_num = 1
+    booking_seen = False
+    for txn in transactions or []:
+        stage = (
+            txn.get('transaction_stage', '') or txn.get('transaction_type', '') or ''
+        ).lower()
+        if stage in ['booking', 'booking_amount', 'agreement', 'agreement_amount', 'post_agreement']:
+            amount = txn.get('amount', 0) or 0
+            stage_display = 'Booking' if 'booking' in stage else 'Agreement'
+            if 'booking' in stage:
+                booking_seen = True
+            txn_date = txn.get('transaction_date', '') or ''
+            bank = txn.get('bank_name', '') or ''
+            txn_no = txn.get('transaction_number', '') or ''
+            bank_ref = f"{bank} - {txn_no}" if bank or txn_no else stage_display + " Payment"
+            rows += f'''
+                <tr>
+                    <td style="text-align: center;">{row_num}</td>
+                    <td>{txn_date}</td>
+                    <td>{stage_display}</td>
+                    <td>{bank_ref}</td>
+                    <td class="amount">{format_indian_currency(amount)}</td>
+                </tr>
+                '''
+            row_num += 1
+    if booking_amount > 0 and not booking_seen:
+        booking_date_val = customer.get('booking_date', '') or ''
+        txn_bank = customer.get('transaction_bank', '') or ''
+        txn_ref = customer.get('transaction_details', '') or ''
+        bank_ref = f"{txn_bank} - {txn_ref}" if txn_bank or txn_ref else "Booking Payment"
+        rows = f'''
+        <tr>
+            <td style="text-align: center;">1</td>
+            <td>{booking_date_val}</td>
+            <td>Booking</td>
+            <td>{bank_ref}</td>
+            <td class="amount">{format_indian_currency(booking_amount)}</td>
+        </tr>
+        ''' + rows
+    if not rows:
+        rows = '''
+        <tr>
+            <td colspan="5" style="text-align: center; color: #666; padding: 15px;">No payments received yet</td>
+        </tr>
+        '''
+    return rows
+
+
 def format_inr(amount):
     """Format amount in Indian Rupee notation."""
     try:

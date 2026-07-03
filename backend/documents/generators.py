@@ -29,6 +29,13 @@ from documents.templates import (
     generate_payment_receipt_html,
     get_default_template,
 )
+from documents.templates.common import (
+    build_agreement_date_text,
+    build_applicant_details_block,
+    build_payment_schedule_rows_html,
+    build_transaction_rows_html,
+)
+from utils import number_to_indian_words
 
 
 # Simple synchronous generators (no DB lookups beyond the customer doc)
@@ -137,15 +144,45 @@ async def _render_demand_letter(db, customer: dict) -> str:
     return generate_demand_letter_html(customer, transactions, stage_info)
 
 
-def _build_placeholders(customer: dict, custom_fields: Dict[str, Any]) -> Dict[str, str]:
-    """Build the {placeholder} → value map for fallback/templated documents."""
-    total_price = customer.get('total_price', 0)
+async def _build_placeholders(
+    db, customer: dict, custom_fields: Dict[str, Any]
+) -> Dict[str, str]:
+    """Build the {placeholder} → value map for fallback/templated documents.
+
+    Async because it fetches transactions and the payment schedule so that
+    saved master templates can resolve row-heavy placeholders like
+    ``{payment_schedule_rows}``, ``{transaction_rows}``, and
+    ``{total_received_words}`` at render time.
+    """
+    total_price = customer.get('total_price', 0) or 0
+    booking_amount = customer.get('booking_amount', 0) or 0
     total_price_formatted = (
-        format_indian_currency(total_price, decimals=False) if total_price else "0"
+        format_indian_currency(total_price) if total_price else "0"
+    )
+    booking_amount_formatted = (
+        format_indian_currency(booking_amount) if booking_amount else "0"
     )
     uds = customer.get('uds', 0)
     if not uds and customer.get('saleable_area'):
         uds = round(customer.get('saleable_area', 0) * 0.495046, 2)
+
+    # Fetch transactions + schedule so row-heavy placeholders can be resolved.
+    cust_id = customer.get('id')
+    transactions = []
+    schedule_items: list = []
+    if cust_id:
+        transactions = await db.payment_transactions.find(
+            {"customer_id": cust_id}, {"_id": 0}
+        ).sort("transaction_date", 1).to_list(1000)
+        schedule = await db.payment_schedules.find_one(
+            {"customer_id": cust_id}, {"_id": 0}
+        )
+        schedule_items = (schedule or {}).get('items', []) if schedule else []
+
+    total_received = sum(float(t.get('amount', 0) or 0) for t in transactions)
+    total_received_formatted = (
+        format_indian_currency(total_received) if total_received else "0"
+    )
 
     placeholders = {
         "{customer_name}": customer.get('name', ''),
@@ -155,9 +192,12 @@ def _build_placeholders(customer: dict, custom_fields: Dict[str, Any]) -> Dict[s
         "{project}": customer.get('project', ''),
         "{total_price}": str(total_price),
         "{total_price_formatted}": total_price_formatted,
+        "{total_price_words}": number_to_indian_words(total_price),
         "{saleable_area}": str(customer.get('saleable_area', 0)),
         "{uds}": str(uds),
-        "{booking_amount}": str(customer.get('booking_amount', 0)),
+        "{booking_amount}": str(booking_amount),
+        "{booking_amount_formatted}": booking_amount_formatted,
+        "{booking_amount_words}": number_to_indian_words(booking_amount),
         "{booking_date}": customer.get('booking_date', ''),
         "{date}": datetime.now().strftime("%d-%m-%Y"),
         "{father_name}": customer.get('father_name', ''),
@@ -173,6 +213,16 @@ def _build_placeholders(customer: dict, custom_fields: Dict[str, Any]) -> Dict[s
         "{labour_cess}": str(customer.get('labour_cess', 0)),
         "{club_house_charges}": str(customer.get('club_house_charges', 0)),
         "{interest_amount}": str(customer.get('interest_amount', 0)),
+        # New row-heavy / narrative placeholders. Kept in sync with the
+        # authoritative sales_agreement_html.py generator so that a template
+        # saved from a Sales Agreement re-renders correctly for any customer.
+        "{total_received}": str(total_received),
+        "{total_received_formatted}": total_received_formatted,
+        "{total_received_words}": number_to_indian_words(int(total_received)),
+        "{agreement_date_text}": build_agreement_date_text(),
+        "{applicant_details_block}": build_applicant_details_block(customer),
+        "{payment_schedule_rows}": build_payment_schedule_rows_html(customer, schedule_items),
+        "{transaction_rows}": build_transaction_rows_html(customer, transactions),
     }
     for key, value in (custom_fields or {}).items():
         placeholders[f"{{{key}}}"] = value
@@ -188,7 +238,7 @@ async def _render_from_template(
     if not template:
         template = {"content": get_default_template(doc_type)}
     content = template['content']
-    for placeholder, value in _build_placeholders(customer, custom_fields).items():
+    for placeholder, value in (await _build_placeholders(db, customer, custom_fields)).items():
         content = content.replace(placeholder, str(value))
     return content
 
@@ -223,7 +273,7 @@ async def render_document_content(
     )
     if override and override.get('content'):
         content = override['content']
-        for placeholder, value in _build_placeholders(customer, custom_fields or {}).items():
+        for placeholder, value in (await _build_placeholders(db, customer, custom_fields or {})).items():
             content = content.replace(placeholder, str(value))
         return content
 

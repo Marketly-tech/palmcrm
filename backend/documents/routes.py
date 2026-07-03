@@ -25,20 +25,29 @@ from documents.templates import (
     generate_payment_schedule_html,
     generate_transactions_export_html,
 )
+from documents.templates.common import (
+    build_agreement_date_text,
+    build_applicant_details_block,
+    build_payment_schedule_rows_html,
+    build_transaction_rows_html,
+)
 from documents.generators import render_document_content
-from utils import format_indian_currency
+from utils import format_indian_currency, number_to_indian_words
 
 logger = logging.getLogger(__name__)
 
 
-def _scrub_customer_values_to_placeholders(content: str, customer: dict) -> str:
+async def _scrub_customer_values_to_placeholders(
+    db, content: str, customer: dict
+) -> str:
     """Reverse the placeholder substitution: replace literal customer-specific
     values in the HTML back with their {placeholder} tokens, so the saved
     master template renders correctly for ANY future customer.
 
     Only the document *format* (layout, styling, static legal text) is preserved.
-    Customer-specific fields (name, unit, address, prices, dates, etc.) become
-    placeholders again.
+    Customer-specific fields (name, unit, address, prices, dates, word-form
+    amounts, applicant details, and the payment-schedule / transaction row
+    tables) become placeholders again.
     """
     # Field name -> placeholder token. Order matters: long/specific first so
     # we don't partially-match a short value that's a prefix of a longer one.
@@ -67,22 +76,25 @@ def _scrub_customer_values_to_placeholders(content: str, customer: dict) -> str:
         ("customer_id", "{customer_id}"),
         ("booking_date", "{booking_date}"),
     ]
-    # Numeric/computed fields — replace both raw and formatted-indian forms
+    # Numeric/computed fields — replace both raw and formatted-indian forms.
+    # (field, placeholder, word_placeholder) — word_placeholder is optional
+    # and, when set, the word-form ("Rupees ... Only" / "... Rupees") gets
+    # scrubbed back to that token too.
     numeric_fields = [
-        ("total_price", "{total_price}"),
-        ("saleable_area", "{saleable_area}"),
-        ("uds", "{uds}"),
-        ("booking_amount", "{booking_amount}"),
-        ("rate_per_sqft", "{rate_per_sqft}"),
-        ("base_price", "{base_price}"),
-        ("gst_amount", "{gst_amount}"),
-        ("labour_cess", "{labour_cess}"),
-        ("club_house_charges", "{club_house_charges}"),
-        ("interest_amount", "{interest_amount}"),
-        ("floor", "{floor}"),
+        ("total_price", "{total_price}", "{total_price_words}", "{total_price_formatted}"),
+        ("saleable_area", "{saleable_area}", None, None),
+        ("uds", "{uds}", None, None),
+        ("booking_amount", "{booking_amount}", "{booking_amount_words}", "{booking_amount_formatted}"),
+        ("rate_per_sqft", "{rate_per_sqft}", None, None),
+        ("base_price", "{base_price}", None, None),
+        ("gst_amount", "{gst_amount}", None, None),
+        ("labour_cess", "{labour_cess}", None, None),
+        ("club_house_charges", "{club_house_charges}", None, None),
+        ("interest_amount", "{interest_amount}", None, None),
+        ("floor", "{floor}", None, None),
     ]
 
-    pairs = []  # (literal, placeholder)
+    pairs: list[tuple[str, str]] = []  # (literal, placeholder)
     for field, token in field_to_placeholder:
         val = customer.get(field)
         if not val or not isinstance(val, str):
@@ -93,7 +105,7 @@ def _scrub_customer_values_to_placeholders(content: str, customer: dict) -> str:
             continue
         pairs.append((val, token))
 
-    for field, token in numeric_fields:
+    for field, token, words_token, formatted_token in numeric_fields:
         raw = customer.get(field)
         if raw in (None, 0, "0", "", "0.0"):
             continue
@@ -105,20 +117,100 @@ def _scrub_customer_values_to_placeholders(content: str, customer: dict) -> str:
         if num == int(num):
             pairs.append((str(int(num)), token))
         pairs.append((str(num), token))
-        # Indian-format with and without ₹
+        # Indian-format with and without ₹, both decimal variants
         try:
-            formatted = format_indian_currency(num, decimals=False)
-            if formatted and len(formatted) >= 3:
-                pairs.append((formatted, token))
-                pairs.append((f"₹{formatted}", token))
-                pairs.append((f"Rs. {formatted}", token))
-                pairs.append((f"Rs.{formatted}", token))
+            for formatted in {
+                format_indian_currency(num, decimals=False),
+                format_indian_currency(num, decimals=True),
+            }:
+                if not formatted or len(formatted) < 3:
+                    continue
+                fmt_placeholder = formatted_token or token
+                pairs.append((formatted, fmt_placeholder))
+                pairs.append((f"₹{formatted}", fmt_placeholder))
+                pairs.append((f"Rs. {formatted}", fmt_placeholder))
+                pairs.append((f"Rs.{formatted}", fmt_placeholder))
+        except (TypeError, ValueError):
+            pass
+        # Word form ("Rupees ... Only") — scrub back to {..._words}
+        if words_token:
+            try:
+                words = number_to_indian_words(int(num))
+                if words and len(words) > 3:
+                    pairs.append((words, words_token))
+            except (TypeError, ValueError):
+                pass
+
+    # Fetch transactions + schedule so we can compute the row-heavy blocks
+    # that the source document rendered for this customer.
+    cust_id = customer.get('id')
+    transactions: list = []
+    schedule_items: list = []
+    if cust_id:
+        transactions = await db.payment_transactions.find(
+            {"customer_id": cust_id}, {"_id": 0}
+        ).sort("transaction_date", 1).to_list(1000)
+        schedule = await db.payment_schedules.find_one(
+            {"customer_id": cust_id}, {"_id": 0}
+        )
+        schedule_items = (schedule or {}).get('items', []) if schedule else []
+
+    # Total received (used by Sales Agreement clause + TOTAL RECEIVED footer)
+    total_received = sum(float(t.get('amount', 0) or 0) for t in transactions)
+    if total_received > 0:
+        try:
+            for formatted in {
+                format_indian_currency(total_received, decimals=False),
+                format_indian_currency(total_received, decimals=True),
+            }:
+                if not formatted or len(formatted) < 3:
+                    continue
+                pairs.append((formatted, "{total_received_formatted}"))
+                pairs.append((f"₹{formatted}", "{total_received_formatted}"))
+                pairs.append((f"Rs. {formatted}", "{total_received_formatted}"))
+                pairs.append((f"Rs.{formatted}", "{total_received_formatted}"))
+        except (TypeError, ValueError):
+            pass
+        try:
+            words = number_to_indian_words(int(total_received))
+            if words and len(words) > 3:
+                pairs.append((words, "{total_received_words}"))
         except (TypeError, ValueError):
             pass
 
-    # Replace longest values first so "Ramya test lead" is replaced before "test"
-    pairs.sort(key=lambda p: len(p[0]), reverse=True)
+    # ---- Multi-line HTML blocks ----
+    # These must be scrubbed BEFORE the scalar replacements below (which iterate
+    # `pairs` sorted by length). By adding them to `pairs`, the longest-first
+    # sort ensures they win over shorter scalar overlaps.
+    applicant_block_html = build_applicant_details_block(customer)
+    if applicant_block_html and len(applicant_block_html) > 10:
+        pairs.append((applicant_block_html, "{applicant_details_block}"))
+
+    schedule_rows_html = build_payment_schedule_rows_html(customer, schedule_items)
+    if schedule_rows_html and len(schedule_rows_html) > 10:
+        pairs.append((schedule_rows_html, "{payment_schedule_rows}"))
+
+    txn_rows_html = build_transaction_rows_html(customer, transactions)
+    if txn_rows_html and len(txn_rows_html) > 10:
+        pairs.append((txn_rows_html, "{transaction_rows}"))
+
+    # Agreement date text — the document was generated on some day; we don't
+    # know exactly when, so scrub any "<Nth> Day of <Month>, ... - (dd-mm-yyyy)"
+    # pattern back to {agreement_date_text}. Also try today's variant.
+    import re as _re
     scrubbed = content
+    agreement_pattern = _re.compile(
+        r"\d+(?:st|nd|rd|th) Day of [A-Z][a-z]+, [A-Z][A-Za-z ]+- \(\d{2}-\d{2}-\d{4}\)"
+    )
+    scrubbed = agreement_pattern.sub("{agreement_date_text}", scrubbed)
+    # Also cover today's exact literal in case the pattern above missed a variant.
+    today_agreement = build_agreement_date_text()
+    if today_agreement in scrubbed:
+        scrubbed = scrubbed.replace(today_agreement, "{agreement_date_text}")
+
+    # Replace longest values first so multi-line HTML blocks and long
+    # customer values win over shorter overlapping fragments.
+    pairs.sort(key=lambda p: len(p[0]), reverse=True)
     for literal, token in pairs:
         if literal and literal in scrubbed:
             scrubbed = scrubbed.replace(literal, token)
@@ -242,7 +334,7 @@ async def save_master_from_document(
         {"id": gen_doc.get('customer_id')}, {"_id": 0}
     )
     if source_customer:
-        content = _scrub_customer_values_to_placeholders(content, source_customer)
+        content = await _scrub_customer_values_to_placeholders(db, content, source_customer)
 
     existing = await db.document_templates.find_one({"doc_type": doc_type_value}, {"_id": 0})
     now_iso = datetime.now(timezone.utc).isoformat()
