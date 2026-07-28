@@ -3,7 +3,7 @@ from datetime import datetime
 from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
 from documents.templates.common import (
     format_inr, format_applicant_block, get_logo_img_tag,
-    COMPANY_NAME, COMPANY_NAME_FULL
+    COMPANY_NAME, COMPANY_NAME_FULL, format_tower
 )
 
 def generate_demand_letter_html(customer: dict, transactions: list = None, stage_info: dict = None) -> str:
@@ -42,7 +42,8 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
         return f"{n}{suffix}"
 
     floor_display = get_ordinal(floor_num) + " Floor" if floor_num else "Ground Floor"
-    flat_ref = f"Flat no. {unit_number}, Tower- {tower}, {floor_display}"
+    tower_display = format_tower(tower)
+    flat_ref = f"Flat no. {unit_number}, {tower_display}, {floor_display}" if tower_display else f"Flat no. {unit_number}, {floor_display}"
 
     # --- Financial Calculations ---
     total_basic_cost = float(customer.get('total_price', 0) or 0)
@@ -300,6 +301,19 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                 color: #555;
                 white-space: nowrap;
             }}
+            .tds-disclaimer {{
+                margin: 16px 0 8px 0;
+                padding: 12px 16px;
+                background: #fff7ed;
+                border-left: 4px solid #b45309;
+                border-radius: 4px;
+                font-size: 11.5px;
+                color: #7c2d12;
+                line-height: 1.65;
+            }}
+            .tds-disclaimer strong {{
+                color: #7c2d12;
+            }}
             .closing {{
                 margin-top: 20px;
                 font-size: 12px;
@@ -434,6 +448,11 @@ def generate_demand_letter_html(customer: dict, transactions: list = None, stage
                         <tr><td>IFSC</td><td>: HDFC0009590</td></tr>
                         <tr><td>Branch Name</td><td>: SOMPURA</td></tr>
                     </table>
+                </div>
+
+                <!-- TDS Disclaimer (Section 194-IA) -->
+                <div class="tds-disclaimer">
+                    <strong>Note:</strong> TDS to be paid within 30 days, in case failed to, interest shall be levied by Income Tax authorities. Builder will not be held responsible for any interest or penalty.
                 </div>
 
                 <div class="closing">

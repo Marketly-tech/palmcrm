@@ -1,6 +1,6 @@
 """Payment Schedule document templates."""
 from datetime import datetime
-from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME, format_tower
 
 def generate_payment_schedule_pdf_html(customer: dict, transactions: list = None) -> str:
     """Generate Payment Schedule PDF HTML with customer data and transactions"""
@@ -100,7 +100,7 @@ def generate_payment_schedule_pdf_html(customer: dict, transactions: list = None
                 </div>
                 <div class="info-item">
                     <div class="info-label">Unit Number</div>
-                    <div class="info-value">{customer.get('tower', '')}-{customer.get('unit_number', '-')}</div>
+                    <div class="info-value">{format_tower(customer.get('tower', ''))} / {customer.get('unit_number', '-')}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Phone</div>

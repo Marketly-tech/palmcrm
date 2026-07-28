@@ -1,6 +1,6 @@
 """Cost Breakup document template."""
 from datetime import datetime
-from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME, format_customer_names
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME, format_customer_names, format_tower
 
 def generate_cost_breakup_html(customer: dict) -> str:
     """Generate HTML for Cost Breakup PDF matching the user-provided template"""
@@ -62,6 +62,7 @@ def generate_cost_breakup_html(customer: dict) -> str:
     # Property details
     flat_no = customer.get('unit_number', '-')
     tower = customer.get('tower', '1')
+    tower_display = format_tower(tower)
     saleable_area = float(customer.get('saleable_area') or 0)
     uds = customer.get('uds', 0)
     # Estimate carpet area (approx 62.5% of saleable area)
@@ -301,7 +302,7 @@ def generate_cost_breakup_html(customer: dict) -> str:
             </div>
             
             <div class="customer-info">
-                {customer_names} purchased Flat No. {flat_no}, Tower-{tower} measuring Super Builtup Area {saleable_area} Sq.ft. with UDS of {uds:.2f} Sq.ft, Carpet Area of {carpet_area} Sq.ft,
+                {customer_names} purchased Flat No. {flat_no}, {tower_display} measuring Super Builtup Area {saleable_area} Sq.ft. with UDS of {uds:.2f} Sq.ft, Carpet Area of {carpet_area} Sq.ft,
             </div>
             
             <div class="site-address">

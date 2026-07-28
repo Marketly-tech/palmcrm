@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2026-02-28 (feature) — TDS Disclaimer on Demand Letter + Tower Display Normalization
+- **Demand Letter**: added a highlighted disclaimer block after the bank-details section reading: *"TDS to be paid within 30 days, in case failed to, interest shall be levied by Income Tax authorities. Builder will not be held responsible for any interest or penalty."* Styled with a soft amber background and left border to draw attention without disrupting the letter's black/gold theme (`.tds-disclaimer` class).
+- **Tower duplication fix** (customer complaint: PDFs were rendering `"Tower- Tower 1"` because DB stores towers inconsistently as `"Tower 1"` / `"Tower-1"` / `"1"`):
+  - New shared helper `format_tower(raw)` in `documents/templates/common.py` → strips any leading `Tower` / `Tower-` / `Tower ` prefix (case-insensitive) and re-prefixes with a single canonical `Tower-`. Examples: `Tower 1` → `Tower-1`, `Tower-1` → `Tower-1`, `1` → `Tower-1`, `TOWER-A` → `Tower-A`.
+  - New sibling helper `tower_id(raw)` returns just the identifier (`"1"`, `"A"`) — used in info-table cells where the row label is already `Tower` to avoid a `Tower: Tower-1` visual duplicate.
+  - **Applied across templates**: `demand_letter.py`, `cost_breakup.py`, `noc_templates.py` (HDFC/BOB/TATA/Bajaj — 4 render functions), `payment_receipt.py`, `payment_schedule.py`, `transactions_export.py`, `booking_form.py`, `price_breakup.py`, `allotment_letter.py` (`{tower}` placeholder), `sales_agreement_html.py` (`{tower}` placeholder).
+- **Verified** — 
+  - Unit-level: `format_tower` + `tower_id` tests covering all stored variants (`Tower 1`, `Tower-1`, `1`, `A`, `TOWER-B`, empty, None).
+  - Per-template renders across all 4 NOC variants + cost/price/booking/payment schedule/transactions export — asserted no `Tower- Tower` / `Tower Tower ` substrings and canonical `Tower-1` present.
+  - End-to-end: live demand letter generated via `POST /api/documents/generate` for Ramya test lead now renders `Flat no. 0701, Tower-1, ...` (single occurrence) + TDS disclaimer.
+- Files touched: `backend/documents/templates/common.py`, `demand_letter.py`, `cost_breakup.py`, `noc_templates.py`, `payment_receipt.py`, `payment_schedule.py`, `transactions_export.py`, `booking_form.py`, `price_breakup.py`, `allotment_letter.py`, `sales_agreement_html.py`.
+
+
+
 ## 2026-02-28 (feature) — Additional Charges Description (P0, recurring resolved)
 - **Frontend** — `components/customer/details/PropertyPricingCard.jsx`: added a description text input just below the "Additional Charges" amount (edit mode only), plus a helper hint "Optional label — defaults to 'Additional Charges' when blank". View mode now shows the custom description as a small subtitle under the amount when both a non-zero amount and a description exist. Persisted via the existing `editData` spread in `useCustomerPage.js` → PUT /api/customers/{id}. Test IDs: `additional-charges-input`, `additional-charges-description-input`, `additional-charges-value`, `additional-charges-description-value`.
 - **Backend** — no schema change (field `additional_charges_description: str = ""` already lived in `customers/models.py` from prior sessions).

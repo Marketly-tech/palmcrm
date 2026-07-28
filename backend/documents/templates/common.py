@@ -1,6 +1,7 @@
 """Common utilities shared across document templates."""
 import base64
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 from utils import number_to_indian_words, format_indian_currency, get_ordinal_suffix
@@ -12,6 +13,43 @@ logger = logging.getLogger(__name__)
 COMPANY_NAME = "RRL Builders and Developers Pvt. Ltd."
 COMPANY_NAME_UPPER = "RRL BUILDERS AND DEVELOPERS PVT. LTD."
 COMPANY_NAME_FULL = "RRL BUILDERS AND DEVELOPERS PRIVATE LIMITED"
+
+
+def format_tower(raw) -> str:
+    """Canonicalize a tower value for display as ``Tower-<X>``.
+
+    Handles the historical storage inconsistency where the field is variously
+    stored as ``"Tower 1"``, ``"Tower-1"``, ``"tower1"``, or just ``"1"``.
+    Strips any leading ``Tower`` / ``Tower-`` / ``Tower <space>`` prefix
+    (case-insensitive) and re-prefixes with a single ``Tower-`` so downstream
+    prose never renders duplicates like ``"Tower- Tower 1"``.
+
+    Returns an empty string if the input is empty/None.
+    """
+    if raw is None:
+        return ""
+    s = str(raw).strip()
+    if not s:
+        return ""
+    core = re.sub(r"^tower[\s\-_]*", "", s, flags=re.IGNORECASE).strip()
+    if not core:
+        # Value was literally "Tower" with nothing after — keep as-is.
+        return s
+    return f"Tower-{core}"
+
+
+def tower_id(raw) -> str:
+    """Return just the tower identifier ("1", "A", etc.) with any leading
+    ``Tower`` / ``Tower-`` / ``Tower <space>`` prefix stripped. Use this in
+    info-table cells where the row label is already ``"Tower"``  — avoids
+    the ``"Tower: Tower-1"`` duplicate. Returns "-" for empty input."""
+    if raw is None:
+        return "-"
+    s = str(raw).strip()
+    if not s:
+        return "-"
+    core = re.sub(r"^tower[\s\-_]*", "", s, flags=re.IGNORECASE).strip()
+    return core or s
 
 # Static welcome-email attachments — these PDFs are NOT generated per customer;
 # they live on disk in /app/backend/assets/welcome_email/ and are reused as-is

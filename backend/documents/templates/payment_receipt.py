@@ -8,6 +8,7 @@ from documents.templates.common import (
     COMPANY_NAME,
     get_logo_img_tag,
     format_customer_names,
+    format_tower,
 )
 from utils import format_indian_currency
 from utils.payment_helpers import PAYMENT_STAGES
@@ -109,7 +110,8 @@ def generate_payment_receipt_html(customer: dict, transaction: dict) -> str:
         customer_names = primary_name or co_applicant_name or "—"
     flat_no = customer.get("unit_number", "") or ""
     tower = customer.get("tower", "") or ""
-    flat_label = f"{tower}-{flat_no}" if tower and flat_no else (flat_no or "—")
+    tower_pretty = format_tower(tower)
+    flat_label = f"{tower_pretty} / {flat_no}" if tower_pretty and flat_no else (flat_no or "—")
 
     stage_label = _stage_label(transaction.get("transaction_stage", ""))
 

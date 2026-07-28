@@ -1,6 +1,6 @@
 """Price Breakup document template."""
 from datetime import datetime
-from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME, format_customer_names
+from documents.templates.common import format_inr, get_logo_img_tag, COMPANY_NAME, format_customer_names, tower_id
 
 def generate_price_breakup_html(customer: dict) -> str:
     """Generate HTML for Price Breakup PDF with black and gold theme"""
@@ -272,7 +272,7 @@ def generate_price_breakup_html(customer: dict) -> str:
                     </div>
                     <div class="info-item">
                         <span class="info-label">Tower:</span>
-                        <span class="info-value">{customer.get('tower', '-')}</span>
+                        <span class="info-value">{tower_id(customer.get('tower'))}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Unit Type:</span>
