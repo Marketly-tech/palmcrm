@@ -77,18 +77,16 @@ const kpiTile = ({ icon: Icon, label, value, tone = "slate", testId, subtitle })
 };
 
 const cellColor = (u) => {
-  // Blocked wins first — pertinent for operational holds.
-  if (u.status === "BLOCKED") return "bg-slate-200 text-slate-600 border-slate-300";
+  // Uniform bold-tone palette:
+  //   Dark blue  → RRL available
+  //   Dark green → Landowner available
+  //   Red        → Sold / Booked (either share)
+  //   Slate      → Blocked
+  if (u.status === "BLOCKED") return "bg-slate-500 text-white border-slate-600 hover:bg-slate-600";
   const sold = u.status === "SOLD" || u.status === "BOOKED";
-  if (u.share_type === "LAND_OWNER") {
-    return sold
-      ? "bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700"
-      : "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200";
-  }
-  // Default to RRL / builder.
-  return sold
-    ? "bg-blue-600 text-white border-blue-700 hover:bg-blue-700"
-    : "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200";
+  if (sold) return "bg-red-600 text-white border-red-700 hover:bg-red-700";
+  if (u.share_type === "LAND_OWNER") return "bg-emerald-700 text-white border-emerald-800 hover:bg-emerald-800";
+  return "bg-blue-700 text-white border-blue-800 hover:bg-blue-800";
 };
 
 const InventoryPage = () => {
@@ -250,11 +248,10 @@ const InventoryPage = () => {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600" data-testid="legend">
         <span className="font-semibold">Legend:</span>
-        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-blue-100 border border-blue-300 inline-block" /> RRL Available</span>
-        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-blue-600 border border-blue-700 inline-block" /> RRL Sold/Booked</span>
-        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-emerald-100 border border-emerald-300 inline-block" /> Landowner Available</span>
-        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-emerald-600 border border-emerald-700 inline-block" /> Landowner Sold/Booked</span>
-        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-slate-200 border border-slate-300 inline-block" /> Blocked</span>
+        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-blue-700 border border-blue-800 inline-block" /> RRL Available</span>
+        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-emerald-700 border border-emerald-800 inline-block" /> Landowner Available</span>
+        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-red-600 border border-red-700 inline-block" /> Sold / Booked</span>
+        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3.5 rounded bg-slate-500 border border-slate-600 inline-block" /> Blocked</span>
       </div>
 
       {/* Floor-wise grid */}
