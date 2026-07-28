@@ -33,6 +33,18 @@ import { useAuth } from "../../../context/AuthContext";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
+// Doc types safe to promote to a master template. Must match the backend's
+// TEMPLATE_SAFE_DOC_TYPES set (documents/routes.py). Dynamic doc types
+// (demand_letter, payment_receipt, noc_*, price/cost_breakup, payment_schedule)
+// contain runtime-computed content — payment tables, TDS calcs, stage info,
+// conditional co-applicant rows — that cannot be safely frozen into a static
+// master without corrupting future generations. See CHANGELOG 2026-02-28.
+const MASTER_SAFE_DOC_TYPES = new Set([
+  "sales_agreement",
+  "allotment_letter",
+  "welcome_letter",
+]);
+
 const EditableDocumentDialog = ({
   open,
   onOpenChange,
@@ -41,7 +53,9 @@ const EditableDocumentDialog = ({
   onSaved,
 }) => {
   const { user } = useAuth();
-  const canSaveMaster = user?.role === "admin" || user?.role === "manager";
+  const isMasterSafeType = MASTER_SAFE_DOC_TYPES.has(doc?.doc_type);
+  const canSaveMaster =
+    (user?.role === "admin" || user?.role === "manager") && isMasterSafeType;
   const iframeRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);

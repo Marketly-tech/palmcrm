@@ -38,6 +38,30 @@ from utils.payment_helpers import PAYMENT_STAGES
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Master-template safety list
+#
+# Only these doc types are safe to persist as a "master template" because
+# they are built from placeholder-based templates (`{customer_name}`,
+# `{tower}`, `{total_price_formatted}`, etc.) with no dynamic computation
+# baked into the rendered HTML.
+#
+# Dynamic types (Demand Letter, Payment Receipt, NOCs, Price/Cost Breakup,
+# Payment Schedule) MUST always be generated fresh by their built-in
+# generator — they contain per-render computed values (TDS payable, current
+# due, stage cumulative percentage, live payment tables, transaction
+# amounts, etc.) that cannot be represented as static placeholders.
+# Attempting to save these as a master permanently freezes the source
+# customer's numbers/stage/co-applicant-field-availability into the
+# "template" and corrupts every future generation. See CHANGELOG 2026-02-28.
+# ---------------------------------------------------------------------------
+TEMPLATE_SAFE_DOC_TYPES: set[str] = {
+    DocumentType.SALES_AGREEMENT.value,
+    DocumentType.ALLOTMENT_LETTER.value,
+    DocumentType.WELCOME_LETTER.value,
+}
+
+
 async def _scrub_customer_values_to_placeholders(
     db, content: str, customer: dict
 ) -> str:
@@ -344,6 +368,22 @@ async def save_master_from_document(
     if not gen_doc:
         raise HTTPException(status_code=404, detail="Generated document not found")
     doc_type_value = gen_doc.get('doc_type')
+    if doc_type_value not in TEMPLATE_SAFE_DOC_TYPES:
+        # Dynamic docs (Demand Letter, NOCs, Payment Receipt, Price/Cost
+        # Breakup, Payment Schedule) contain computed content that cannot be
+        # safely re-used as a master. See TEMPLATE_SAFE_DOC_TYPES docstring.
+        friendly = doc_type_value.replace('_', ' ').title() if doc_type_value else 'This document'
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{friendly} is generated dynamically for each customer "
+                "(payment tables, TDS, stage-specific values, co-applicant "
+                "detail rows) and cannot be saved as a master template. "
+                "Edit the built-in template file if the layout needs to "
+                "change permanently, or use per-customer Edit + Save for "
+                "one-off changes."
+            ),
+        )
     content = gen_doc.get('content') or ''
     if not content:
         raise HTTPException(status_code=400, detail="Document has no content to save")

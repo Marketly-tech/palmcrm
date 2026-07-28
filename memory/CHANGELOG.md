@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 2026-02-28 (bug fix, HIGH severity) — Save-as-Master corrupted dynamic documents
+- **Symptom** — User saved a Demand Letter (for Ramya test lead) as a master template. All subsequent Demand Letters — even for the same customer — lost the Co-Applicant details and rendered with a broken layout (`{saleable_area}th Floor` instead of `11th Floor`, stale stage text, frozen payment-table values, etc.).
+- **Root cause** — `render_document_content` blindly preferred any active master template from `db.document_templates` over the built-in per-doc-type generator, even for **dynamic** doc types (Demand Letter, NOCs, Payment Receipt, Price/Cost Breakup, Payment Schedule). These generators compute runtime values that CANNOT be represented as static placeholders:
+  - Payment table rows (`Demand Raised`, `Current Due`, `Amount Paid`, TDS Payable, `Net Amount Payable`, `Total Outstanding`, current-stage cumulative percentage, amount-in-words).
+  - Conditional Co-Applicant block — `format_applicant_block()` returns only the fields that exist on the source customer (Ramya's co-applicant "Marketly" had only a name, so the saved master baked in JUST `<strong>{co_applicant_name}</strong>` with no Aadhaar/PAN/Phone/Address/DOB rows). Every future customer with a fuller co-applicant lost those rows.
+  - Numeric-value collisions in the placeholder scrubber — Ramya's `floor=11` and `saleable_area=11` share the same numeric value; the scrubber matched `saleable_area` first and rewrote "11th Floor" → "{saleable_area}th Floor".
+- **Fix (backend)** — `documents/routes.py` + `documents/generators.py`:
+  - Introduced `TEMPLATE_SAFE_DOC_TYPES` / `_MASTER_OVERRIDE_ALLOWED` sets containing only doc types built from placeholder-based `.py` templates: `sales_agreement`, `allotment_letter`, `welcome_letter`.
+  - `POST /api/templates/save-from-document/{doc_id}` now rejects any doc type outside this set with a clear 400 explaining the reason.
+  - `render_document_content` now consults `document_templates` overrides **only** for safe doc types. Dynamic doc types always take the built-in generator path so runtime computations, TDS calc, stage info, and conditional co-applicant rendering are never frozen.
+  - One-time DB cleanup: the corrupted demand_letter master saved during user's test session was deactivated (marked `is_active=False`) with an audit reason.
+- **Fix (frontend)** — `components/customer/documents/EditableDocumentDialog.jsx`: added a mirror `MASTER_SAFE_DOC_TYPES` allow-list; the "Save as Master" button is hidden for dynamic doc types. Per-customer Edit + Save + Download PDF continue to work as before.
+- **Verified** —
+  - Regenerated Ramya's Demand Letter after fix: Co-Applicant label + "Marketly" name present, full Payment Table + TDS Payable + TDS Disclaimer restored, "11th Floor" ordinal restored, no `{saleable_area}` leak, reference reads `Flat no. 0701, Tower-1, 11th Floor` (single Tower prefix from prior fix).
+  - `POST /api/templates/save-from-document/{doc_id}` for a demand letter now returns HTTP 400 with an actionable message.
+- **Files touched** — `backend/documents/routes.py`, `backend/documents/generators.py`, `frontend/src/components/customer/documents/EditableDocumentDialog.jsx`.
+
+
+
 ## 2026-02-28 (feature) — TDS Disclaimer on Demand Letter + Tower Display Normalization
 - **Demand Letter**: added a highlighted disclaimer block after the bank-details section reading: *"TDS to be paid within 30 days, in case failed to, interest shall be levied by Income Tax authorities. Builder will not be held responsible for any interest or penalty."* Styled with a soft amber background and left border to draw attention without disrupting the letter's black/gold theme (`.tds-disclaimer` class).
 - **Tower duplication fix** (customer complaint: PDFs were rendering `"Tower- Tower 1"` because DB stores towers inconsistently as `"Tower 1"` / `"Tower-1"` / `"1"`):
