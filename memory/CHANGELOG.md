@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-07-28 (feature) — Bulk Demand-Letter Workflow
+- **Backend** — extends `GeneratedDocument` model in `documents/models.py` with optional `stage_key`, `stage_name`, `batch_id`, `emailed_at`, `email_status`, `emailed_by` fields (all default None → single-doc flows unaffected).
+- Three new endpoints in `documents/routes.py`:
+  - `POST /api/documents/generate-bulk-demand-letters` — admin/manager/accounts. Loads current stage from `db.settings`, iterates every non-pending_approval customer, and generates a demand letter for anyone missing one for that `stage_key`. Idempotent: repeat calls only skip. Reuses `_render_demand_letter` so the layout is identical to single-generation. Returns `{ batch_id, stage_key, stage_name, generated/skipped/error counts, generated_ids[] }`.
+  - `GET /api/documents/demand-letters` — same roles. Lists all demand letters with customer name/unit/email hydrated in one aggregated query, supports `?stage_key=`, `?batch_id=`, `?emailed=true|false`. Declared BEFORE `/documents/{customer_id}` to prevent route-shadowing.
+  - `POST /api/documents/bulk-email-demand-letters` — accepts `{ids: [...]}` or `{batch_id: '...'}`. Renders each doc's stored HTML → PDF via WeasyPrint, sends through the existing `_resend_send` helper with the PDF attached, and stamps `emailed_at` / `email_status` / `emailed_by` per row. Failures are persisted (so retries can be scoped) and communication_logs entries are inserted per send.
+  - Both helpers `_resolve_recipient_email` (applicant → co-applicant fallback) and `_build_demand_letter_email` (personalised subject + HTML body) live in `documents/routes.py`.
+- **Frontend** — new `pages/DemandLettersPage.js` (route `/demand-letters`, sidebar entry with MailWarning icon, roles admin/manager/accounts):
+  - Total / Emailed / Pending stat tiles.
+  - Filters (search, milestone dropdown, emailed y/n) with `?batch_id=` URL param support so the confirmation flow from PaymentStageCard can deep-link to the freshly-generated batch.
+  - Table with row checkboxes and per-row preview button (`GET /documents/preview/{id}`).
+  - Sticky bulk-select toolbar (`data-testid="bulk-toolbar"`) + `Email Selected (N)` button with a browser confirm().
+  - Client-side role guard prevents the 403 fetch for sales/support roles.
+- **PaymentStageCard** — new AlertDialog (`data-testid="bulk-demand-confirm-dialog"`) shown after a successful stage update; offers to bulk-generate for the new milestone (`bulk-demand-trigger`) or skip (`bulk-demand-skip`); on success navigates the user to `/demand-letters?batch_id=…` so they can review + email in the same flow.
+- **Verified** — iteration_54: **15/15 backend pytest cases pass** + full Playwright frontend flow (sidebar visibility per-role, generation, listing, selection, bulk-email including a customer-missing failure isolation case), all data-testids present. Regression test file `backend/tests/test_bulk_demand_letters_iter54.py`.
+- Files: `backend/documents/models.py`, `backend/documents/routes.py`, `frontend/src/pages/DemandLettersPage.js`, `frontend/src/App.js`, `frontend/src/components/layout/DashboardLayout.js`, `frontend/src/components/dashboard/PaymentStageCard.jsx`.
+
+
 ## 2026-07-28 (feature) — Bank Disbursement Summary card on Dashboard
 - **Backend** — new admin-only `GET /api/dashboard/disbursement-summary` (in `backend/dashboard/routes.py`) that:
   - Sums `payment_transactions.amount` where `transaction_stage == 'scheduled_disbursement'` → `total_disbursed`.

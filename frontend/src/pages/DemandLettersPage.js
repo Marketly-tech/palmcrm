@@ -62,6 +62,14 @@ const DemandLettersPage = () => {
   const canEmail = ["admin", "manager", "accounts"].includes(user?.role);
 
   const fetchRows = useCallback(async () => {
+    // Guard client-side too — the endpoint is admin/manager/accounts only.
+    // Without this, sales/support hitting /demand-letters via a direct URL
+    // would see a 403 toast before the empty state renders.
+    if (!canEmail) {
+      setLoading(false);
+      setRows([]);
+      return;
+    }
     setRefreshing(true);
     try {
       const params = {};
@@ -77,7 +85,7 @@ const DemandLettersPage = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [stageFilter, batchId, emailedFilter]);
+  }, [stageFilter, batchId, emailedFilter, canEmail]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
 
