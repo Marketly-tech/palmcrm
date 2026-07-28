@@ -2,7 +2,7 @@
 Document routes for RRL CRM.
 Handles document generation, templates, PDF export, upload/download, and checklist.
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import Response
@@ -31,8 +31,9 @@ from documents.templates.common import (
     build_payment_schedule_rows_html,
     build_transaction_rows_html,
 )
-from documents.generators import render_document_content
+from documents.generators import render_document_content, _render_demand_letter
 from utils import format_indian_currency, number_to_indian_words
+from utils.payment_helpers import PAYMENT_STAGES
 
 logger = logging.getLogger(__name__)
 
@@ -512,6 +513,67 @@ async def update_document_html(doc_id: str, body: Dict[str, Any], user: dict = D
     return {"message": "Document updated"}
 
 
+# NOTE: This route MUST be declared BEFORE ``/documents/{customer_id}`` so
+# FastAPI doesn't route ``/documents/demand-letters`` to the generic
+# per-customer handler with ``customer_id="demand-letters"``.
+@router.get("/documents/demand-letters")
+async def list_demand_letters(
+    user: dict = Depends(check_role(
+        [UserRole.ADMIN, UserRole.MANAGER, UserRole.ACCOUNTS],
+    )),
+    stage_key: Optional[str] = None,
+    batch_id: Optional[str] = None,
+    emailed: Optional[bool] = None,
+):
+    """List every demand letter (across customers) for the management page.
+
+    Joins each row with a tiny slice of the customer document so the UI can
+    show name/unit/email without a second round-trip. Sorted newest first.
+    """
+    db = get_database()
+    query: dict = {"doc_type": DocumentType.DEMAND_LETTER.value}
+    if stage_key:
+        query["stage_key"] = stage_key
+    if batch_id:
+        query["batch_id"] = batch_id
+    if emailed is True:
+        query["emailed_at"] = {"$ne": None}
+    elif emailed is False:
+        query["$or"] = [{"emailed_at": None}, {"emailed_at": {"$exists": False}}]
+
+    projection = {
+        "_id": 0, "id": 1, "customer_id": 1, "doc_type": 1, "generated_at": 1,
+        "generated_by": 1, "status": 1, "stage_key": 1, "stage_name": 1,
+        "batch_id": 1, "emailed_at": 1, "email_status": 1, "emailed_by": 1,
+    }
+    docs = (
+        await db.generated_documents.find(query, projection)
+        .sort("generated_at", -1)
+        .to_list(5000)
+    )
+
+    # Hydrate customer info in a single query rather than N.
+    cust_ids = list({d.get("customer_id") for d in docs if d.get("customer_id")})
+    cust_index: dict = {}
+    if cust_ids:
+        async for c in db.customers.find(
+            {"id": {"$in": cust_ids}},
+            {"_id": 0, "id": 1, "name": 1, "unit_number": 1, "project": 1,
+             "email": 1, "co_applicant_email": 1, "phone": 1},
+        ):
+            cust_index[c["id"]] = c
+
+    for d in docs:
+        c = cust_index.get(d.get("customer_id"), {})
+        d["customer_name"] = c.get("name")
+        d["unit_number"] = c.get("unit_number")
+        d["project"] = c.get("project")
+        d["customer_email"] = c.get("email") or c.get("co_applicant_email")
+        d["customer_missing"] = not bool(c)
+
+    return {"count": len(docs), "demand_letters": docs}
+
+
 @router.get("/documents/{customer_id}")
 async def get_customer_documents(customer_id: str, user: dict = Depends(get_current_user)):
     db = get_database()
@@ -832,3 +894,308 @@ async def update_checklist(customer_id: str, items: Dict[str, bool], user: dict 
         raise HTTPException(status_code=404, detail="Checklist not found")
     await log_activity(user['id'], user['name'], "update", "checklist", customer_id, "Updated document checklist")
     return {"message": "Checklist updated"}
+
+
+# =========================================================================
+# BULK DEMAND-LETTER WORKFLOW
+#
+# Design goals:
+#   * Reuse the existing `_render_demand_letter` + `generate_demand_letter_html`
+#     path so single-letter generation from the customer profile keeps working
+#     identically. The bulk endpoint just calls the same renderer in a loop.
+#   * Tag each generated record with a shared ``batch_id`` and the milestone
+#     (``stage_key`` + ``stage_name``) so the management page can show what
+#     was generated in which run and which are still un-emailed.
+#   * Idempotence: re-running the bulk-generate for the same milestone MUST
+#     NOT create duplicate demand letters. Skip customers who already have a
+#     demand_letter recorded for the same ``stage_key``.
+#   * Email sending piggy-backs on the same Resend helper (``_resend_send``)
+#     used everywhere else — WeasyPrint the stored HTML into a PDF and
+#     attach it. Every doc gets a ``emailed_at`` timestamp on success.
+# =========================================================================
+
+
+def _resolve_recipient_email(customer: dict) -> str:
+    """Return the best recipient email for a demand letter. Falls back
+    through applicant → co-applicant so a bulk send doesn't silently skip
+    customers with the primary email missing."""
+    for key in ("email", "co_applicant_email"):
+        val = (customer.get(key) or "").strip()
+        if val and "@" in val:
+            return val
+    return ""
+
+
+def _build_demand_letter_email(customer: dict, stage_name: str) -> tuple[str, str]:
+    """Return (subject, html_body) for the demand-letter email.
+
+    Kept small and inline (rather than a template file) because this text is
+    the same across every bulk send and rarely changes. If we ever need
+    marketing to edit it, promote to a settings-backed template.
+    """
+    display_name = (customer.get("name") or "Customer").strip()
+    unit = (customer.get("unit_number") or "").strip()
+    project = (customer.get("project") or "RRL Palm Altezze").strip()
+    stage_label = stage_name or "the current construction milestone"
+    subject = f"Demand Letter — {stage_label} — {project} Unit {unit}".strip()
+    body = f"""
+    <div style="font-family: Georgia, 'Times New Roman', serif; max-width: 620px; margin: 0 auto; color: #1A1A1A;">
+      <p>Dear {display_name},</p>
+      <p>
+        Greetings from RRL Builders and Developers Pvt. Ltd.
+      </p>
+      <p>
+        Please find attached the demand letter for
+        <strong>{stage_label}</strong> against your unit
+        <strong>{unit or 'in {}'.format(project)}</strong>. Kindly arrange the
+        payment on or before the due date mentioned in the attached letter so
+        we can keep your construction milestone on schedule.
+      </p>
+      <p>
+        If the payment has already been made, please share the transaction
+        details with our accounts team so we can update your records.
+      </p>
+      <p style="margin-top: 24px;">
+        Warm regards,<br/>
+        <strong>RRL Builders and Developers Pvt. Ltd.</strong><br/>
+        <a href="mailto:crm@rrlbuildersanddevelopers.com" style="color:#D4AF37;">crm@rrlbuildersanddevelopers.com</a>
+      </p>
+    </div>
+    """
+    return subject, body
+
+
+@router.post("/documents/generate-bulk-demand-letters")
+async def generate_bulk_demand_letters(
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.MANAGER, UserRole.ACCOUNTS])),
+):
+    """Generate one demand letter per customer for the *current* payment stage.
+
+    Skips customers that already have a demand_letter tagged with the same
+    ``stage_key`` — so this endpoint is safe to re-run (idempotent per stage).
+
+    Returns:
+        batch_id, stage_key, stage_name, counts (generated/skipped/errors),
+        and the ids of the freshly created documents.
+    """
+    db = get_database()
+    settings_doc = await db.settings.find_one({"type": "payment_stage"}, {"_id": 0})
+    stage_key = (settings_doc or {}).get("current_stage")
+    if not stage_key:
+        raise HTTPException(
+            status_code=400,
+            detail="No current payment stage set. Set one via Dashboard → Disbursement Payment Stage first.",
+        )
+    stage_info = next((s for s in PAYMENT_STAGES if s["key"] == stage_key), None)
+    if not stage_info:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown stage key '{stage_key}' in settings.",
+        )
+    stage_name = stage_info["name"]
+
+    # Skip pending_approval customers — they haven't crossed the booking gate.
+    customers = await db.customers.find(
+        {"stage": {"$ne": "pending_approval"}}, {"_id": 0},
+    ).to_list(5000)
+
+    batch_id = str(uuid.uuid4())
+    generated_ids: list[str] = []
+    skipped: list[dict] = []
+    errors: list[dict] = []
+
+    for customer in customers:
+        cid = customer.get("id")
+        # Idempotence: don't duplicate a demand letter for the same milestone.
+        existing = await db.generated_documents.find_one(
+            {"customer_id": cid, "doc_type": DocumentType.DEMAND_LETTER.value,
+             "stage_key": stage_key},
+            {"_id": 0, "id": 1},
+        )
+        if existing:
+            skipped.append({"customer_id": cid, "reason": "already_exists",
+                            "document_id": existing.get("id")})
+            continue
+        try:
+            html = await _render_demand_letter(db, customer)
+        except Exception as e:
+            logger.exception("Bulk demand letter render failed for %s", cid)
+            errors.append({"customer_id": cid, "error": str(e)})
+            continue
+
+        gen_doc = GeneratedDocument(
+            customer_id=cid,
+            doc_type=DocumentType.DEMAND_LETTER,
+            content=html,
+            generated_by=user["id"],
+            stage_key=stage_key,
+            stage_name=stage_name,
+            batch_id=batch_id,
+        )
+        record = gen_doc.model_dump()
+        record["generated_at"] = record["generated_at"].isoformat()
+        # emailed_at is stored as ISO only when we actually send.
+        record["emailed_at"] = None
+        await db.generated_documents.insert_one(record)
+        generated_ids.append(gen_doc.id)
+
+    await log_activity(
+        user["id"], user["name"], "generate_bulk", "demand_letter", batch_id,
+        f"Bulk demand letters: {len(generated_ids)} generated, "
+        f"{len(skipped)} skipped, {len(errors)} errors "
+        f"(stage={stage_key})",
+    )
+    return {
+        "batch_id": batch_id,
+        "stage_key": stage_key,
+        "stage_name": stage_name,
+        "generated_count": len(generated_ids),
+        "skipped_count": len(skipped),
+        "error_count": len(errors),
+        "generated_ids": generated_ids,
+        "skipped": skipped[:50],
+        "errors": errors[:25],
+    }
+
+
+@router.post("/documents/bulk-email-demand-letters")
+async def bulk_email_demand_letters(
+    body: Dict[str, Any],
+    user: dict = Depends(check_role(
+        [UserRole.ADMIN, UserRole.MANAGER, UserRole.ACCOUNTS],
+    )),
+):
+    """Email a set of previously-generated demand letters.
+
+    Accepts ``{"ids": [...]}`` OR ``{"batch_id": "<uuid>"}``. For each doc,
+    renders its stored HTML to PDF (WeasyPrint), sends via Resend with the
+    PDF attached, and stamps ``emailed_at``/``email_status``. Reuses the
+    exact Resend helper the rest of the app already uses so BCC-archive and
+    key handling stay consistent.
+    """
+    ids = body.get("ids") or []
+    batch_id = (body.get("batch_id") or "").strip()
+    if not ids and not batch_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide ids (non-empty list) or batch_id.",
+        )
+
+    db = get_database()
+    query: dict = {"doc_type": DocumentType.DEMAND_LETTER.value}
+    if ids:
+        clean_ids = [i for i in ids if isinstance(i, str) and i]
+        if not clean_ids:
+            raise HTTPException(status_code=400, detail="No valid document IDs")
+        query["id"] = {"$in": clean_ids}
+    elif batch_id:
+        query["batch_id"] = batch_id
+
+    docs = await db.generated_documents.find(query, {"_id": 0}).to_list(5000)
+    if not docs:
+        return {"sent_count": 0, "failed_count": 0, "results": []}
+
+    # Local import — avoids a documents ↔ email_service circular import at
+    # module load. All email logic already funnels through ``_resend_send``.
+    from email_service.routes import _resend_send
+
+    results: list[dict] = []
+    sent_count = 0
+    failed_count = 0
+
+    for doc in docs:
+        cid = doc.get("customer_id")
+        customer = await db.customers.find_one({"id": cid}, {"_id": 0}) if cid else None
+        row: dict = {"document_id": doc.get("id"), "customer_id": cid}
+
+        if not customer:
+            row.update({"status": "failed", "error": "Customer not found"})
+            results.append(row)
+            failed_count += 1
+            continue
+
+        recipient = _resolve_recipient_email(customer)
+        if not recipient:
+            row.update({"status": "failed", "error": "No recipient email"})
+            results.append(row)
+            failed_count += 1
+            continue
+
+        try:
+            pdf_bytes: bytes = HTML(string=doc["content"]).write_pdf()
+        except Exception as e:
+            logger.exception("Bulk demand PDF render failed for doc %s", doc.get("id"))
+            row.update({"status": "failed", "error": f"PDF render: {e}"})
+            results.append(row)
+            failed_count += 1
+            continue
+
+        subject, html_body = _build_demand_letter_email(
+            customer, doc.get("stage_name") or "",
+        )
+        cust_safe = (customer.get("name") or "Customer").replace(" ", "_")
+        pdf_name = f"RRL_DemandLetter_{cust_safe}.pdf"
+
+        send_result = await _resend_send(
+            to_email=recipient,
+            subject=subject,
+            html_content=html_body,
+            attachments=[{
+                "filename": pdf_name,
+                "content": pdf_bytes,
+                "content_type": "application/pdf",
+            }],
+        )
+
+        # Persist status even on failure so the UI can surface which rows
+        # blew up during the batch — otherwise repeat clicks would blindly
+        # retry the same broken ones.
+        update = {"email_status": send_result["status"]}
+        if send_result["status"] == "sent" or send_result["status"].startswith("mocked"):
+            update["emailed_at"] = datetime.now(timezone.utc).isoformat()
+            update["emailed_by"] = user["id"]
+            update["status"] = AgreementStatus.SENT.value
+            sent_count += 1
+        else:
+            failed_count += 1
+
+        await db.generated_documents.update_one(
+            {"id": doc.get("id")}, {"$set": update},
+        )
+
+        # Communication log so the customer's Email Tracking tab shows this.
+        try:
+            log_doc = {
+                "id": str(uuid.uuid4()),
+                "customer_id": cid,
+                "channel": "email",
+                "message_type": subject,
+                "content": (
+                    f"To: {recipient}\nSubject: {subject}\n\n"
+                    "Demand letter PDF attached (bulk send)."
+                ),
+                "status": send_result["status"],
+                "sent_at": datetime.now(timezone.utc).isoformat(),
+                "sent_by": user["id"],
+            }
+            await db.communication_logs.insert_one(log_doc)
+        except Exception:
+            pass
+
+        row.update({
+            "status": send_result["status"],
+            "recipient": recipient,
+            "provider_id": send_result.get("id"),
+            "error": send_result.get("error"),
+        })
+        results.append(row)
+
+    await log_activity(
+        user["id"], user["name"], "email_bulk", "demand_letter",
+        batch_id or ",".join(ids)[:100],
+        f"Bulk demand-letter email: {sent_count} sent, {failed_count} failed",
+    )
+    return {
+        "sent_count": sent_count,
+        "failed_count": failed_count,
+        "results": results,
+    }

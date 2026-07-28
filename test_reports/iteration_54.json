@@ -1,0 +1,41 @@
+{
+  "summary": "Bulk Demand Letter workflow (iter 54) tested end-to-end. 15/15 backend pytest cases pass (generate/list/bulk-email/backwards-compat). Frontend verified: /demand-letters page loads with 92 seeded rows, stat tiles populated (total=92 emailed=2 pending=90), row selection reveals bulk-toolbar, generate-bulk-btn visible for admin, hidden for sales, sidebar entry visible for admin only. PaymentStageCard AlertDialog fires after stage change with correct Generate/Skip buttons. Customer-missing isolation verified with a seeded row in mongo (status='failed', emailed_at not set).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/documents/generate-bulk-demand-letters", "issue": "'missing stage' 400 path is only reachable if the settings doc is fully absent or current_stage=''. The set_current_stage endpoint enforces non-empty stage, so this branch cannot be triggered via public API. The code branch itself is correct; just note that testers must delete the settings doc directly in mongo to exercise it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Sales role visiting /demand-letters", "issue": "Page renders but the initial GET /api/documents/demand-letters returns 403 (role gated to admin/manager/accounts) producing an 'Insufficient permissions' toast. Buttons are correctly hidden but the failed fetch still fires. Consider guarding the fetch client-side on the same role list as the sidebar, or return an empty list with 200 for non-privileged roles.", "affected_selectors": ["[data-testid='demand-letters-page']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bulk_demand_letters_iter54.py",
+    "/app/test_reports/pytest/iter54_bulk_demand.xml"
+  ],
+  "action_items": [
+    "Optional: silence the 403 toast for sales users on /demand-letters by short-circuiting the fetch when role not in [admin,manager,accounts] (or route-guard the page in App.js).",
+    "Optional: add a hard 400 in generate-bulk endpoint when PAYMENT_STAGES lookup returns None to strengthen the 'unknown stage key' branch (already present, no change needed)."
+  ],
+  "critical_code_review_comments": [
+    "Route ordering fix for /documents/demand-letters (declared BEFORE /documents/{customer_id}) is correct and verified.",
+    "bulk-email endpoint correctly persists status/emailed_at even on failure, preventing infinite retry loops.",
+    "GeneratedDocument model backwards-compat is safe: new fields default to None and single-doc POST /documents/generate is unaffected (verified for demand_letter, sales_agreement, allotment_letter).",
+    "Idempotence works via {customer_id, doc_type, stage_key} uniqueness lookup; the batch_id is intentionally regenerated on each call which is correct per spec.",
+    "_resend_send mocked-fallback path treats 'mocked' as success and stamps emailed_at, matching spec."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_bulk_demand_letters_iter54.py"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% (all data-testids present, flows functional)"},
+  "test_credentials": "admin/accounts/sales from /app/memory/test_credentials.md; TEST_CUSTOMER_UUID=6d902613-5106-4294-bc3e-b907f85127f7",
+  "seed_data_creation": "Test suite triggered a bulk-generate that created ~90 demand-letter records for stage_key='podium'. Ephemeral mongo-seeded row for the customer-missing isolation test was deleted immediately after verification. Payment stage was restored to 'podium' at end of testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bulk demand letter feature is stable. /demand-letters lists 90+ podium letters; 2 are already marked emailed from this test run. Payment stage in settings is 'podium'. If retesting, expect idempotent 0/skipped on repeat bulk-generate. Sales user gets a 403 toast on page load — a known non-blocking UX nit noted in integration_issues.",
+  "rca of the issue": "N/A — no bug reproduced; feature works as specified."
+}
