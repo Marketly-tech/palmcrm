@@ -3,7 +3,7 @@ Settings, Payment Stages, Notes, Overdue, Activity Logs, Projects, and Units rou
 """
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from pydantic import BaseModel, Field, ConfigDict
 import uuid
 import logging
@@ -36,9 +36,17 @@ class UnitPricing(BaseModel):
     floor: int
     bhk_type: str
     saleable_area: float
-    rate_per_sqft: float
+    rate_per_sqft: float = 0
     uds: float = 0
     is_available: bool = True
+    # ---- Inventory & revenue enrichment fields (all optional so legacy
+    # units seeded via the older UnitPricingCreate path keep working) ----
+    carpet_sqft: Optional[float] = None
+    share_type: Optional[str] = None  # 'RRL' | 'LAND_OWNER'
+    status: Optional[str] = None      # 'AVAILABLE' | 'BOOKED' | 'SOLD' | 'BLOCKED'
+    agreement_value: Optional[float] = None
+    sold_rate_per_sqft: Optional[float] = None
+    customer_id: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -49,7 +57,12 @@ class UnitPricingCreate(BaseModel):
     floor: int
     bhk_type: str
     saleable_area: float
-    rate_per_sqft: float
+    rate_per_sqft: float = 0
+    carpet_sqft: Optional[float] = None
+    share_type: Optional[str] = None
+    status: Optional[str] = None
+    agreement_value: Optional[float] = None
+    sold_rate_per_sqft: Optional[float] = None
 
 
 # ==================== PAYMENT STAGE MANAGEMENT ====================
@@ -796,6 +809,320 @@ async def bulk_import_units(units: List[UnitPricingCreate], user: dict = Depends
         created += 1
     await log_activity(user['id'], user['name'], "import", "units", "", f"Imported {created} units")
     return {"message": f"Imported {created} units successfully"}
+
+
+# ==================== INVENTORY IMPORT + SUMMARY ====================
+_SHARE_MAP = {
+    "landowner": "LAND_OWNER",
+    "land owner": "LAND_OWNER",
+    "land_owner": "LAND_OWNER",
+    "land owner share": "LAND_OWNER",
+    "owner": "LAND_OWNER",
+    "builder": "RRL",
+    "rrl": "RRL",
+    "rrl share": "RRL",
+    "developer": "RRL",
+}
+
+
+def _norm_share(raw) -> Optional[str]:
+    if raw is None:
+        return None
+    key = str(raw).strip().lower()
+    return _SHARE_MAP.get(key)
+
+
+def _norm_status(raw) -> str:
+    """Map spreadsheet 'Sold / Unsold' cell to inventory status."""
+    if raw is None or str(raw).strip() == "":
+        return "AVAILABLE"
+    v = str(raw).strip().upper()
+    if v in {"SOLD", "BOOKED", "BLOCKED"}:
+        return v
+    if v in {"UNSOLD", "AVAILABLE"}:
+        return "AVAILABLE"
+    return "AVAILABLE"
+
+
+def _norm_bhk(raw) -> str:
+    if raw is None:
+        return ""
+    return str(raw).strip().upper().replace(" ", "")
+
+
+@misc_router.post("/units/import-file")
+async def import_units_file(
+    file: UploadFile = File(...),
+    project: str = Form("RRL PALM ALTEZZE"),
+    tower: str = Form("A"),
+    replace_existing: bool = Form(False),
+    user: dict = Depends(check_role([UserRole.ADMIN])),
+):
+    """Import a Flat-Details style .xlsx or .csv into ``db.units``.
+
+    Expected columns (case-insensitive, tolerant to spacing):
+      * ``Unit No.``        → unit_number  (required)
+      * ``Unit Type``       → bhk_type
+      * ``Floor No.``       → floor        (word or int, e.g. "First"/1)
+      * ``S.B.A (Sq. Ft.)`` → saleable_area
+      * ``Carpet Area (Sq. Ft.)`` → carpet_sqft
+      * ``UDS (Sq. Ft.)``   → uds
+      * ``Ownership``       → share_type   ('Landowner'/'Builder' → LAND_OWNER/RRL)
+      * ``Sold / Unsold``   → status       ('Sold' → SOLD, else AVAILABLE)
+
+    Idempotent by (project, tower, unit_number). Existing rows are updated
+    unless ``replace_existing=true`` in which case matching rows are removed
+    first. Skips blank / header rows without failing the whole batch.
+    """
+    filename = (file.filename or "").lower()
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    import io
+    rows: List[Dict[str, Any]] = []
+    try:
+        if filename.endswith(".csv"):
+            import csv as _csv
+            reader = _csv.DictReader(io.StringIO(raw.decode("utf-8-sig", errors="ignore")))
+            rows = [dict(r) for r in reader]
+        elif filename.endswith((".xlsx", ".xls")):
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
+            ws = wb[wb.sheetnames[0]]
+            headers: List[str] = []
+            for r_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                # First non-empty row is the header row.
+                if not headers:
+                    if row and any(c and "unit" in str(c).lower() for c in row):
+                        headers = [str(c).strip() if c is not None else f"col{i}"
+                                   for i, c in enumerate(row)]
+                    continue
+                if all(c is None or str(c).strip() == "" for c in row):
+                    continue
+                rec = {headers[i]: row[i] for i in range(min(len(headers), len(row)))}
+                rows.append(rec)
+        else:
+            raise HTTPException(status_code=400, detail="Only .xlsx or .csv accepted")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Inventory file parse failed")
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {e}")
+
+    def _pick(rec: dict, *needles: str):
+        low = {str(k).strip().lower(): v for k, v in rec.items() if k is not None}
+        for needle in needles:
+            n = needle.lower()
+            if n in low:
+                return low[n]
+            for k, v in low.items():
+                if n in k:
+                    return v
+        return None
+
+    db = get_database()
+    if replace_existing:
+        await db.units.delete_many({"project": project, "tower": tower})
+
+    created = 0
+    updated = 0
+    errors: List[Dict[str, Any]] = []
+
+    for idx, rec in enumerate(rows, start=1):
+        try:
+            unit_no_raw = _pick(rec, "unit no", "unit number")
+            if unit_no_raw is None or str(unit_no_raw).strip() == "":
+                continue
+            unit_no = str(int(float(unit_no_raw))) if isinstance(unit_no_raw, (int, float)) else str(unit_no_raw).strip()
+            sba = _pick(rec, "s.b.a", "sba", "saleable area")
+            carpet = _pick(rec, "carpet area (sq. ft.)", "carpet area")
+            uds = _pick(rec, "uds (sq. ft.)", "uds")
+            unit_type = _norm_bhk(_pick(rec, "unit type", "bhk"))
+            floor_raw = _pick(rec, "floor no", "floor")
+            # Floor may arrive as 'First'/'Second' — derive from unit number's
+            # hundreds digit if we can't parse it directly.
+            try:
+                floor_int = int(float(floor_raw))
+            except (TypeError, ValueError):
+                try:
+                    n = int(float(unit_no))
+                    floor_int = n // 100 if n >= 100 else 0
+                except Exception:
+                    floor_int = 0
+            share = _norm_share(_pick(rec, "ownership", "share"))
+            status = _norm_status(_pick(rec, "sold / unsold", "sold/unsold", "status", "sold"))
+
+            unit_doc = UnitPricing(
+                project=project, tower=tower, unit_number=unit_no,
+                floor=floor_int, bhk_type=unit_type,
+                saleable_area=float(sba) if sba not in (None, "") else 0.0,
+                rate_per_sqft=0,
+                uds=float(uds) if uds not in (None, "") else 0.0,
+                is_available=(status == "AVAILABLE"),
+                carpet_sqft=float(carpet) if carpet not in (None, "") else None,
+                share_type=share,
+                status=status,
+            )
+            payload = unit_doc.model_dump()
+            payload["created_at"] = payload["created_at"].isoformat()
+            # Preserve id / customer_id / pricing fields on updates so a
+            # re-import doesn't clobber the linked booking.
+            existing = await db.units.find_one(
+                {"project": project, "tower": tower, "unit_number": unit_no},
+                {"_id": 0, "id": 1, "customer_id": 1, "agreement_value": 1,
+                 "sold_rate_per_sqft": 1, "rate_per_sqft": 1, "created_at": 1},
+            )
+            if existing:
+                payload["id"] = existing["id"]
+                for k in ("customer_id", "agreement_value", "sold_rate_per_sqft"):
+                    if existing.get(k) is not None:
+                        payload[k] = existing[k]
+                if existing.get("rate_per_sqft"):
+                    payload["rate_per_sqft"] = existing["rate_per_sqft"]
+                payload["created_at"] = existing.get("created_at") or payload["created_at"]
+                await db.units.update_one(
+                    {"project": project, "tower": tower, "unit_number": unit_no},
+                    {"$set": payload},
+                )
+                updated += 1
+            else:
+                await db.units.insert_one(payload)
+                created += 1
+        except Exception as e:
+            errors.append({"row": idx, "error": str(e), "raw": {k: v for k, v in rec.items() if v is not None}})
+
+    await log_activity(
+        user["id"], user["name"], "import_file", "units", filename,
+        f"Inventory import: {created} created, {updated} updated, {len(errors)} errors",
+    )
+    return {
+        "project": project, "tower": tower,
+        "rows_read": len(rows), "created": created, "updated": updated,
+        "error_count": len(errors), "errors": errors[:25],
+    }
+
+
+@misc_router.get("/inventory/summary")
+async def inventory_summary(
+    project: Optional[str] = None,
+    tower: Optional[str] = None,
+    share_type: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Roll up per-unit inventory into six KPI numbers + a floor-wise grid.
+
+    Filters:
+      * ``share_type='RRL' | 'LAND_OWNER'`` — restricts every KPI (including
+        the Total Project Valuation numerator) to that share bucket.
+
+    KPI shape (all rupees; SBA in sq ft):
+      * ``total_projected_revenue`` — sum of ``agreement_value`` across every
+        unit in scope.
+      * ``collected_till_date``    — sum of ``payment_transactions.amount``
+        for every customer linked to an in-scope unit.
+      * ``outstanding``            — projected − collected.
+      * ``interest_amount``        — sum of ``customers.interest_amount``
+        across linked customers (kept as a KPI so finance sees it separately).
+      * ``avg_sold_rate``          — weighted average of
+        ``sold_rate_per_sqft * saleable_area`` over units with status='SOLD'.
+      * ``total_valuation``        — ``avg_sold_rate * total_sba_of_all_units_in_scope``.
+    """
+    db = get_database()
+    q: dict = {}
+    if project: q["project"] = project
+    if tower: q["tower"] = tower
+    if share_type: q["share_type"] = share_type
+
+    units = await db.units.find(q, {"_id": 0}).to_list(5000)
+
+    projected = 0.0
+    total_sba = 0.0
+    sold_num = 0.0  # Σ(sold_rate * sba) over SOLD units
+    sold_sba = 0.0
+    per_floor: Dict[int, Dict[str, int]] = {}
+    linked_customer_ids: List[str] = []
+
+    for u in units:
+        sba = float(u.get("saleable_area") or 0)
+        total_sba += sba
+        projected += float(u.get("agreement_value") or 0)
+        if u.get("status") == "SOLD" and u.get("sold_rate_per_sqft"):
+            sold_num += float(u["sold_rate_per_sqft"]) * sba
+            sold_sba += sba
+        if u.get("customer_id"):
+            linked_customer_ids.append(u["customer_id"])
+        # Floor grid tally (useful for the UI's floor-wise heatmap header).
+        f = int(u.get("floor") or 0)
+        bucket = per_floor.setdefault(f, {"total": 0, "sold": 0, "booked": 0, "available": 0, "blocked": 0})
+        bucket["total"] += 1
+        st = (u.get("status") or "AVAILABLE").lower()
+        if st in bucket:
+            bucket[st] += 1
+
+    avg_sold_rate = (sold_num / sold_sba) if sold_sba > 0 else 0.0
+    total_valuation = avg_sold_rate * total_sba
+
+    collected = 0.0
+    interest = 0.0
+    if linked_customer_ids:
+        # payment_transactions collected
+        txns_cursor = db.payment_transactions.find(
+            {"customer_id": {"$in": linked_customer_ids}},
+            {"_id": 0, "amount": 1},
+        )
+        async for t in txns_cursor:
+            collected += float(t.get("amount") or 0)
+        cust_cursor = db.customers.find(
+            {"id": {"$in": linked_customer_ids}},
+            {"_id": 0, "interest_amount": 1},
+        )
+        async for c in cust_cursor:
+            interest += float(c.get("interest_amount") or 0)
+
+    counts_by_status = {"AVAILABLE": 0, "BOOKED": 0, "SOLD": 0, "BLOCKED": 0}
+    for u in units:
+        counts_by_status[u.get("status") or "AVAILABLE"] = counts_by_status.get(u.get("status") or "AVAILABLE", 0) + 1
+
+    return {
+        "filters": {"project": project, "tower": tower, "share_type": share_type},
+        "total_units": len(units),
+        "total_sba": round(total_sba, 2),
+        "total_projected_revenue": round(projected, 2),
+        "collected_till_date": round(collected, 2),
+        "outstanding": round(projected - collected, 2),
+        "interest_amount": round(interest, 2),
+        "avg_sold_rate": round(avg_sold_rate, 2),
+        "total_valuation": round(total_valuation, 2),
+        "counts_by_status": counts_by_status,
+        "per_floor": per_floor,
+    }
+
+
+@misc_router.get("/inventory/units")
+async def inventory_units(
+    project: Optional[str] = None,
+    tower: Optional[str] = None,
+    share_type: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Flat unit list for the inventory grid page. Kept separate from the
+    existing ``GET /units`` endpoint so we can shape the payload just for the
+    grid (small fields, ordered by floor asc then unit_number)."""
+    db = get_database()
+    q: dict = {}
+    if project: q["project"] = project
+    if tower: q["tower"] = tower
+    if share_type: q["share_type"] = share_type
+    projection = {
+        "_id": 0, "id": 1, "project": 1, "tower": 1, "unit_number": 1,
+        "floor": 1, "bhk_type": 1, "saleable_area": 1, "carpet_sqft": 1,
+        "share_type": 1, "status": 1, "agreement_value": 1,
+        "sold_rate_per_sqft": 1, "customer_id": 1,
+    }
+    units = await db.units.find(q, projection).sort([("floor", 1), ("unit_number", 1)]).to_list(5000)
+    return {"count": len(units), "units": units}
+
 
 
 # ==================== EXPORT FUNCTIONALITY ====================

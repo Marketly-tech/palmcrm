@@ -37,6 +37,7 @@ const navigation = [
   { name: "Payments", href: "/payments", icon: IndianRupee, roles: ["admin", "manager", "accounts"] },
   { name: "Documents", href: "/documents", icon: FileText, roles: ["admin", "manager", "accounts"] },
   { name: "Demand Letters", href: "/demand-letters", icon: MailWarning, roles: ["admin", "manager", "accounts"] },
+  { name: "Inventory", href: "/inventory", icon: Building2, roles: ["admin", "manager", "sales"] },
   { name: "Payment Tracking", href: "/calculator", icon: CreditCard, roles: ["admin", "manager", "accounts"] },
   { name: "Email Tracking", href: "/email-logs", icon: Mail, roles: ["admin", "manager"] },
   { name: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "manager"] },
