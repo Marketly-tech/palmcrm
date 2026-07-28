@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-02-28 (feature) — Additional Charges Description (P0, recurring resolved)
+- **Frontend** — `components/customer/details/PropertyPricingCard.jsx`: added a description text input just below the "Additional Charges" amount (edit mode only), plus a helper hint "Optional label — defaults to 'Additional Charges' when blank". View mode now shows the custom description as a small subtitle under the amount when both a non-zero amount and a description exist. Persisted via the existing `editData` spread in `useCustomerPage.js` → PUT /api/customers/{id}. Test IDs: `additional-charges-input`, `additional-charges-description-input`, `additional-charges-value`, `additional-charges-description-value`.
+- **Backend** — no schema change (field `additional_charges_description: str = ""` already lived in `customers/models.py` from prior sessions).
+- **PDF Template** — `documents/templates/price_breakup.py` already used the field (line 57) as the row label with a fallback to "Additional Charges". Confirmed behaviour with unit-level render tests:
+  - Custom label rendered when both amount>0 and description set.
+  - Generic "Additional Charges" fallback when description is blank.
+  - Row completely hidden when amount is zero.
+- **Verified** — curl PUT + GET round-trip on Ramya test lead (`6d902613-5106-4294-bc3e-b907f85127f7`); Playwright screenshot on preview URL confirms the new input appears in edit mode and accepts text.
+- Files touched: `frontend/src/components/customer/details/PropertyPricingCard.jsx`.
+
+
+
 ## 2026-07-28 (feature) — Bulk Demand-Letter Workflow
 - **Backend** — extends `GeneratedDocument` model in `documents/models.py` with optional `stage_key`, `stage_name`, `batch_id`, `emailed_at`, `email_status`, `emailed_by` fields (all default None → single-doc flows unaffected).
 - Three new endpoints in `documents/routes.py`:

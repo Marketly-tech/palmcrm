@@ -172,15 +172,44 @@ const PropertyPricingCard = ({
             <div>
               <Label>Additional Charges</Label>
               {editing ? (
-                <Input
-                  type="number"
-                  value={editData.additional_charges || 0}
-                  onChange={(e) => setEditData({ ...editData, additional_charges: parseFloat(e.target.value) || 0 })}
-                  className="mt-1"
-                  placeholder="Enter additional charges"
-                />
+                <>
+                  <Input
+                    type="number"
+                    value={editData.additional_charges || 0}
+                    onChange={(e) => setEditData({ ...editData, additional_charges: parseFloat(e.target.value) || 0 })}
+                    className="mt-1"
+                    placeholder="Enter additional charges amount"
+                    data-testid="additional-charges-input"
+                  />
+                  <Input
+                    type="text"
+                    value={editData.additional_charges_description ?? ""}
+                    onChange={(e) =>
+                      setEditData({ ...editData, additional_charges_description: e.target.value })
+                    }
+                    className="mt-2"
+                    placeholder="Description (e.g. Corner Unit Premium) — shown on Price Breakup"
+                    maxLength={80}
+                    data-testid="additional-charges-description-input"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Optional label &mdash; defaults to &ldquo;Additional Charges&rdquo; when blank
+                  </p>
+                </>
               ) : (
-                <p className="text-slate-700 mt-1">{formatCurrency(customer.additional_charges || 0)}</p>
+                <>
+                  <p className="text-slate-700 mt-1" data-testid="additional-charges-value">
+                    {formatCurrency(customer.additional_charges || 0)}
+                  </p>
+                  {(customer.additional_charges || 0) > 0 && customer.additional_charges_description && (
+                    <p
+                      className="text-xs text-slate-500 mt-0.5"
+                      data-testid="additional-charges-description-value"
+                    >
+                      {customer.additional_charges_description}
+                    </p>
+                  )}
+                </>
               )}
             </div>
             <div>

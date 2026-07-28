@@ -368,6 +368,7 @@
 - [x] **Disbursement Slab dashboard tiles** — added 3 stat tiles to the Disbursement Slab card: Total Revenue (Expected at slab), Total Collected (Cumulative across all customers), Total Overdue at Slab. Also fixed a latent bug where the existing PaymentStageCard treated the API response as an array — overdue customer list now renders correctly. Tiles include % progress bars showing collected/overdue as fraction of expected. (Feb 2026)
 - [x] **Co-applicant gender + dynamic S/o, D/o, W/o label** — Booking form and customer-profile CoApplicantCard now have a Gender Select with the same options as the primary applicant. Father/Spouse Name label dynamically reflects relation. Also fixes a latent bug where co_applicant_date_of_birth wasn't being saved from booking submissions. (Feb 2026)
 - [x] **Lead Reject button + confirmation dialog** — Leads page now has a red Reject button on every row and in the View Lead dialog. Confirmation dialog with optional Reason input. Calls existing PUT /api/leads/{id}/reject which deletes the customer, releases the unit, and logs the activity. (Feb 2026)
+- [x] **Additional Charges Description** — Property & Pricing card now has a description text input under "Additional Charges" amount (edit mode). When set with a non-zero amount, the Price Breakup PDF renders the custom description as the row label instead of the generic "Additional Charges" text. Blank description falls back to default. (Feb 2026)
 
 ---
 
@@ -375,15 +376,21 @@
 
 ### P1 (High Priority)
 - Comprehensive testing with real production data
+- **Subtotal row in Price Breakup PDF** — bold "Subtotal" row before Labour Cess that explicitly sums everything above it
+- **DB query optimisation** — add MongoDB projections in `customers/routes.py`, `dashboard/routes.py`, `payments/routes.py` list endpoints to skip heavy fields on list views
 
 ### P2 (Medium Priority)
 - Inbox View for Email Tracking (inbound replies via SendGrid Inbound Parse or IMAP)
 - WhatsApp via Twilio (full API integration)
 - Activity Logs UI (audit trail page)
+- Document Checklist UI on customer profile
+- Recently Rejected Leads drawer on Leads page
 
 ### P3 (Low Priority)
-- User-Uploadable Email Attachments
+- User-Uploadable Email Attachments (local file upload from composer)
+- Refactor high-complexity functions: `format_applicant_block`, `generate_cost_breakup_html`, `generate_booking_form_preview_html`
 - ~~Admin Template Editor (UI for editing PDF templates)~~ **DONE — Feb 2026**
+- ~~Bulk Construction Update Emailer~~ **DONE — Feb 2026** (Backend `/api/customers/construction-update/preview` + `/send`; frontend `ConstructionUpdateDialog.jsx` on Dashboard + Demand Letters page)
 
 ---
 

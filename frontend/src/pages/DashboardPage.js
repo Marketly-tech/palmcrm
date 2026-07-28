@@ -9,6 +9,7 @@ import {
   PaymentStatusChart, UpcomingPayments, DueDateCountdown, RecentActivity,
   ReconciliationCard, DisbursementSummaryCard,
 } from "../components/dashboard";
+import ConstructionUpdateDialog from "../components/common/ConstructionUpdateDialog";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
