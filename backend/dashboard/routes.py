@@ -313,3 +313,162 @@ async def delete_orphan_transaction(transaction_id: str, user: dict = Depends(ge
         # Don't block the cleanup if the audit logger hiccups.
         pass
     return {"deleted": True, "transaction_id": transaction_id, "amount": txn.get("amount", 0)}
+
+
+# ---------------------------------------------------------------------------
+# Bank Disbursement Summary (admin)
+# ---------------------------------------------------------------------------
+_BANK_SUFFIXES_TO_STRIP = (
+    " BANK LTD.",
+    " BANK LIMITED",
+    " BANK LTD",
+    " BANK",
+    " LIMITED",
+    " LTD.",
+    " LTD",
+)
+
+
+def _normalize_bank(raw: Optional[str]) -> str:
+    """Collapse bank-name variants so 'HDFC BANK' and 'HDFC' land in the same
+    bucket. Uppercases, trims, and strips common corporate suffixes. Empty
+    values collapse to 'UNSPECIFIED' so no group silently disappears."""
+    if not raw:
+        return "UNSPECIFIED"
+    s = str(raw).strip().upper()
+    # Iteratively strip suffixes until stable (handles "SBI BANK LIMITED" etc).
+    changed = True
+    while changed:
+        changed = False
+        for suf in _BANK_SUFFIXES_TO_STRIP:
+            if s.endswith(suf):
+                s = s[: -len(suf)].strip()
+                changed = True
+    return s or "UNSPECIFIED"
+
+
+@router.get("/disbursement-summary")
+async def get_disbursement_summary(user: dict = Depends(get_current_user)):
+    """Per-bank disbursement snapshot for the main dashboard (admin only).
+
+    Aggregates two side-by-side series, joined on a *normalized* bank name:
+      • **Total Disbursed** — SUM(amount) of every payment_transaction whose
+        ``transaction_stage == 'scheduled_disbursement'``, grouped by bank.
+      • **Pending Disbursement** — for every customer with a financed loan
+        (``finance_type in {'loan', 'mixed'}`` and ``loan_amount > 0``),
+        ``max(loan_amount - disbursed_to_date, 0)`` grouped by the customer's
+        ``finance_bank``.
+
+    Orphan scheduled_disbursement rows (customer_id no longer in the customers
+    collection) are surfaced separately under ``unmatched`` so the grand total
+    stays accurate and an admin can clean them up via
+    ``POST /api/dashboard/reconciliation/delete-orphan/{transaction_id}``.
+    """
+    if user.get("role") != "admin":
+        return {"error": "Admin role required."}
+
+    db = get_database()
+
+    # 1. Index every customer with a loan so we can compute per-customer pending.
+    financed_customers = await db.customers.find(
+        {"finance_type": {"$in": ["loan", "mixed"]}, "loan_amount": {"$gt": 0}},
+        {"_id": 0, "id": 1, "name": 1, "unit_number": 1, "project": 1,
+         "finance_bank": 1, "loan_amount": 1},
+    ).to_list(5000)
+    customer_index = {c.get("id"): c for c in financed_customers}
+
+    # 2. Index the full customer set (for orphan detection).
+    all_customer_ids: set = set()
+    async for c in db.customers.find({}, {"_id": 0, "id": 1}):
+        all_customer_ids.add(c.get("id"))
+
+    # 3. Pull every scheduled_disbursement transaction. We hydrate each row's
+    #    bank via its own bank_name, falling back to the customer's finance_bank
+    #    so mismatched postings still land in the right bucket.
+    txns = await db.payment_transactions.find(
+        {"transaction_stage": "scheduled_disbursement"},
+        {"_id": 0, "id": 1, "customer_id": 1, "amount": 1, "bank_name": 1,
+         "transaction_date": 1, "transaction_number": 1, "notes": 1},
+    ).to_list(100000)
+
+    per_bank: dict[str, dict] = {}
+    disbursed_by_customer: dict[str, float] = {}
+    unmatched: list[dict] = []
+    unmatched_total = 0.0
+
+    def _bucket(name: str) -> dict:
+        return per_bank.setdefault(
+            name,
+            {"bank": name, "total_disbursed": 0.0, "pending_disbursement": 0.0,
+             "loan_amount": 0.0, "customer_count": 0},
+        )
+
+    for t in txns:
+        amt = float(t.get("amount") or 0)
+        cid = t.get("customer_id")
+        cust = customer_index.get(cid)
+        # Bank preference: financed customer's bank > txn's own bank_name.
+        raw_bank = (cust or {}).get("finance_bank") or t.get("bank_name")
+        bank = _normalize_bank(raw_bank)
+
+        if cid and cid not in all_customer_ids:
+            unmatched.append({
+                "transaction_id": t.get("id"),
+                "customer_id": cid,
+                "amount": amt,
+                "bank_name": t.get("bank_name") or "",
+                "transaction_date": t.get("transaction_date") or "",
+                "transaction_number": t.get("transaction_number") or "",
+                "notes": t.get("notes") or "",
+            })
+            unmatched_total += amt
+            continue
+
+        _bucket(bank)["total_disbursed"] += amt
+        if cid:
+            disbursed_by_customer[cid] = disbursed_by_customer.get(cid, 0.0) + amt
+
+    # 4. Compute pending per financed customer and roll up by (normalized) bank.
+    grand_pending = 0.0
+    grand_loan = 0.0
+    for c in financed_customers:
+        cid = c.get("id")
+        loan = float(c.get("loan_amount") or 0)
+        disbursed = disbursed_by_customer.get(cid, 0.0)
+        pending = max(loan - disbursed, 0.0)
+        bank = _normalize_bank(c.get("finance_bank"))
+        row = _bucket(bank)
+        row["pending_disbursement"] += pending
+        row["loan_amount"] += loan
+        row["customer_count"] += 1
+        grand_pending += pending
+        grand_loan += loan
+
+    # 5. Round + sort banks so the heaviest pending exposure appears first —
+    #    that's the row an admin cares about at a glance.
+    banks = [
+        {
+            "bank": b["bank"],
+            "total_disbursed": round(b["total_disbursed"], 2),
+            "pending_disbursement": round(b["pending_disbursement"], 2),
+            "loan_amount": round(b["loan_amount"], 2),
+            "customer_count": b["customer_count"],
+        }
+        for b in per_bank.values()
+    ]
+    banks.sort(key=lambda r: r["pending_disbursement"], reverse=True)
+
+    grand_disbursed = sum(b["total_disbursed"] for b in banks)
+
+    # Cap unmatched list so the response stays bounded even in worst case.
+    unmatched.sort(key=lambda o: o["amount"] or 0, reverse=True)
+
+    return {
+        "grand_total_disbursed": round(grand_disbursed, 2),
+        "grand_total_pending": round(grand_pending, 2),
+        "grand_total_loan": round(grand_loan, 2),
+        "banks": banks,
+        "unmatched_total": round(unmatched_total, 2),
+        "unmatched_count": len(unmatched),
+        "unmatched": unmatched[:50],
+    }

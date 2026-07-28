@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 53 — Verified Bank Disbursement Summary card end-to-end. Backend: 10/10 pytest cases pass on GET /api/dashboard/disbursement-summary — shape assertion, admin gating (sales & accounts get {error:'Admin role required.'}), bank normalization (HDFC BANK / HDFC / HDFC Bank Ltd all collapse to 'HDFC'), Total Disbursed aggregation, Pending Disbursement math for finance_type=loan|mixed, self/zero-loan exclusion, over-disbursement clamp to 0, orphan appearance in unmatched[] with amount+bank_name+transaction_date+transaction_number, and POST /api/dashboard/reconciliation/delete-orphan/{id} cleanup removing the txn from unmatched and decrementing unmatched_count by 1. Frontend: card renders with data-testid='disbursement-summary-card' for admin and is hidden for the sales role. Headline testids grand-total-pending and grand-total-disbursed both show ₹ values. Per-bank row uses data-testid='disbursement-row-<BANK>' (verified 'disbursement-row-HDC'). Unmatched section renders 4 rows (dev-seed HDFC-BANK orphans + 'ft' typo), each with unmatched-row-<txn_id> and delete-unmatched-<txn_id>. Refresh button clicks re-fetch without errors. Card sits at position 4 in DashboardPage — right after the Revenue cards and before payment-stage-card, matching the spec.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_disbursement_summary_iteration53.py",
+    "/app/test_reports/pytest/pytest_disbursement_iter53.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_normalize_bank iteratively strips suffixes in a stable loop; handles 'SBI BANK LIMITED' style compounds correctly. Empty/null collapses to 'UNSPECIFIED' as documented.",
+    "Bank preference is 'customer.finance_bank > txn.bank_name' ONLY for financed customers (cust must be in customer_index which filters finance_type in {loan,mixed} AND loan_amount>0). For non-financed customers (like 'Ramya test lead' with finance_type=self, empty finance_bank), the txn falls back to its own bank_name — which is why the dev DB currently shows a 'HDC' row with 0 loans and ₹84,662 disbursed. That is correct behavior given the underlying data, NOT a bug; just document it so future observers don't chase phantom drift.",
+    "Pending clamp uses max(loan-disbursed, 0) — never negative. Verified with ICICI over-disbursement seed (loan 100k, disbursed 250k -> pending 0).",
+    "Orphan rows are excluded from banks[] AND grand_total_disbursed AND grand_total_pending; they only surface via unmatched[]/unmatched_total/unmatched_count. Response caps unmatched sample at 50 as specified.",
+    "delete-orphan endpoint reused correctly; refuses if customer still exists (guardrail intact) and logs an activity audit trail.",
+    "Frontend uses ₹ Intl.NumberFormat, correct loading/error state (spinner + error text), refresh button spins during refetch. All required data-testids wired.",
+    "Position: DashboardPage renders <RevenueCards> then <DisbursementSummaryCard> then <PaymentStageCard> — matches 'right after Revenue, before PaymentStageCard' spec.",
+    "Minor: DisbursementSummaryCard uses window.confirm() for delete-orphan confirmation instead of an AlertDialog like BulkDeleteBar does elsewhere in the codebase. Not a bug, but inconsistent UX. Consider migrating to shadcn AlertDialog for style parity."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_disbursement_summary_iteration53.py (new — 10 pytest cases)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (all data-testids, positioning, admin-only gating, refresh, delete-orphan flow verified)"},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com/#RRLnew2026; Sales sales@rrlrprojects.com/sales123; Accounts accounts@rrlbuilders.com/accounts123",
+  "seed_data_creation": "5 TEST_ITER53_DISB_-prefixed throwaway customers (3 HDFC variants: HDFC BANK / HDFC / HDFC Bank Ltd; 1 self-financed; 1 over-disbursed ICICI) + 4 scheduled_disbursement transactions (3 valid + 1 orphan). All seeded via direct MongoDB inserts and cleaned up in the module-scoped fixture teardown. No real data touched.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression-safe test file: /app/backend/tests/test_disbursement_summary_iteration53.py — module-scoped fixture creates and cleans TEST_ITER53_DISB_-prefixed customers/txns via pymongo direct writes, so it can be re-run idempotently. The dev DB has a persistent 'HDC' bank row (from Ramya test lead's non-financed disbursement txn where bank_name='HDC' literally) plus 3 HDFC-BANK orphan rows + 1 'ft' typo orphan — these are the dev-seed baseline and MUST NOT be deleted during future testing (they are asserted implicitly by 'relative' checks in the tests, not absolute totals). Iteration 53 verified all 14 acceptance-criteria points from the review request. No open issues.",
+  "rca of the issue": "N/A — feature works as specified."
+}
