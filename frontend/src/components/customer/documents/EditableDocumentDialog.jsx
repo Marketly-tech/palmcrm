@@ -188,7 +188,7 @@ const EditableDocumentDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[95vh] p-0 gap-0">
-        <DialogHeader className="px-6 pt-5 pb-3 border-b">
+        <DialogHeader className="px-6 pt-5 pb-3 pr-12 border-b">
           <div className="flex items-center justify-between gap-4">
             <DialogTitle data-testid="edit-doc-title">{prettyTitle}</DialogTitle>
             <div className="flex items-center gap-2">
