@@ -129,7 +129,7 @@ const DocumentTemplatesTab = () => {
     docu.open();
     docu.write(content || "<p style='padding:20px;color:#94a3b8'>Select a document type and click Customize to start editing.</p>");
     docu.close();
-  }, [content]);
+  }, [content, showCode]);
 
   const refreshTemplates = async () => {
     const res = await axios.get(`${API}/templates`);
