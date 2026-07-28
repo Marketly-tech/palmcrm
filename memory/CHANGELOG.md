@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-07-28 (feature) — Bank Disbursement Summary card on Dashboard
+- **Backend** — new admin-only `GET /api/dashboard/disbursement-summary` (in `backend/dashboard/routes.py`) that:
+  - Sums `payment_transactions.amount` where `transaction_stage == 'scheduled_disbursement'` → `total_disbursed`.
+  - For customers with `finance_type in {loan, mixed}` and `loan_amount > 0`, computes `pending = max(loan_amount - disbursed_to_date, 0)` (never negative).
+  - Normalizes bank names via `_normalize_bank` (uppercase + iterative strip of ` BANK`, ` LTD`, ` LIMITED`, ` BANK LTD.`, ` BANK LIMITED`, etc.), so `HDFC BANK` == `HDFC` == `HDFC Bank Ltd`. Empty → `UNSPECIFIED`.
+  - Bucket-key preference: `customer.finance_bank > txn.bank_name` for financed customers; txn fallback for non-financed. Rolls up per bank into `banks[]` with `total_disbursed / pending_disbursement / loan_amount / customer_count`, sorted by pending desc.
+  - Orphan handling: disbursements whose `customer_id` is not in the customers collection are excluded from `banks[]` / grand totals and surfaced separately in `unmatched[]` (capped at 50 rows) with `unmatched_total` and `unmatched_count`. Cleanup uses the existing `POST /api/dashboard/reconciliation/delete-orphan/{id}` endpoint (admin-only, refuses if customer still exists, writes an activity audit log).
+- **Frontend** — new `DisbursementSummaryCard.jsx` in `components/dashboard/`:
+  - Headlines `Grand Total Pending Disbursement` in 4xl–5xl indigo text; supporting `Total Disbursed To Date` tile beside it.
+  - Per-bank breakdown table (Bank / Loans / Sanctioned / Disbursed / Pending) with a small "% disbursed" hint under each bank name.
+  - Unmatched-disbursements section (only when count > 0) with per-row delete button (`data-testid="delete-unmatched-<txn_id>"`) that calls the delete-orphan endpoint and refreshes.
+  - Refresh button `data-testid="refresh-disbursement-btn"`; all rows have stable testids (`disbursement-row-<BANK>`, `unmatched-row-<txn_id>`).
+  - Mounted on `pages/DashboardPage.js` after `<RevenueCards>` and before `<PaymentStageCard>`, admin-gated via `hasRole('admin')`.
+- **Verified** — iteration_53 report: **10/10 backend pytest cases pass** + full Playwright frontend flow; regression-safe test file `backend/tests/test_disbursement_summary_iteration53.py` self-seeds and cleans up TEST_ITER53_DISB_-prefixed data.
+- Files: `backend/dashboard/routes.py`, `frontend/src/components/dashboard/DisbursementSummaryCard.jsx`, `frontend/src/components/dashboard/index.js`, `frontend/src/pages/DashboardPage.js`.
+
+
 ## 2026-07-03 (bug fix) — Co-Applicant Missing From Restored Sales Agreement
 - **Bug**: After "Restore to Default" or Save-As-Master + regenerate, the Sales Agreement signature block showed `{customer_name} AND {co_applicant_name}` as literal placeholder text instead of the customer's real co-applicant name.
 - **Root cause**: `_scrub_customer_values_to_placeholders` was correctly scrubbing co-applicant scalars (`co_applicant_name`, `_father_name`, `_pan`, `_aadhar`, `_email`, `_phone`, `_address`) into `{co_applicant_*}` tokens, but `_build_placeholders` (used by the override-template render path) did not resolve those tokens back to customer data at render time. Same issue for `{customer_names}`, `{age}`, `{salutation}`, `{aadhaar_number}`, `{floor_ordinal}`, `{additional_parking}`, `{additional_parking_text}`, `{possession_date}`, `{base_price_formatted}`, `{club_house_formatted}`, `{parking_charges_formatted}`, `{labour_cess_formatted}`, `{gst_formatted}`, `{logo_img}`, `{company_name}` — all present in `sales_agreement_html.py` but missing from the fallback builder.
