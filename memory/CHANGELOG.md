@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-02-28 (admin ops) — Legacy zero-charges backfill endpoint
+- **Purpose** — For customers created 2026-03-20 → 2026-03-22 (RRL-00025..RRL-00035 in production) whose `club_house_charges` / `additional_parking_charges` were stored as `null` (predating the "0 is respected" pricing fix), give admins a safe one-shot way to explicitly set both fields to `0` so their UI cards and Price Breakup PDFs render identical numbers.
+- **Endpoint** — `POST /api/dashboard/backfill/legacy-zero-charges` (admin-only). Query params: `start_date` (default 2026-03-20, inclusive), `end_date_exclusive` (default 2026-03-23), `apply` (default `false` = dry-run). Response includes the full candidate list, per-field would-update counts, applied counts (only when `apply=true`), and a post-run verify block. Idempotent — only touches rows whose target field is `null` / `""` / missing; a non-null value (even `0`) is left untouched.
+- **Verified on preview** — 4-case synthetic test: (a) both-null customer → both set to 0; (b) only-club-null with parking=50000 → club set to 0, parking preserved at 50000; (c) only-parking-null with club=0 → parking set to 0; (d) customer outside the window (Mar 25) → untouched. Re-run with `apply=true` after applying returned 0 modifications (idempotence).
+- **Runbook for production** (after redeploy):
+  1. Get admin token via `POST /api/auth/login`.
+  2. Dry-run: `POST /api/dashboard/backfill/legacy-zero-charges` — review the returned `candidates` list.
+  3. Apply: same URL + `?apply=true`.
+  4. Verify: response's `verify.still_null` should be `0`.
+- Files touched: `backend/dashboard/routes.py`.
+
+
+
 ## 2026-02-28 (bug fix) — Disbursement Summary logic rewrite
 - **Symptom** — Dashboard Bank Disbursement widget had five defects:
   1. `BOB BANK LOAN`, `BOB LOAN`, `BOB` showed as separate rows (same for HDFC / Canara variants).
