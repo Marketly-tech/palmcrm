@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-02-28 (bug fix) — Pricing formula: honour explicit zeros + legacy-record protection
+- **Symptom** — In the Property & Pricing edit form, entering `0` for Club House, Car Parking, BESCOM, or Additional Charges silently reverted to the default (₹3L / ₹2L / etc.) because of the classic `parseFloat(x) || default` short-circuit. Legacy customers (pre-BESCOM formula) had their historical `total_price` silently overwritten every time an admin saved unrelated fields.
+- **Fix (`frontend/src/hooks/useCustomerPage.js`)**:
+  1. Added a `numOr(raw, fallback)` helper that only falls back when the field is missing (`null` / `undefined` / `""`) — an explicit `0` (numeric or string) is respected.
+  2. Rewrote `calculateLivePrice` to use `numOr` for every input: `saleable_area`, `rate_per_sqft`, `floor_rise_cost`, `club_house_charges`, `additional_parking_charges`, `additional_charges`, `bescom_rate`, `interest_amount`.
+  3. **Interest gate** — `interest_amount` is now only added to the total when > 0. Null / 0 / NaN contribute nothing (previously would still `+ 0`, but the explicit guard makes intent clear and prevents any NaN slip-up poisoning the total).
+  4. **Legacy pricing policy** — customers with `created_at < 2026-06-02T00:00:00Z` predate the BESCOM-inclusive subtotal formula. `handleSaveCustomer` now detects them via `isLegacyPricingCustomer` and **skips the auto-recalc branch entirely**, deleting any stale `total_price` from the PUT payload so their historical price survives edits. Toast reads "Customer updated (historical price preserved — pre-Jun 2026 record)".
+- **List View confirmed clean** — `CustomerTable.jsx` doesn't display `total_price` at all; `CustomerQuickInfo.jsx`, `PaymentSummaryCard.jsx`, `DisbursementCalculatorCard.jsx`, `LeadsPage.js` all read `customer.total_price` directly from the API response. No on-the-fly recomputation anywhere on read paths.
+- **Verified** — 
+  - Unit-level: 8 semantic cases (undefined / null / "" / 0 / "0" / positive num / positive str / NaN str) all behave as expected with `numOr`.
+  - Curl round-trip: PUT `club_house_charges: 0` → GET confirms `0` persists (previously would flip to 300000 on next save with liveCalc).
+- Files touched: `frontend/src/hooks/useCustomerPage.js`.
+
+
+
 ## 2026-02-28 (bug fix) — Demand Letter preview eye-icon returned "Not authenticated"
 - **Symptom** — Clicking the Preview (eye) icon on `/demand-letters` opened a new tab showing `{"detail":"Not authenticated"}`.
 - **Root cause** — The button did `window.open('/api/documents/preview/{id}')`, which fires an unauthenticated GET (no `Authorization` header). Additionally, `/documents/preview/{id}` searches `customer_documents` (uploaded files) and doesn't serve generated docs at all.
