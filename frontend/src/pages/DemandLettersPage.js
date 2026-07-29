@@ -43,6 +43,44 @@ const formatDate = (iso) => {
   }
 };
 
+/**
+ * Open a generated document's HTML in a new browser tab.
+ *
+ * We can't `window.open('/api/documents/preview/...')` directly because that
+ * would fire an unauthenticated GET (no Authorization header) and the
+ * endpoint 401s. Instead we fetch via the app's authenticated axios
+ * instance, wrap the returned HTML in a Blob, and point the pre-opened
+ * blank tab at that Blob URL. Opening the blank tab BEFORE the async fetch
+ * avoids popup-blocker heuristics.
+ */
+const openDemandLetterPreview = async (docId) => {
+  const win = window.open("about:blank", "_blank");
+  if (win) {
+    win.document.write(
+      "<title>Loading demand letter…</title>" +
+      "<body style='font-family:system-ui;padding:2rem;color:#555;'>Loading demand letter…</body>"
+    );
+  }
+  try {
+    const { data } = await axios.get(`${BACKEND_URL}/api/documents/html/${docId}`);
+    const html = data?.content || "";
+    if (!html) throw new Error("Empty content");
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    if (win) {
+      win.location.href = url;
+    } else {
+      // Popup blocked — fall back to same-tab navigation.
+      window.location.href = url;
+    }
+    // Release the blob URL after the new tab has had time to load it.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+    if (win) win.close();
+    toast.error(e?.response?.data?.detail || "Failed to open preview");
+  }
+};
+
 const DemandLettersPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -473,7 +511,7 @@ const DemandLettersPage = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => window.open(`${API}/documents/preview/${r.id}`, "_blank")}
+                          onClick={() => openDemandLetterPreview(r.id)}
                           data-testid={`preview-${r.id}`}
                           title="Preview / download"
                         >

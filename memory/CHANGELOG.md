@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-28 (bug fix) — Demand Letter preview eye-icon returned "Not authenticated"
+- **Symptom** — Clicking the Preview (eye) icon on `/demand-letters` opened a new tab showing `{"detail":"Not authenticated"}`.
+- **Root cause** — The button did `window.open('/api/documents/preview/{id}')`, which fires an unauthenticated GET (no `Authorization` header). Additionally, `/documents/preview/{id}` searches `customer_documents` (uploaded files) and doesn't serve generated docs at all.
+- **Fix** — `frontend/src/pages/DemandLettersPage.js`: new helper `openDemandLetterPreview(docId)` that (1) opens a blank tab immediately (to avoid popup-blocker heuristics), (2) fetches the HTML via authenticated axios call to `/api/documents/html/{id}` (the app's global axios instance carries the Bearer token from `AuthContext`), (3) wraps the HTML in a Blob and points the pre-opened tab at the Blob URL. The blob URL is released after 60s. Falls back to same-tab navigation if popup is blocked.
+- **Verified** — Playwright: clicked the eye button on the Demand Letters page → new tab opened → body renders `RRL Builders and Developers`, `DEMAND LETTER`, applicant + `Co-Applicant: Marketly` block, full payment table + TDS section. No auth error.
+- Files touched: `frontend/src/pages/DemandLettersPage.js`.
+
+
+
 ## 2026-02-28 (bug fix, HIGH severity) — Save-as-Master corrupted dynamic documents
 - **Symptom** — User saved a Demand Letter (for Ramya test lead) as a master template. All subsequent Demand Letters — even for the same customer — lost the Co-Applicant details and rendered with a broken layout (`{saleable_area}th Floor` instead of `11th Floor`, stale stage text, frozen payment-table values, etc.).
 - **Root cause** — `render_document_content` blindly preferred any active master template from `db.document_templates` over the built-in per-doc-type generator, even for **dynamic** doc types (Demand Letter, NOCs, Payment Receipt, Price/Cost Breakup, Payment Schedule). These generators compute runtime values that CANNOT be represented as static placeholders:
