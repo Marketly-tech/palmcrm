@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-28 (enhancement) — "Historical price (locked)" badge for legacy customers
+- **What** — Added an amber `🔒 Historical price (locked)` badge in the header of the Property & Pricing card whenever the customer's `created_at < 2026-06-02` (matches the legacy pricing cutoff enforced in `useCustomerPage.js`). Tooltip explains: *"This customer was created before 02 Jun 2026, when the pricing formula changed (BESCOM added to subtotal). Their original agreed total price is preserved and will NOT be recalculated on save."*
+- **Total Price row** — During edit mode on a legacy record, the row now shows *"(legacy — recalc skipped on save)"* in amber instead of the green "(live preview)" hint, so admins understand why the stored total won't move even if they tweak fields.
+- **Files touched** — `frontend/src/components/customer/details/PropertyPricingCard.jsx`.
+- **Verified** — Playwright: JAYANTHI S (created Mar 2026) shows the badge; BESCOM Test User (created Jun 6, 2026 — post-cutoff) shows no badge.
+
+
+
 ## 2026-02-28 (bug fix) — Pricing formula: honour explicit zeros + legacy-record protection
 - **Symptom** — In the Property & Pricing edit form, entering `0` for Club House, Car Parking, BESCOM, or Additional Charges silently reverted to the default (₹3L / ₹2L / etc.) because of the classic `parseFloat(x) || default` short-circuit. Legacy customers (pre-BESCOM formula) had their historical `total_price` silently overwritten every time an admin saved unrelated fields.
 - **Fix (`frontend/src/hooks/useCustomerPage.js`)**:

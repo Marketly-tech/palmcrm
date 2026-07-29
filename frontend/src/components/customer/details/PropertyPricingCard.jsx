@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Label } from "../../ui/label";
 import { Input } from "../../ui/input";
+import { Badge } from "../../ui/badge";
+import { Lock } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -8,6 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
+
+// Keep in lockstep with LEGACY_PRICING_CUTOFF in hooks/useCustomerPage.js.
+const LEGACY_PRICING_CUTOFF = new Date("2026-06-02T00:00:00Z");
+const isLegacyPricingRecord = (customer) => {
+  const raw = customer?.created_at;
+  if (!raw) return false;
+  const d = new Date(raw);
+  return !Number.isNaN(d.getTime()) && d < LEGACY_PRICING_CUTOFF;
+};
 
 const PropertyPricingCard = ({
   customer,
@@ -18,10 +29,24 @@ const PropertyPricingCard = ({
   formatCurrency,
   handleEditChange,
 }) => {
+  const legacyPricing = isLegacyPricingRecord(customer);
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Property & Pricing</CardTitle>
+        <CardTitle className="flex items-center justify-between gap-3">
+          <span>Property &amp; Pricing</span>
+          {legacyPricing && (
+            <Badge
+              variant="outline"
+              className="border-amber-300 bg-amber-50 text-amber-800 font-normal gap-1"
+              title="This customer was created before 02 Jun 2026, when the pricing formula changed (BESCOM added to subtotal). Their original agreed total price is preserved and will NOT be recalculated on save."
+              data-testid="legacy-price-locked-badge"
+            >
+              <Lock className="w-3 h-3" />
+              Historical price (locked)
+            </Badge>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -246,10 +271,20 @@ const PropertyPricingCard = ({
             </div>
             <div>
               <Label>Total Price</Label>
-              <p className={`font-bold mt-1 ${editing && liveCalc ? 'text-green-600' : 'text-primary'}`}>
-                {editing && liveCalc ? formatCurrency(liveCalc.total) : formatCurrency(customer.total_price)}
-                {editing && liveCalc && liveCalc.total !== customer.total_price && (
+              <p className={`font-bold mt-1 ${editing && liveCalc && !legacyPricing ? 'text-green-600' : 'text-primary'}`}>
+                {editing && liveCalc && !legacyPricing
+                  ? formatCurrency(liveCalc.total)
+                  : formatCurrency(customer.total_price)}
+                {editing && liveCalc && !legacyPricing && liveCalc.total !== customer.total_price && (
                   <span className="text-xs font-normal text-slate-500 ml-2">(live preview)</span>
+                )}
+                {editing && legacyPricing && (
+                  <span
+                    className="text-xs font-normal text-amber-700 ml-2"
+                    data-testid="legacy-price-note"
+                  >
+                    (legacy — recalc skipped on save)
+                  </span>
                 )}
               </p>
             </div>
