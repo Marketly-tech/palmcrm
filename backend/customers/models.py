@@ -54,7 +54,8 @@ class CustomerBase(BaseModel):
     additional_charges_description: str = ""  # Optional label shown in PDF row when amount > 0
     additional_parking_charges: float = 200000  # Fixed ₹2L car parking; editable in customer profile
     bescom_rate: float = 0  # ₹ per saleable sqft. BESCOM total = bescom_rate × saleable_area. Goes into subtotal (before GST + labour cess).
-    labour_cess: float = 0  # 0.70%
+    labour_cess: float = 0  # 0.70% of subtotal by default. Admin can override for negotiated / legacy records; see labour_cess_manual flag.
+    labour_cess_manual: bool = False  # When true, ``labour_cess`` is honoured verbatim (no auto-recalc). Toggled from the Property & Pricing card.
     gst_percentage: float = 5
     gst_amount: float = 0
     interest_amount: float = 0  # Manual entry, added after GST (non GST-taxable)

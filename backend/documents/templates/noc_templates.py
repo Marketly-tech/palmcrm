@@ -6,6 +6,7 @@ from documents.templates.common import (
     COMPANY_NAME_FULL,
     format_customer_names,
     get_logo_img_tag,
+    format_tower,
 )
 
 
@@ -159,6 +160,7 @@ def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
     # Property details
     flat_no = customer.get('unit_number', '')
     tower = customer.get('tower', '1')
+    tower_display = format_tower(tower)
     floor = customer.get('floor', '')
     floor_text = f"{floor}th" if floor else ""
     
@@ -239,7 +241,7 @@ def generate_noc_hdfc_html(customer: dict, transactions: list = None) -> str:
         <div class="salutation">Dear Sir,</div>
         
         <div class="content">
-            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(received_amount)}/-</strong> ({received_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
+            <p>This is to confirm that we have sold Flat No.{flat_no}, {tower_display}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(received_amount)}/-</strong> ({received_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
             
             <p>We hereby assure you that the said flat appurtenant there to be not subject to any encumbrance, charge, or liability of any kind whatsoever and that the entire property is free and marketable. We further confirm that we have a clear legal and marketable title to the said property and every part thereof.</p>
             
@@ -296,6 +298,7 @@ def generate_noc_bob_html(customer: dict, transactions: list = None) -> str:
     
     flat_no = customer.get('unit_number', '')
     tower = customer.get('tower', '1')
+    tower_display = format_tower(tower)
     floor = customer.get('floor', '')
     floor_text = f"{floor}th" if floor else ""
     
@@ -371,7 +374,7 @@ def generate_noc_bob_html(customer: dict, transactions: list = None) -> str:
         <div class="salutation">Dear Sir / Madam,</div>
         
         <div class="content">
-            <p>This is to confirm that we have sold Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(received_amount)}/-</strong> ({received_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
+            <p>This is to confirm that we have sold Flat No.{flat_no}, {tower_display}, {floor_text} Floor in the building called <strong>RRL PALM ALTEZZE</strong> situated at RRL Palm Altezze, SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087, to <strong>{customer_names}</strong> for a total consideration of <strong>Rs.{format_inr(total_price)}/-</strong> ({total_price_words}) out of which <strong>Rs.{format_inr(received_amount)}/-</strong> ({received_words}) has been received by us and balance <strong>Rs.{format_inr(balance)}/-</strong> ({balance_words}) is due on {due_date}.</p>
             
             <p>We further confirm that we have a clear legal and marketable title to the said property and every part thereof. We have no objection to your giving a loan of <strong>Rs.{format_inr(loan_amount)}/-</strong> ({loan_words}) to said <strong>{customer_names}</strong> owner/s of the said flat and his/their mortgaging the said flat with you by way of security for repayment notwithstanding anything to the contrary contained in our agreement dated {agreement_display} with {customer_names}.</p>
         </div>
@@ -424,6 +427,7 @@ def generate_noc_tata_html(customer: dict) -> str:
     
     flat_no = customer.get('unit_number', '')
     tower = customer.get('tower', '1')
+    tower_display = format_tower(tower)
     floor = customer.get('floor', '')
     floor_text = f"{floor}th" if floor else ""
     
@@ -479,11 +483,11 @@ def generate_noc_tata_html(customer: dict) -> str:
         <div class="salutation">Dear Sirs,</div>
         
         <div class="re-section">
-            <strong>Re:</strong> No Objection Certificate for Mortgaging Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor in the building called RRL PALM ALTEZZE situated at SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087.
+            <strong>Re:</strong> No Objection Certificate for Mortgaging Flat No.{flat_no}, {tower_display}, {floor_text} Floor in the building called RRL PALM ALTEZZE situated at SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087.
         </div>
         
         <div class="content">
-            <p>This is to confirm that {customer_names}, is the bonafide owner/s of Flat No.{flat_no}, Tower-{tower}, {floor_text} Floor of the building known as <strong>RRL PALM ALTEZZE</strong> situated at SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087. hereinafter referred to as "Said Property") pursuant to an Agreement of Sale / Conveyance Deed dated {agreement_display}.</p>
+            <p>This is to confirm that {customer_names}, is the bonafide owner/s of Flat No.{flat_no}, {tower_display}, {floor_text} Floor of the building known as <strong>RRL PALM ALTEZZE</strong> situated at SY NO: 73/6, Janthagondanahalli Village, Sarjapura Hobli, Anekal Taluk, Bengaluru Urban District, PIN - 560087. hereinafter referred to as "Said Property") pursuant to an Agreement of Sale / Conveyance Deed dated {agreement_display}.</p>
             
             <p>We confirm that we have obtained necessary permissions/approvals/sanctions for construction of the said Building from all the concerned competent authorities and the construction of the building as well as flat is in accordance with the approved plans. We assure that the said flat as well as the said building and the land appurtenant thereto are not subject to any encumbrance, charge or liability of any kind whatsoever and that the entire property is free and marketable. We have a clear, legal and marketable title to the Said Property and every part thereof.</p>
             
@@ -537,11 +541,7 @@ def generate_noc_bajaj_html(customer: dict) -> str:
 
     flat_no = customer.get('unit_number', '') or ''
     tower_raw = (customer.get('tower') or '1').strip()
-    # Normalize: if user already entered "Tower 1" / "Tower-1", keep as-is; else prefix
-    if tower_raw.lower().startswith('tower'):
-        tower_display = tower_raw
-    else:
-        tower_display = f"Tower-{tower_raw}"
+    tower_display = format_tower(tower_raw)
     saleable_area = customer.get('saleable_area', 0) or 0
     try:
         saleable_area_display = f"{int(round(float(saleable_area)))}"

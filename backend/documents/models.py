@@ -36,6 +36,14 @@ class GeneratedDocument(BaseModel):
     generated_by: str
     signed_copy_url: Optional[str] = None
     status: AgreementStatus = AgreementStatus.DRAFT
+    # --- Bulk Demand-Letter workflow metadata (Optional so single-letter
+    # generation from the customer profile keeps working without changes) ---
+    stage_key: Optional[str] = None
+    stage_name: Optional[str] = None
+    batch_id: Optional[str] = None
+    emailed_at: Optional[datetime] = None
+    email_status: Optional[str] = None
+    emailed_by: Optional[str] = None
 
 
 class CommunicationLog(BaseModel):

@@ -831,3 +831,309 @@ async def get_all_email_logs(
         enriched_logs.append(log)
 
     return {"logs": enriched_logs, "total": total, "page": page, "limit": limit, "total_pages": (total + limit - 1) // limit}
+
+
+# =========================================================================
+# BULK CONSTRUCTION UPDATE MAILER
+#
+# Admin composes ONE message (Drive link + slab name + optional edits),
+# previews the first-customer render, and fires a personalised send across
+# a filterable customer set. All sends land in ``communication_logs`` for
+# audit; no separate campaigns collection is kept — this is deliberately
+# lightweight (per user's ask).
+# =========================================================================
+
+_CONSTRUCTION_UPDATE_SUBJECT = (
+    "Construction Progress Update — {stage_name} — {project} Unit {unit_number}"
+)
+
+_CONSTRUCTION_UPDATE_BODY = """
+<div style="font-family: Georgia, 'Times New Roman', serif; max-width: 640px; margin: 0 auto; color: #1A1A1A; padding: 24px 0;">
+  <div style="text-align:center; margin-bottom: 24px;">
+    <h1 style="margin: 0; color: #D4AF37; letter-spacing: 1px; font-size: 22px;">
+      RRL BUILDERS AND DEVELOPERS
+    </h1>
+    <p style="margin: 4px 0 0; color: #888; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;">
+      Construction Progress Update
+    </p>
+  </div>
+
+  <p>Dear {customer_name},</p>
+
+  <p>
+    We're excited to share a construction milestone from your home at
+    <strong>{project}</strong>, Unit&nbsp;<strong>{unit_number}</strong>.
+  </p>
+
+  <div style="background: #FBF7EC; border-left: 4px solid #D4AF37; padding: 16px 20px; margin: 20px 0; border-radius: 4px;">
+    <p style="margin: 0; font-size: 15px;">
+      <strong style="color: #6B5B24;">Milestone completed:</strong><br/>
+      <span style="font-size: 18px; color: #1A1A1A;">{stage_name}</span>
+    </p>
+  </div>
+
+  <p>
+    We've compiled the latest photos and site videos so you can see the
+    progress with your own eyes. Please click the button below to view them
+    on our secure Google Drive folder:
+  </p>
+
+  <div style="text-align:center; margin: 28px 0;">
+    <a href="{drive_link}" target="_blank" rel="noopener"
+       style="display:inline-block; background:#D4AF37; color:#111; padding:12px 28px; border-radius:6px; text-decoration:none; font-weight:600; letter-spacing:0.5px;">
+      View Construction Photos &amp; Videos
+    </a>
+  </div>
+
+  <p style="font-size: 13px; color: #666;">
+    If the button doesn't work, copy and paste this link into your browser:<br/>
+    <a href="{drive_link}" style="color:#8B6914; word-break:break-all;">{drive_link}</a>
+  </p>
+
+  <p>
+    If you have any questions or would like to visit the site, our team is
+    always happy to help. Just reply to this email or call your dedicated
+    relationship manager.
+  </p>
+
+  <p style="margin-top: 28px;">
+    Warm regards,<br/>
+    <strong>Team RRL</strong><br/>
+    <a href="mailto:crm@rrlbuildersanddevelopers.com" style="color:#D4AF37;">crm@rrlbuildersanddevelopers.com</a>
+  </p>
+</div>
+""".strip()
+
+
+def _construction_placeholders(customer: dict, stage_name: str, drive_link: str) -> dict:
+    """Fields substituted into subject & body via ``str.format_map``."""
+    return {
+        "customer_name": (customer.get("name") or "Valued Customer").strip(),
+        "unit_number": (customer.get("unit_number") or "").strip() or "—",
+        "project": (customer.get("project") or "RRL Palm Altezze").strip(),
+        "tower": (customer.get("tower") or "").strip(),
+        "stage_name": stage_name or "the current milestone",
+        "drive_link": drive_link or "",
+    }
+
+
+class _SafeFormatDict(dict):
+    """``str.format_map`` variant that leaves unknown placeholders untouched
+    instead of raising ``KeyError`` — lets admins add their own tags without
+    the send blowing up server-side."""
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+
+def _apply_placeholders(template: str, values: dict) -> str:
+    if not template:
+        return ""
+    try:
+        return template.format_map(_SafeFormatDict(values))
+    except (ValueError, IndexError):
+        # Fallback for accidental single-brace literals like "{" — just
+        # replace each known key manually.
+        out = template
+        for k, v in values.items():
+            out = out.replace("{" + k + "}", str(v))
+        return out
+
+
+async def _resolve_construction_recipients(
+    db, filter_by: Optional[dict],
+) -> list[dict]:
+    """Return the customer set the admin has scoped the campaign to. Skips
+    pending_approval leads by default (they haven't crossed the booking
+    gate yet)."""
+    filter_by = filter_by or {}
+    query: dict = {"stage": {"$ne": "pending_approval"}}
+    if filter_by.get("current_stage"):
+        query["stage"] = filter_by["current_stage"]
+    if filter_by.get("tower"):
+        query["tower"] = filter_by["tower"]
+    if filter_by.get("project"):
+        query["project"] = filter_by["project"]
+    projection = {
+        "_id": 0, "id": 1, "name": 1, "email": 1, "co_applicant_email": 1,
+        "unit_number": 1, "tower": 1, "project": 1, "stage": 1,
+    }
+    return await db.customers.find(query, projection).to_list(5000)
+
+
+def _recipient_email(customer: dict) -> str:
+    for key in ("email", "co_applicant_email"):
+        v = (customer.get(key) or "").strip()
+        if v and "@" in v:
+            return v
+    return ""
+
+
+@router.post("/customers/construction-update/preview")
+async def preview_construction_update(
+    body: dict,
+    user: dict = Depends(get_current_user),
+):
+    """Return the rendered subject & HTML body for the FIRST recipient, plus
+    the raw editable templates and recipient count. Admin uses this to
+    sanity-check before firing the bulk send.
+    """
+    if user.get("role") not in ("admin", "manager"):
+        raise HTTPException(status_code=403, detail="Admin/Manager only")
+    drive_link = (body.get("drive_link") or "").strip()
+    stage_name = (body.get("stage_name") or "").strip()
+    if not drive_link or not stage_name:
+        raise HTTPException(
+            status_code=400, detail="drive_link and stage_name are required",
+        )
+    subject_tpl = body.get("subject") or _CONSTRUCTION_UPDATE_SUBJECT
+    body_tpl = body.get("body_html") or _CONSTRUCTION_UPDATE_BODY
+    filter_by = body.get("filter") or {}
+
+    db = get_database()
+    recipients = await _resolve_construction_recipients(db, filter_by)
+
+    preview_customer = next(
+        (c for c in recipients if _recipient_email(c)), None,
+    ) or (recipients[0] if recipients else None)
+
+    if preview_customer:
+        placeholders = _construction_placeholders(
+            preview_customer, stage_name, drive_link,
+        )
+        preview_subject = _apply_placeholders(subject_tpl, placeholders)
+        preview_body = _apply_placeholders(body_tpl, placeholders)
+        preview_email = _recipient_email(preview_customer) or "no email on file"
+        preview_name = preview_customer.get("name")
+    else:
+        preview_subject = preview_body = preview_email = preview_name = None
+
+    return {
+        "recipient_count": len(recipients),
+        "has_email_count": sum(1 for c in recipients if _recipient_email(c)),
+        "no_email_count": sum(1 for c in recipients if not _recipient_email(c)),
+        "subject_template": subject_tpl,
+        "body_html_template": body_tpl,
+        "placeholders": [
+            "customer_name", "unit_number", "project", "tower",
+            "stage_name", "drive_link",
+        ],
+        "preview": None if not preview_customer else {
+            "customer_id": preview_customer.get("id"),
+            "customer_name": preview_name,
+            "recipient_email": preview_email,
+            "subject": preview_subject,
+            "body_html": preview_body,
+        },
+    }
+
+
+@router.post("/customers/construction-update/send")
+async def send_construction_update(
+    body: dict,
+    user: dict = Depends(get_current_user),
+):
+    """Fire the personalised send to every recipient in scope.
+
+    Body:
+      * ``drive_link`` (required) — the Google Drive URL to include.
+      * ``stage_name`` (required) — the slab / milestone label.
+      * ``subject``    (optional) — subject template. Defaults to a branded one.
+      * ``body_html``  (optional) — HTML body template. Defaults to a branded one.
+      * ``filter``     (optional) — { current_stage, tower, project }.
+
+    Personalisation placeholders supported in subject & body:
+    ``{customer_name}``, ``{unit_number}``, ``{project}``, ``{tower}``,
+    ``{stage_name}``, ``{drive_link}``.
+    """
+    if user.get("role") not in ("admin", "manager"):
+        raise HTTPException(status_code=403, detail="Admin/Manager only")
+    drive_link = (body.get("drive_link") or "").strip()
+    stage_name = (body.get("stage_name") or "").strip()
+    if not drive_link or not stage_name:
+        raise HTTPException(
+            status_code=400, detail="drive_link and stage_name are required",
+        )
+    subject_tpl = body.get("subject") or _CONSTRUCTION_UPDATE_SUBJECT
+    body_tpl = body.get("body_html") or _CONSTRUCTION_UPDATE_BODY
+    filter_by = body.get("filter") or {}
+
+    db = get_database()
+    recipients = await _resolve_construction_recipients(db, filter_by)
+    if not recipients:
+        return {"sent_count": 0, "failed_count": 0, "skipped_no_email": 0, "results": []}
+
+    sent_count = 0
+    failed_count = 0
+    skipped_no_email = 0
+    results: list[dict] = []
+
+    for customer in recipients:
+        row: dict = {
+            "customer_id": customer.get("id"),
+            "customer_name": customer.get("name"),
+        }
+        to_email = _recipient_email(customer)
+        if not to_email:
+            skipped_no_email += 1
+            row.update({"status": "skipped", "error": "no email on file"})
+            results.append(row)
+            continue
+
+        placeholders = _construction_placeholders(
+            customer, stage_name, drive_link,
+        )
+        subject = _apply_placeholders(subject_tpl, placeholders)
+        html_body = _apply_placeholders(body_tpl, placeholders)
+
+        send_result = await _resend_send(
+            to_email=to_email,
+            subject=subject,
+            html_content=html_body,
+        )
+        status = send_result["status"]
+        if status == "sent" or status.startswith("mocked"):
+            sent_count += 1
+        else:
+            failed_count += 1
+
+        # Communication log — this is the only persistence layer per the
+        # "keep it lightweight" ask.
+        try:
+            await db.communication_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "customer_id": customer.get("id"),
+                "channel": "email",
+                "message_type": f"Construction Update — {stage_name}",
+                "content": (
+                    f"To: {to_email}\nSubject: {subject}\n\n"
+                    f"Drive link: {drive_link}"
+                ),
+                "status": status,
+                "sent_at": datetime.now(timezone.utc).isoformat(),
+                "sent_by": user["id"],
+            })
+        except Exception:
+            pass
+
+        row.update({
+            "status": status,
+            "recipient": to_email,
+            "provider_id": send_result.get("id"),
+            "error": send_result.get("error"),
+        })
+        results.append(row)
+
+    await log_activity(
+        user["id"], user["name"], "email_bulk", "construction_update",
+        stage_name[:60],
+        f"Construction update '{stage_name}' → sent {sent_count}, "
+        f"failed {failed_count}, skipped_no_email {skipped_no_email}",
+    )
+    return {
+        "stage_name": stage_name,
+        "drive_link": drive_link,
+        "sent_count": sent_count,
+        "failed_count": failed_count,
+        "skipped_no_email": skipped_no_email,
+        "results": results,
+    }

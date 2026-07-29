@@ -6,6 +6,7 @@ from documents.templates.common import (
     get_logo_img_tag, COMPANY_NAME, format_customer_names,
     build_agreement_date_text, build_applicant_details_block,
     build_payment_schedule_rows_html, build_transaction_rows_html,
+    format_tower,
 )
 from documents.templates.sales_agreement_template import generate_sales_agreement_template
 
@@ -58,7 +59,7 @@ def generate_sales_agreement_html(customer: dict, schedule_items: list, transact
         '{pan_number}': customer.get('pan_number', ''),
         '{phone}': customer.get('phone', ''),
         '{project}': customer.get('project', 'RRL PALM ALTEZZE'),
-        '{tower}': customer.get('tower', ''),
+        '{tower}': format_tower(customer.get('tower', '')),
         '{unit_number}': customer.get('unit_number', ''),
         '{floor}': str(customer.get('floor', '')),
         '{floor_ordinal}': floor_ordinal,

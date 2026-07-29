@@ -2,7 +2,7 @@
 from datetime import datetime
 from documents.templates.common import (
     format_inr, calculate_age, get_salutation, get_logo_img_tag,
-    COMPANY_NAME
+    COMPANY_NAME, tower_id
 )
 
 def generate_booking_form_preview_html(customer: dict) -> str:
@@ -364,7 +364,7 @@ def generate_booking_form_preview_html(customer: dict) -> str:
                 </div>
                 <div class="info-item">
                     <span class="info-label">Tower</span>
-                    <span class="info-value">{customer.get('tower', '-')}</span>
+                    <span class="info-value">{tower_id(customer.get('tower'))}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Unit Number</span>

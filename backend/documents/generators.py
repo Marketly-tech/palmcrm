@@ -15,6 +15,22 @@ from utils import format_indian_currency
 from utils.payment_helpers import PAYMENT_STAGES
 from payments.models import DEFAULT_PAYMENT_SCHEDULE
 
+
+# ---------------------------------------------------------------------------
+# Only doc types built from placeholder-based templates may be overridden by
+# a saved master template. Dynamic types (Demand Letter, Payment Receipt,
+# NOCs, Price/Cost Breakup, Payment Schedule) MUST always be re-computed by
+# their built-in generator; the master-override path CANNOT reproduce their
+# runtime payment tables, TDS calculations, stage-specific values, or
+# conditional co-applicant blocks. Keep in lockstep with the same list in
+# documents/routes.py::TEMPLATE_SAFE_DOC_TYPES.
+# ---------------------------------------------------------------------------
+_MASTER_OVERRIDE_ALLOWED: set[str] = {
+    DocumentType.SALES_AGREEMENT.value,
+    DocumentType.ALLOTMENT_LETTER.value,
+    DocumentType.WELCOME_LETTER.value,
+}
+
 from documents.templates import (
     generate_sales_agreement_html,
     generate_price_breakup_html,
@@ -319,18 +335,23 @@ async def render_document_content(
     """Return the rendered HTML content for the requested document type.
 
     Admin precedence: if a DocumentTemplate with matching doc_type and
-    `is_active=True` exists in the database, use it (with placeholder
-    substitution) instead of the built-in file-based generator. This is the
-    backend half of the Admin Template Editor feature.
+    `is_active=True` exists in the database AND the doc type is safe for
+    master override (see ``_MASTER_OVERRIDE_ALLOWED``), use it (with
+    placeholder substitution) instead of the built-in file-based generator.
+    Dynamic doc types (Demand Letter, NOCs, Payment Receipt, Price/Cost
+    Breakup, Payment Schedule) always take the built-in path so their
+    runtime-computed content (payment tables, TDS, stage, conditional
+    co-applicant blocks) is never frozen from a source customer.
     """
-    override = await db.document_templates.find_one(
-        {"doc_type": doc_type.value, "is_active": True}, {"_id": 0}
-    )
-    if override and override.get('content'):
-        content = override['content']
-        for placeholder, value in (await _build_placeholders(db, customer, custom_fields or {})).items():
-            content = content.replace(placeholder, str(value))
-        return content
+    if doc_type.value in _MASTER_OVERRIDE_ALLOWED:
+        override = await db.document_templates.find_one(
+            {"doc_type": doc_type.value, "is_active": True}, {"_id": 0}
+        )
+        if override and override.get('content'):
+            content = override['content']
+            for placeholder, value in (await _build_placeholders(db, customer, custom_fields or {})).items():
+                content = content.replace(placeholder, str(value))
+            return content
 
     if doc_type == DocumentType.SALES_AGREEMENT:
         return await _render_sales_agreement(db, customer)

@@ -1,9 +1,19 @@
+import { useState, useEffect, useRef } from "react";
+import axios from "axios";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Label } from "../ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../ui/select";
-import { Settings, Loader2, TrendingUp, Wallet, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { Settings, Loader2, TrendingUp, Wallet, AlertTriangle, Mail } from "lucide-react";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 const StatTile = ({ icon: Icon, label, value, tone, testId, percent, percentLabel }) => {
   const tones = {
@@ -50,6 +60,59 @@ const PaymentStageCard = ({
   const stageName = stageOverdue?.current_stage_name || currentStage?.current_stage_name;
   const hasStageSet = Boolean(stageOverdue?.current_stage);
 
+  // After a successful stage update we open a confirmation dialog offering to
+  // trigger bulk-generation of demand letters for the newly-selected stage.
+  // Tracks the transition ``updatingStage: true -> false`` and only fires
+  // when it was preceded by a user selection (pending flag).
+  const [pendingStageKey, setPendingStageKey] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const prevUpdatingRef = useRef(updatingStage);
+
+  useEffect(() => {
+    // Rising→falling edge: the parent finished the stage-update round-trip.
+    if (prevUpdatingRef.current && !updatingStage && pendingStageKey) {
+      setConfirmOpen(true);
+    }
+    prevUpdatingRef.current = updatingStage;
+  }, [updatingStage, pendingStageKey]);
+
+  const handleSelect = (value) => {
+    if (!value || value === currentStage?.current_stage) return;
+    setPendingStageKey(value);
+    onStageChange(value);
+  };
+
+  const pendingStageName =
+    paymentStages.find((s) => s.key === pendingStageKey)?.name || pendingStageKey;
+
+  const handleTriggerBulk = async () => {
+    setTriggering(true);
+    try {
+      const res = await axios.post(`${API}/documents/generate-bulk-demand-letters`);
+      const { generated_count, skipped_count, error_count, batch_id } = res.data;
+      toast.success(
+        `Generated ${generated_count} demand letter${generated_count === 1 ? "" : "s"} • ` +
+        `${skipped_count} already existed${error_count ? ` • ${error_count} errors` : ""}`,
+      );
+      setConfirmOpen(false);
+      setPendingStageKey(null);
+      // Navigate to management page so the user can review + email.
+      if (generated_count > 0 && batch_id) {
+        onNavigate(`/demand-letters?batch_id=${batch_id}`);
+      }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to generate demand letters");
+    } finally {
+      setTriggering(false);
+    }
+  };
+
+  const handleSkip = () => {
+    setConfirmOpen(false);
+    setPendingStageKey(null);
+  };
+
   return (
     <Card data-testid="payment-stage-card">
       <CardHeader>
@@ -63,7 +126,7 @@ const PaymentStageCard = ({
         <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
           <div className="flex-1 w-full sm:max-w-md">
             <Label htmlFor="payment-stage-select" className="text-sm text-muted-foreground mb-2 block">Current Stage</Label>
-            <Select value={currentStage?.current_stage || ""} onValueChange={onStageChange} disabled={updatingStage}>
+            <Select value={currentStage?.current_stage || ""} onValueChange={handleSelect} disabled={updatingStage}>
               <SelectTrigger id="payment-stage-select" data-testid="payment-stage-select" className="w-full">
                 <SelectValue placeholder="Select construction stage" />
               </SelectTrigger>
@@ -147,6 +210,41 @@ const PaymentStageCard = ({
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={(v) => !triggering && (v ? setConfirmOpen(true) : handleSkip())}>
+        <AlertDialogContent data-testid="bulk-demand-confirm-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-primary" />
+              Generate demand letters for this stage?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You just moved the current milestone to{" "}
+              <strong>{pendingStageName}</strong>. Would you like to generate
+              demand letters for every customer who doesn't already have one
+              for this milestone? You can review and email them from the
+              Demand Letters page immediately after.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={triggering} data-testid="bulk-demand-skip">
+              Skip for now
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleTriggerBulk}
+              disabled={triggering}
+              data-testid="bulk-demand-trigger"
+            >
+              {triggering ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Mail className="w-4 h-4 mr-1" />
+              )}
+              Generate demand letters
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

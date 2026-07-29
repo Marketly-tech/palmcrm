@@ -1,5 +1,185 @@
 # CHANGELOG
 
+## 2026-02-28 (feature) — Labour Cess manual-override on Customer Profile
+- **What** — Labour Cess field on the Property & Pricing card is now editable. A "Manual" checkbox toggles between the default 0.7%-of-subtotal auto-calc and an admin-entered value. Manual mode is respected on save (0 is honoured); a helper caption always shows what the auto value *would* be for reference.
+- **Files**:
+  - `frontend/src/hooks/useCustomerPage.js` — `calculateLivePrice` now honours `data.labour_cess_manual`: when true, uses `numOr(data.labour_cess, 0)`; when false, computes `subtotal * 0.007`. Return object gained `labourCessManual` + `autoLabourCess` for the UI. `handleSaveCustomer` includes both in the PUT payload.
+  - `frontend/src/components/customer/details/PropertyPricingCard.jsx` — replaced the readonly Labour Cess `<p>` with an `<Input>` + `Manual` checkbox. Auto mode disables the input and shows the live-computed value; Manual mode enables it and seeds with the current auto value. View mode adds "(manual override)" tag when applicable. Test IDs: `labour-cess-input`, `labour-cess-manual-toggle`, `labour-cess-value`.
+  - `backend/customers/models.py` — added `labour_cess_manual: bool = False` to `CustomerBase` alongside the existing `labour_cess` float.
+- **Verified** — Playwright: Auto→Manual toggle switches disabled state, input accepts a custom value (₹99,999 test). Curl PUT `{labour_cess: 12345, labour_cess_manual: true}` → GET confirms both persist; setting `labour_cess_manual: false` cleanly reverts to auto.
+- Files touched: `frontend/src/hooks/useCustomerPage.js`, `frontend/src/components/customer/details/PropertyPricingCard.jsx`, `backend/customers/models.py`.
+
+
+
+## 2026-02-28 (bug fix) — Disbursement Summary: Loans / Pending / Sanctioned columns were empty
+- **Symptom (production)** — On `rrlcrm.com/dashboard`, every row of the Bank Disbursement Summary showed `Loans = 0`, `Sanctioned = —`, `Pending = ₹0` (even though `Disbursed` had real amounts). Users saw "across 10 banks" but no per-bank counts.
+- **Root cause** — Yesterday's rewrite indexed only customers with `loan_amount > 0`. In production, the accounts team routinely captures `finance_bank` on customer records but leaves `loan_amount` blank/0 (they log disbursements as transactions instead). So every prod customer was excluded from the per-bank rollup — Loans count fell to 0, Sanctioned stayed at 0 (`—` in UI), and Pending never got a `flat_value_total` to subtract from.
+- **Fix (`backend/dashboard/routes.py`)**:
+  - Customer index now selects `{finance_bank: {$nin: [None, ""]}}` — any customer with a bank assigned, regardless of `loan_amount` / `finance_type` / paperwork state.
+  - Bank buckets are built from customer records FIRST (so a bank shows up in the widget the moment a customer is assigned to it, even before any disbursements or before `loan_amount` is captured).
+  - Transaction rollup layers `total_disbursed` on top of the customer-built buckets, preferring the customer's `finance_bank` over the transaction's own `bank_name` so mistyped txn banks don't split a row.
+- **Verified** — Synthetic reproduction of the production pattern: 5 customers (3 BOB variants + 2 HDFC) with `loan_amount=null/0`, 4 disbursement transactions. Endpoint returns Loans=3/2, Sanctioned=0 (correctly — nothing was captured), Pending computed from `SUM(total_price) − SUM(disbursed)`. Bank variants merged into single canonical rows.
+- Files touched: `backend/dashboard/routes.py`.
+
+
+
+## 2026-02-28 (bug fix) — Zero values now accepted on Customer Profile edit
+- **Symptom** — Admins couldn't reliably set Club House / Car Parking / Additional Charges to ₹0 on the Customer Profile. When a legacy customer had those fields as `null` in DB, the UI silently showed the pre-Jun-2026 defaults (₹3L / ₹2L) in both view and edit modes, and the very next save persisted those phantom defaults into the DB — corrupting the record. The Price Breakup PDF then diverged from the customer card (PDF read real DB values → ₹0; card read defaulted UI values → ₹2L/₹3L).
+- **Fixes** (all in preview):
+  1. `frontend/src/components/customer/details/PropertyPricingCard.jsx` — replaced the `?? 200000` / `?? 300000` fallbacks on Car Parking + Club House with `?? 0` in both view and edit modes. Both inputs now placeholder-hint *"Enter 0 if not applicable"*. Added test IDs `car-parking-charges-value` / `club-house-value` / `club-house-input`, plus `labour-cess-value`, `gst-value`, `base-price-value`, `floor-rise-total-value`.
+  2. Same file — Base Price, Floor Rise Total, Labour Cess, and GST view-mode readouts now `?? 0` any null field (previously would render as `₹NaN` or the misleading live-preview even for legacy records) and *skip* the live-preview branch entirely when `legacyPricing === true`.
+  3. `frontend/src/hooks/useCustomerPage.js` — `calculateLivePrice` fallback for `club_house_charges` / `additional_parking_charges` changed from 300000/200000 → 0. Combined with the earlier "0 is respected" `numOr` helper, this means: a null field now saves as `0` on the next edit (rather than silently persisting the default), and an explicit admin-typed `0` is always honored.
+- **Legacy-record safety** — customers with `created_at < 2026-06-02` still bypass the recalc branch entirely, so their stored `total_price` remains unchanged. The pricing calculator is only used to preview subtotals during edit.
+- **Verified** —
+  - Playwright: JAYANTHI S (legacy) — view shows Car Parking `₹0` (not `₹2,00,000` anymore); edit mode accepts explicit `0` in both fields; Historical price badge still displayed.
+  - Curl PUT on a non-legacy customer with `{club_house_charges: 0, additional_parking_charges: 0, additional_charges: 0}` → GET confirms all three persist as `0`; labour_cess and gst_amount computed fresh (no phantom defaults).
+- Files touched: `frontend/src/components/customer/details/PropertyPricingCard.jsx`, `frontend/src/hooks/useCustomerPage.js`.
+
+
+
+## 2026-02-28 (admin ops) — Legacy zero-charges backfill endpoint
+- **Purpose** — For customers created 2026-03-20 → 2026-03-22 (RRL-00025..RRL-00035 in production) whose `club_house_charges` / `additional_parking_charges` were stored as `null` (predating the "0 is respected" pricing fix), give admins a safe one-shot way to explicitly set both fields to `0` so their UI cards and Price Breakup PDFs render identical numbers.
+- **Endpoint** — `POST /api/dashboard/backfill/legacy-zero-charges` (admin-only). Query params: `start_date` (default 2026-03-20, inclusive), `end_date_exclusive` (default 2026-03-23), `apply` (default `false` = dry-run). Response includes the full candidate list, per-field would-update counts, applied counts (only when `apply=true`), and a post-run verify block. Idempotent — only touches rows whose target field is `null` / `""` / missing; a non-null value (even `0`) is left untouched.
+- **Verified on preview** — 4-case synthetic test: (a) both-null customer → both set to 0; (b) only-club-null with parking=50000 → club set to 0, parking preserved at 50000; (c) only-parking-null with club=0 → parking set to 0; (d) customer outside the window (Mar 25) → untouched. Re-run with `apply=true` after applying returned 0 modifications (idempotence).
+- **Runbook for production** (after redeploy):
+  1. Get admin token via `POST /api/auth/login`.
+  2. Dry-run: `POST /api/dashboard/backfill/legacy-zero-charges` — review the returned `candidates` list.
+  3. Apply: same URL + `?apply=true`.
+  4. Verify: response's `verify.still_null` should be `0`.
+- Files touched: `backend/dashboard/routes.py`.
+
+
+
+## 2026-02-28 (bug fix) — Disbursement Summary logic rewrite
+- **Symptom** — Dashboard Bank Disbursement widget had five defects:
+  1. `BOB BANK LOAN`, `BOB LOAN`, `BOB` showed as separate rows (same for HDFC / Canara variants).
+  2. **Sanctioned** column was empty (`—`) because query filtered `finance_type IN {loan, mixed}` — records saved as `self` or blank were excluded even when they carried a real `loan_amount`.
+  3. **Loans** column used a per-customer counter — a duplicate index entry could inflate the count.
+  4. **Pending** was `loan_amount − disbursed`, which under-represents the collectible from each lender's book.
+  5. "across N banks" summary showed the raw pre-normalization count.
+- **Fix (`backend/dashboard/routes.py`)** — rewrote `_normalize_bank()` + `get_disbursement_summary()`:
+  1. **Normalization** — expanded `_BANK_SUFFIXES_TO_STRIP` to also strip `LOAN`, `HOME LOAN`, `HOUSING LOAN`, `HOUSING FINANCE`, `HOME FINANCE`, `FINANCE`. Added a declarative `_BANK_CANONICAL_MAP` covering common variants (BOB → *Bank of Baroda*, HDFC/HDC → *HDFC Bank*, CANARA → *Canara Bank*, SBI, ICICI, AXIS, KOTAK, IDBI, IDFC, PNB, Union, Bank of India, Bank of Maharashtra, plus common NBFCs — LIC Housing, Tata Capital, Bajaj Housing, Piramal, PNB Housing). Unknown banks fall through as Title Case (nothing silently gets dropped).
+  2. **Sanctioned** — removed the `finance_type` filter. Now `SUM(loan_amount)` for every customer with `loan_amount > 0` regardless of finance_type.
+  3. **Loans** — now `len({customer_ids})` per bank (unique-by-id set), immune to duplicates.
+  4. **Pending** — recomputed as `max(SUM(total_price) − SUM(disbursed), 0)` per bank. Response now also includes `flat_value_total` per bank and `grand_total_flat_value` at the top for transparency.
+  5. **Summary bar** — the frontend already used `banks.length`; because that array is now the normalized set, "across N banks" reflects the post-merge count automatically.
+- **Verified** — 30-case unit test for `_normalize_bank` (BOB × 6 variants, HDFC × 6, Canara × 4, SBI × 3, ICICI, Axis, Kotak, edge cases — all pass). Synthetic end-to-end test seeded 6 customers across BOB/HDFC/Canara variants (mixed finance_type=self/blank/loan) + 4 disbursement transactions → endpoint returned 3 normalized bank rows with correct sanctioned totals (BOB 60L, HDFC 40L, Canara 18L), correct loans counts (3/2/1), correct pending (BOB=19.8M, Canara=6.5M).
+- Files touched: `backend/dashboard/routes.py`.
+
+
+
+## 2026-02-28 (enhancement) — "Historical price (locked)" badge for legacy customers
+- **What** — Added an amber `🔒 Historical price (locked)` badge in the header of the Property & Pricing card whenever the customer's `created_at < 2026-06-02` (matches the legacy pricing cutoff enforced in `useCustomerPage.js`). Tooltip explains: *"This customer was created before 02 Jun 2026, when the pricing formula changed (BESCOM added to subtotal). Their original agreed total price is preserved and will NOT be recalculated on save."*
+- **Total Price row** — During edit mode on a legacy record, the row now shows *"(legacy — recalc skipped on save)"* in amber instead of the green "(live preview)" hint, so admins understand why the stored total won't move even if they tweak fields.
+- **Files touched** — `frontend/src/components/customer/details/PropertyPricingCard.jsx`.
+- **Verified** — Playwright: JAYANTHI S (created Mar 2026) shows the badge; BESCOM Test User (created Jun 6, 2026 — post-cutoff) shows no badge.
+
+
+
+## 2026-02-28 (bug fix) — Pricing formula: honour explicit zeros + legacy-record protection
+- **Symptom** — In the Property & Pricing edit form, entering `0` for Club House, Car Parking, BESCOM, or Additional Charges silently reverted to the default (₹3L / ₹2L / etc.) because of the classic `parseFloat(x) || default` short-circuit. Legacy customers (pre-BESCOM formula) had their historical `total_price` silently overwritten every time an admin saved unrelated fields.
+- **Fix (`frontend/src/hooks/useCustomerPage.js`)**:
+  1. Added a `numOr(raw, fallback)` helper that only falls back when the field is missing (`null` / `undefined` / `""`) — an explicit `0` (numeric or string) is respected.
+  2. Rewrote `calculateLivePrice` to use `numOr` for every input: `saleable_area`, `rate_per_sqft`, `floor_rise_cost`, `club_house_charges`, `additional_parking_charges`, `additional_charges`, `bescom_rate`, `interest_amount`.
+  3. **Interest gate** — `interest_amount` is now only added to the total when > 0. Null / 0 / NaN contribute nothing (previously would still `+ 0`, but the explicit guard makes intent clear and prevents any NaN slip-up poisoning the total).
+  4. **Legacy pricing policy** — customers with `created_at < 2026-06-02T00:00:00Z` predate the BESCOM-inclusive subtotal formula. `handleSaveCustomer` now detects them via `isLegacyPricingCustomer` and **skips the auto-recalc branch entirely**, deleting any stale `total_price` from the PUT payload so their historical price survives edits. Toast reads "Customer updated (historical price preserved — pre-Jun 2026 record)".
+- **List View confirmed clean** — `CustomerTable.jsx` doesn't display `total_price` at all; `CustomerQuickInfo.jsx`, `PaymentSummaryCard.jsx`, `DisbursementCalculatorCard.jsx`, `LeadsPage.js` all read `customer.total_price` directly from the API response. No on-the-fly recomputation anywhere on read paths.
+- **Verified** — 
+  - Unit-level: 8 semantic cases (undefined / null / "" / 0 / "0" / positive num / positive str / NaN str) all behave as expected with `numOr`.
+  - Curl round-trip: PUT `club_house_charges: 0` → GET confirms `0` persists (previously would flip to 300000 on next save with liveCalc).
+- Files touched: `frontend/src/hooks/useCustomerPage.js`.
+
+
+
+## 2026-02-28 (bug fix) — Demand Letter preview eye-icon returned "Not authenticated"
+- **Symptom** — Clicking the Preview (eye) icon on `/demand-letters` opened a new tab showing `{"detail":"Not authenticated"}`.
+- **Root cause** — The button did `window.open('/api/documents/preview/{id}')`, which fires an unauthenticated GET (no `Authorization` header). Additionally, `/documents/preview/{id}` searches `customer_documents` (uploaded files) and doesn't serve generated docs at all.
+- **Fix** — `frontend/src/pages/DemandLettersPage.js`: new helper `openDemandLetterPreview(docId)` that (1) opens a blank tab immediately (to avoid popup-blocker heuristics), (2) fetches the HTML via authenticated axios call to `/api/documents/html/{id}` (the app's global axios instance carries the Bearer token from `AuthContext`), (3) wraps the HTML in a Blob and points the pre-opened tab at the Blob URL. The blob URL is released after 60s. Falls back to same-tab navigation if popup is blocked.
+- **Verified** — Playwright: clicked the eye button on the Demand Letters page → new tab opened → body renders `RRL Builders and Developers`, `DEMAND LETTER`, applicant + `Co-Applicant: Marketly` block, full payment table + TDS section. No auth error.
+- Files touched: `frontend/src/pages/DemandLettersPage.js`.
+
+
+
+## 2026-02-28 (bug fix, HIGH severity) — Save-as-Master corrupted dynamic documents
+- **Symptom** — User saved a Demand Letter (for Ramya test lead) as a master template. All subsequent Demand Letters — even for the same customer — lost the Co-Applicant details and rendered with a broken layout (`{saleable_area}th Floor` instead of `11th Floor`, stale stage text, frozen payment-table values, etc.).
+- **Root cause** — `render_document_content` blindly preferred any active master template from `db.document_templates` over the built-in per-doc-type generator, even for **dynamic** doc types (Demand Letter, NOCs, Payment Receipt, Price/Cost Breakup, Payment Schedule). These generators compute runtime values that CANNOT be represented as static placeholders:
+  - Payment table rows (`Demand Raised`, `Current Due`, `Amount Paid`, TDS Payable, `Net Amount Payable`, `Total Outstanding`, current-stage cumulative percentage, amount-in-words).
+  - Conditional Co-Applicant block — `format_applicant_block()` returns only the fields that exist on the source customer (Ramya's co-applicant "Marketly" had only a name, so the saved master baked in JUST `<strong>{co_applicant_name}</strong>` with no Aadhaar/PAN/Phone/Address/DOB rows). Every future customer with a fuller co-applicant lost those rows.
+  - Numeric-value collisions in the placeholder scrubber — Ramya's `floor=11` and `saleable_area=11` share the same numeric value; the scrubber matched `saleable_area` first and rewrote "11th Floor" → "{saleable_area}th Floor".
+- **Fix (backend)** — `documents/routes.py` + `documents/generators.py`:
+  - Introduced `TEMPLATE_SAFE_DOC_TYPES` / `_MASTER_OVERRIDE_ALLOWED` sets containing only doc types built from placeholder-based `.py` templates: `sales_agreement`, `allotment_letter`, `welcome_letter`.
+  - `POST /api/templates/save-from-document/{doc_id}` now rejects any doc type outside this set with a clear 400 explaining the reason.
+  - `render_document_content` now consults `document_templates` overrides **only** for safe doc types. Dynamic doc types always take the built-in generator path so runtime computations, TDS calc, stage info, and conditional co-applicant rendering are never frozen.
+  - One-time DB cleanup: the corrupted demand_letter master saved during user's test session was deactivated (marked `is_active=False`) with an audit reason.
+- **Fix (frontend)** — `components/customer/documents/EditableDocumentDialog.jsx`: added a mirror `MASTER_SAFE_DOC_TYPES` allow-list; the "Save as Master" button is hidden for dynamic doc types. Per-customer Edit + Save + Download PDF continue to work as before.
+- **Verified** —
+  - Regenerated Ramya's Demand Letter after fix: Co-Applicant label + "Marketly" name present, full Payment Table + TDS Payable + TDS Disclaimer restored, "11th Floor" ordinal restored, no `{saleable_area}` leak, reference reads `Flat no. 0701, Tower-1, 11th Floor` (single Tower prefix from prior fix).
+  - `POST /api/templates/save-from-document/{doc_id}` for a demand letter now returns HTTP 400 with an actionable message.
+- **Files touched** — `backend/documents/routes.py`, `backend/documents/generators.py`, `frontend/src/components/customer/documents/EditableDocumentDialog.jsx`.
+
+
+
+## 2026-02-28 (feature) — TDS Disclaimer on Demand Letter + Tower Display Normalization
+- **Demand Letter**: added a highlighted disclaimer block after the bank-details section reading: *"TDS to be paid within 30 days, in case failed to, interest shall be levied by Income Tax authorities. Builder will not be held responsible for any interest or penalty."* Styled with a soft amber background and left border to draw attention without disrupting the letter's black/gold theme (`.tds-disclaimer` class).
+- **Tower duplication fix** (customer complaint: PDFs were rendering `"Tower- Tower 1"` because DB stores towers inconsistently as `"Tower 1"` / `"Tower-1"` / `"1"`):
+  - New shared helper `format_tower(raw)` in `documents/templates/common.py` → strips any leading `Tower` / `Tower-` / `Tower ` prefix (case-insensitive) and re-prefixes with a single canonical `Tower-`. Examples: `Tower 1` → `Tower-1`, `Tower-1` → `Tower-1`, `1` → `Tower-1`, `TOWER-A` → `Tower-A`.
+  - New sibling helper `tower_id(raw)` returns just the identifier (`"1"`, `"A"`) — used in info-table cells where the row label is already `Tower` to avoid a `Tower: Tower-1` visual duplicate.
+  - **Applied across templates**: `demand_letter.py`, `cost_breakup.py`, `noc_templates.py` (HDFC/BOB/TATA/Bajaj — 4 render functions), `payment_receipt.py`, `payment_schedule.py`, `transactions_export.py`, `booking_form.py`, `price_breakup.py`, `allotment_letter.py` (`{tower}` placeholder), `sales_agreement_html.py` (`{tower}` placeholder).
+- **Verified** — 
+  - Unit-level: `format_tower` + `tower_id` tests covering all stored variants (`Tower 1`, `Tower-1`, `1`, `A`, `TOWER-B`, empty, None).
+  - Per-template renders across all 4 NOC variants + cost/price/booking/payment schedule/transactions export — asserted no `Tower- Tower` / `Tower Tower ` substrings and canonical `Tower-1` present.
+  - End-to-end: live demand letter generated via `POST /api/documents/generate` for Ramya test lead now renders `Flat no. 0701, Tower-1, ...` (single occurrence) + TDS disclaimer.
+- Files touched: `backend/documents/templates/common.py`, `demand_letter.py`, `cost_breakup.py`, `noc_templates.py`, `payment_receipt.py`, `payment_schedule.py`, `transactions_export.py`, `booking_form.py`, `price_breakup.py`, `allotment_letter.py`, `sales_agreement_html.py`.
+
+
+
+## 2026-02-28 (feature) — Additional Charges Description (P0, recurring resolved)
+- **Frontend** — `components/customer/details/PropertyPricingCard.jsx`: added a description text input just below the "Additional Charges" amount (edit mode only), plus a helper hint "Optional label — defaults to 'Additional Charges' when blank". View mode now shows the custom description as a small subtitle under the amount when both a non-zero amount and a description exist. Persisted via the existing `editData` spread in `useCustomerPage.js` → PUT /api/customers/{id}. Test IDs: `additional-charges-input`, `additional-charges-description-input`, `additional-charges-value`, `additional-charges-description-value`.
+- **Backend** — no schema change (field `additional_charges_description: str = ""` already lived in `customers/models.py` from prior sessions).
+- **PDF Template** — `documents/templates/price_breakup.py` already used the field (line 57) as the row label with a fallback to "Additional Charges". Confirmed behaviour with unit-level render tests:
+  - Custom label rendered when both amount>0 and description set.
+  - Generic "Additional Charges" fallback when description is blank.
+  - Row completely hidden when amount is zero.
+- **Verified** — curl PUT + GET round-trip on Ramya test lead (`6d902613-5106-4294-bc3e-b907f85127f7`); Playwright screenshot on preview URL confirms the new input appears in edit mode and accepts text.
+- Files touched: `frontend/src/components/customer/details/PropertyPricingCard.jsx`.
+
+
+
+## 2026-07-28 (feature) — Bulk Demand-Letter Workflow
+- **Backend** — extends `GeneratedDocument` model in `documents/models.py` with optional `stage_key`, `stage_name`, `batch_id`, `emailed_at`, `email_status`, `emailed_by` fields (all default None → single-doc flows unaffected).
+- Three new endpoints in `documents/routes.py`:
+  - `POST /api/documents/generate-bulk-demand-letters` — admin/manager/accounts. Loads current stage from `db.settings`, iterates every non-pending_approval customer, and generates a demand letter for anyone missing one for that `stage_key`. Idempotent: repeat calls only skip. Reuses `_render_demand_letter` so the layout is identical to single-generation. Returns `{ batch_id, stage_key, stage_name, generated/skipped/error counts, generated_ids[] }`.
+  - `GET /api/documents/demand-letters` — same roles. Lists all demand letters with customer name/unit/email hydrated in one aggregated query, supports `?stage_key=`, `?batch_id=`, `?emailed=true|false`. Declared BEFORE `/documents/{customer_id}` to prevent route-shadowing.
+  - `POST /api/documents/bulk-email-demand-letters` — accepts `{ids: [...]}` or `{batch_id: '...'}`. Renders each doc's stored HTML → PDF via WeasyPrint, sends through the existing `_resend_send` helper with the PDF attached, and stamps `emailed_at` / `email_status` / `emailed_by` per row. Failures are persisted (so retries can be scoped) and communication_logs entries are inserted per send.
+  - Both helpers `_resolve_recipient_email` (applicant → co-applicant fallback) and `_build_demand_letter_email` (personalised subject + HTML body) live in `documents/routes.py`.
+- **Frontend** — new `pages/DemandLettersPage.js` (route `/demand-letters`, sidebar entry with MailWarning icon, roles admin/manager/accounts):
+  - Total / Emailed / Pending stat tiles.
+  - Filters (search, milestone dropdown, emailed y/n) with `?batch_id=` URL param support so the confirmation flow from PaymentStageCard can deep-link to the freshly-generated batch.
+  - Table with row checkboxes and per-row preview button (`GET /documents/preview/{id}`).
+  - Sticky bulk-select toolbar (`data-testid="bulk-toolbar"`) + `Email Selected (N)` button with a browser confirm().
+  - Client-side role guard prevents the 403 fetch for sales/support roles.
+- **PaymentStageCard** — new AlertDialog (`data-testid="bulk-demand-confirm-dialog"`) shown after a successful stage update; offers to bulk-generate for the new milestone (`bulk-demand-trigger`) or skip (`bulk-demand-skip`); on success navigates the user to `/demand-letters?batch_id=…` so they can review + email in the same flow.
+- **Verified** — iteration_54: **15/15 backend pytest cases pass** + full Playwright frontend flow (sidebar visibility per-role, generation, listing, selection, bulk-email including a customer-missing failure isolation case), all data-testids present. Regression test file `backend/tests/test_bulk_demand_letters_iter54.py`.
+- Files: `backend/documents/models.py`, `backend/documents/routes.py`, `frontend/src/pages/DemandLettersPage.js`, `frontend/src/App.js`, `frontend/src/components/layout/DashboardLayout.js`, `frontend/src/components/dashboard/PaymentStageCard.jsx`.
+
+
+## 2026-07-28 (feature) — Bank Disbursement Summary card on Dashboard
+- **Backend** — new admin-only `GET /api/dashboard/disbursement-summary` (in `backend/dashboard/routes.py`) that:
+  - Sums `payment_transactions.amount` where `transaction_stage == 'scheduled_disbursement'` → `total_disbursed`.
+  - For customers with `finance_type in {loan, mixed}` and `loan_amount > 0`, computes `pending = max(loan_amount - disbursed_to_date, 0)` (never negative).
+  - Normalizes bank names via `_normalize_bank` (uppercase + iterative strip of ` BANK`, ` LTD`, ` LIMITED`, ` BANK LTD.`, ` BANK LIMITED`, etc.), so `HDFC BANK` == `HDFC` == `HDFC Bank Ltd`. Empty → `UNSPECIFIED`.
+  - Bucket-key preference: `customer.finance_bank > txn.bank_name` for financed customers; txn fallback for non-financed. Rolls up per bank into `banks[]` with `total_disbursed / pending_disbursement / loan_amount / customer_count`, sorted by pending desc.
+  - Orphan handling: disbursements whose `customer_id` is not in the customers collection are excluded from `banks[]` / grand totals and surfaced separately in `unmatched[]` (capped at 50 rows) with `unmatched_total` and `unmatched_count`. Cleanup uses the existing `POST /api/dashboard/reconciliation/delete-orphan/{id}` endpoint (admin-only, refuses if customer still exists, writes an activity audit log).
+- **Frontend** — new `DisbursementSummaryCard.jsx` in `components/dashboard/`:
+  - Headlines `Grand Total Pending Disbursement` in 4xl–5xl indigo text; supporting `Total Disbursed To Date` tile beside it.
+  - Per-bank breakdown table (Bank / Loans / Sanctioned / Disbursed / Pending) with a small "% disbursed" hint under each bank name.
+  - Unmatched-disbursements section (only when count > 0) with per-row delete button (`data-testid="delete-unmatched-<txn_id>"`) that calls the delete-orphan endpoint and refreshes.
+  - Refresh button `data-testid="refresh-disbursement-btn"`; all rows have stable testids (`disbursement-row-<BANK>`, `unmatched-row-<txn_id>`).
+  - Mounted on `pages/DashboardPage.js` after `<RevenueCards>` and before `<PaymentStageCard>`, admin-gated via `hasRole('admin')`.
+- **Verified** — iteration_53 report: **10/10 backend pytest cases pass** + full Playwright frontend flow; regression-safe test file `backend/tests/test_disbursement_summary_iteration53.py` self-seeds and cleans up TEST_ITER53_DISB_-prefixed data.
+- Files: `backend/dashboard/routes.py`, `frontend/src/components/dashboard/DisbursementSummaryCard.jsx`, `frontend/src/components/dashboard/index.js`, `frontend/src/pages/DashboardPage.js`.
+
+
 ## 2026-07-03 (bug fix) — Co-Applicant Missing From Restored Sales Agreement
 - **Bug**: After "Restore to Default" or Save-As-Master + regenerate, the Sales Agreement signature block showed `{customer_name} AND {co_applicant_name}` as literal placeholder text instead of the customer's real co-applicant name.
 - **Root cause**: `_scrub_customer_values_to_placeholders` was correctly scrubbing co-applicant scalars (`co_applicant_name`, `_father_name`, `_pan`, `_aadhar`, `_email`, `_phone`, `_address`) into `{co_applicant_*}` tokens, but `_build_placeholders` (used by the override-template render path) did not resolve those tokens back to customer data at render time. Same issue for `{customer_names}`, `{age}`, `{salutation}`, `{aadhaar_number}`, `{floor_ordinal}`, `{additional_parking}`, `{additional_parking_text}`, `{possession_date}`, `{base_price_formatted}`, `{club_house_formatted}`, `{parking_charges_formatted}`, `{labour_cess_formatted}`, `{gst_formatted}`, `{logo_img}`, `{company_name}` — all present in `sales_agreement_html.py` but missing from the fallback builder.

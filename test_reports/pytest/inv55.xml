@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="7" failures="0" skipped="0" tests="7" time="0.980" timestamp="2026-07-28T21:37:41.122773+00:00" hostname="agent-env-0ee6c042-a0ed-47b7-ba96-10af580c0511"><testcase classname="tests.test_inventory_iter55.TestImportFile" name="test_import_admin_ok" time="0.521"><error message="failed on setup with &quot;KeyError: 'token'&quot;">backend/tests/test_inventory_iter55.py:24: in admin_token
+    return _login(ADMIN)
+           ^^^^^^^^^^^^^
+backend/tests/test_inventory_iter55.py:19: in _login
+    return r.json()["token"]
+           ^^^^^^^^^^^^^^^^^
+E   KeyError: 'token'</error></testcase><testcase classname="tests.test_inventory_iter55.TestImportFile" name="test_import_non_admin_forbidden" time="0.352"><error message="failed on setup with &quot;KeyError: 'token'&quot;">backend/tests/test_inventory_iter55.py:29: in sales_token
+    return _login(SALES)
+           ^^^^^^^^^^^^^
+backend/tests/test_inventory_iter55.py:19: in _login
+    return r.json()["token"]
+           ^^^^^^^^^^^^^^^^^
+E   KeyError: 'token'</error></testcase><testcase classname="tests.test_inventory_iter55.TestImportFile" name="test_import_preserves_customer_link" time="0.000"><error message="failed on setup with &quot;KeyError: 'token'&quot;">backend/tests/test_inventory_iter55.py:24: in admin_token
+    return _login(ADMIN)
+           ^^^^^^^^^^^^^
+backend/tests/test_inventory_iter55.py:19: in _login
+    return r.json()["token"]
+           ^^^^^^^^^^^^^^^^^
+E   KeyError: 'token'</error></testcase><testcase classname="tests.test_inventory_iter55.TestInventorySummary" name="test_summary_all" time="0.000"><error message="failed on setup with &quot;KeyError: 'token'&quot;">backend/tests/test_inventory_iter55.py:24: in admin_token
+    return _login(ADMIN)
+           ^^^^^^^^^^^^^
+backend/tests/test_inventory_iter55.py:19: in _login
+    return r.json()["token"]
+           ^^^^^^^^^^^^^^^^^
+E   KeyError: 'token'</error></testcase><testcase classname="tests.test_inventory_iter55.TestInventorySummary" name="test_summary_rrl_filter" time="0.000"><error message="failed on setup with &quot;KeyError: 'token'&quot;">backend/tests/test_inventory_iter55.py:24: in admin_token
+    return _login(ADMIN)
+           ^^^^^^^^^^^^^
+backend/tests/test_inventory_iter55.py:19: in _login
+    return r.json()["token"]
+           ^^^^^^^^^^^^^^^^^
+E   KeyError: 'token'</error></testcase><testcase classname="tests.test_inventory_iter55.TestInventorySummary" name="test_avg_and_valuation_positive_after_seed" time="0.000"><error message="failed on setup with &quot;KeyError: 'token'&quot;">backend/tests/test_inventory_iter55.py:24: in admin_token
+    return _login(ADMIN)
+           ^^^^^^^^^^^^^
+backend/tests/test_inventory_iter55.py:19: in _login
+    return r.json()["token"]
+           ^^^^^^^^^^^^^^^^^
+E   KeyError: 'token'</error></testcase><testcase classname="tests.test_inventory_iter55.TestInventoryUnits" name="test_units_sorted_and_projected" time="0.000"><error message="failed on setup with &quot;KeyError: 'token'&quot;">backend/tests/test_inventory_iter55.py:24: in admin_token
+    return _login(ADMIN)
+           ^^^^^^^^^^^^^
+backend/tests/test_inventory_iter55.py:19: in _login
+    return r.json()["token"]
+           ^^^^^^^^^^^^^^^^^
+E   KeyError: 'token'</error></testcase></testsuite></testsuites>

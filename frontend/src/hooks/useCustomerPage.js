@@ -157,25 +157,52 @@ export function useCustomerPage(id) {
   useEffect(() => { fetchCustomerData(); }, [id, fetchCustomerData]);
 
   // ─── Price Calculator ────────────────────────────────────────
+  //
+  // Numeric parsing helper: returns the numeric value if the input is
+  // present (not null/undefined/""), otherwise the given fallback. Crucially,
+  // an explicit `0` is respected — the legacy `parseFloat(x) || default`
+  // pattern would silently swap `0` for the default (e.g. a 0 club-house
+  // charge becoming ₹3 lakh), so we no longer use it here.
+  const numOr = (raw, fallback = 0) => {
+    if (raw === null || raw === undefined || raw === "") return fallback;
+    const n = parseFloat(raw);
+    return Number.isNaN(n) ? fallback : n;
+  };
+
   const calculateLivePrice = (data) => {
-    const saleableArea = parseFloat(data.saleable_area) || 0;
-    const ratePerSqft = parseFloat(data.rate_per_sqft) || 0;
-    const floorRiseCost = parseFloat(data.floor_rise_cost) || 0;
+    const saleableArea = numOr(data.saleable_area, 0);
+    const ratePerSqft = numOr(data.rate_per_sqft, 0);
+    const floorRiseCost = numOr(data.floor_rise_cost, 0);
     const basePrice = saleableArea * ratePerSqft;
     const floorRiseTotal = saleableArea * floorRiseCost;
-    const clubHouse = parseFloat(data.club_house_charges) || 300000;
-    const additionalCharges = parseFloat(data.additional_charges) || 0;
-    // Car parking is now a fixed editable amount on the customer (default ₹2L),
-    // NOT a count multiplied by ₹3L per slot.
-    const parkingCharges = parseFloat(data.additional_parking_charges) || 200000;
+    // Club House & Parking: an EXPLICIT admin-entered value (including 0)
+    // is always respected. A missing/null value on the customer record
+    // (legacy imports, incomplete bookings) falls back to 0 rather than
+    // silently persisting the pre-Jun 2026 defaults on next save — those
+    // defaults now live only in the fresh-booking form, not in edit paths.
+    const clubHouse = numOr(data.club_house_charges, 0);
+    const additionalCharges = numOr(data.additional_charges, 0);
+    const parkingCharges = numOr(data.additional_parking_charges, 0);
     // BESCOM: rate per sqft × saleable area → adds to subtotal (before GST/labour cess)
-    const bescomRate = parseFloat(data.bescom_rate) || 0;
+    const bescomRate = numOr(data.bescom_rate, 0);
     const bescomAmount = bescomRate * saleableArea;
     const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges + additionalCharges + bescomAmount;
-    const labourCess = subtotal * 0.007;
+    // Labour Cess: default is 0.7% of subtotal. Admin can override manually
+    // for legacy / negotiated records — an override is signalled by
+    // ``labour_cess_manual === true`` on editData. When manual, honour the
+    // explicit ``labour_cess`` value (0 is respected); when auto, recompute.
+    const autoLabourCess = subtotal * 0.007;
+    const labourCess = data.labour_cess_manual
+      ? numOr(data.labour_cess, 0)
+      : autoLabourCess;
     const gst = subtotal * 0.05;
-    // Interest is a manual flat add-on AFTER GST (non GST-taxable)
-    const interestAmount = parseFloat(data.interest_amount) || 0;
+    // Interest is a manual flat add-on AFTER GST (non GST-taxable). Only added
+    // when the customer has explicitly entered a POSITIVE value — a null/0
+    // entry must contribute nothing to the total (previously any falsy value
+    // still went through `+ 0` which was fine numerically, but a NaN slip-up
+    // could poison the total; this gate makes the intent explicit).
+    const rawInterest = numOr(data.interest_amount, 0);
+    const interestAmount = rawInterest > 0 ? rawInterest : 0;
     const total = subtotal + labourCess + gst + interestAmount;
     const uds = saleableArea * 0.495046;
     return {
@@ -190,6 +217,8 @@ export function useCustomerPage(id) {
       bescomAmount: Math.round(bescomAmount),
       subtotal: Math.round(subtotal),
       labourCess: Math.round(labourCess),
+      labourCessManual: Boolean(data.labour_cess_manual),
+      autoLabourCess: Math.round(autoLabourCess),
       gst: Math.round(gst),
       interestAmount: Math.round(interestAmount),
       total: Math.round(total),
@@ -206,11 +235,27 @@ export function useCustomerPage(id) {
   };
 
   // ─── Customer Save ───────────────────────────────────────────
+  //
+  // Legacy pricing policy: customers created before 2026-06-02 predate the
+  // BESCOM-inclusive subtotal formula (and other historical formula tweaks).
+  // Re-computing their total_price on save would silently rewrite their
+  // historically-agreed number. We therefore SKIP the auto-recalc branch
+  // for legacy records and persist only the fields the admin actually
+  // touched — their DB-stored total_price is preserved verbatim.
+  const LEGACY_PRICING_CUTOFF = new Date("2026-06-02T00:00:00Z");
+  const isLegacyPricingCustomer = (c) => {
+    const raw = c?.created_at;
+    if (!raw) return false;
+    const d = new Date(raw);
+    return !Number.isNaN(d.getTime()) && d < LEGACY_PRICING_CUTOFF;
+  };
+
   const handleSaveCustomer = async () => {
     setSaving(true);
     try {
       let dataToSave = { ...editData };
-      if (liveCalc) {
+      const legacy = isLegacyPricingCustomer(customer);
+      if (liveCalc && !legacy) {
         dataToSave = {
           ...dataToSave,
           base_price: liveCalc.basePrice,
@@ -220,6 +265,7 @@ export function useCustomerPage(id) {
           bescom_rate: liveCalc.bescomRate,
           bescom_amount: liveCalc.bescomAmount,
           labour_cess: liveCalc.labourCess,
+          labour_cess_manual: liveCalc.labourCessManual,
           gst_amount: liveCalc.gst,
           interest_amount: liveCalc.interestAmount,
           total_price: liveCalc.total,
@@ -230,6 +276,10 @@ export function useCustomerPage(id) {
             floor_rise_total: liveCalc.floorRiseTotal || 0,
           },
         };
+      } else if (legacy) {
+        // Legacy: never let a stale liveCalc.total overwrite the historical
+        // price, even if the admin briefly hovered on the edit form.
+        delete dataToSave.total_price;
       }
       const protectedFields = [
         "booking_amount", "booking_date", "transaction_date", "transaction_bank",
@@ -241,7 +291,11 @@ export function useCustomerPage(id) {
       fetchCustomerData();
       setEditing(false);
       setLiveCalc(null);
-      toast.success("Customer updated with recalculated prices");
+      toast.success(
+        legacy
+          ? "Customer updated (historical price preserved — pre-Jun 2026 record)"
+          : "Customer updated with recalculated prices"
+      );
     } catch {
       toast.error("Failed to update customer");
     } finally {

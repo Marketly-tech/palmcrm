@@ -313,3 +313,414 @@ async def delete_orphan_transaction(transaction_id: str, user: dict = Depends(ge
         # Don't block the cleanup if the audit logger hiccups.
         pass
     return {"deleted": True, "transaction_id": transaction_id, "amount": txn.get("amount", 0)}
+
+
+# ---------------------------------------------------------------------------
+# Bank Disbursement Summary (admin)
+# ---------------------------------------------------------------------------
+# Bank-name normalization
+# ---------------------------------------------------------------------------
+# Suffixes that are part of the corporate name / loan-product label but not
+# the bank identity. Stripped iteratively (case-insensitive, already upper).
+_BANK_SUFFIXES_TO_STRIP = (
+    " HOME LOAN",
+    " HOUSING LOAN",
+    " HOUSING FINANCE",
+    " HOME FINANCE",
+    " BANK LTD.",
+    " BANK LIMITED",
+    " BANK LTD",
+    " BANK",
+    " LIMITED",
+    " LTD.",
+    " LTD",
+    " LOAN",
+    " FINANCE",
+)
+
+# Canonical display labels for common variants. The key is the *fully-stripped
+# uppercase* form (i.e. after suffix-strip); the value is the pretty display
+# label the dashboard renders. Add aliases here rather than fanning out the
+# suffix stripper — keeps the mapping declarative and grep-friendly.
+_BANK_CANONICAL_MAP: dict[str, str] = {
+    # Bank of Baroda
+    "BOB": "Bank of Baroda",
+    "BOB LOAN": "Bank of Baroda",
+    "BANK OF BARODA": "Bank of Baroda",
+    "BARODA": "Bank of Baroda",
+    # HDFC
+    "HDFC": "HDFC Bank",
+    "HDC": "HDFC Bank",  # Common data-entry typo captured from live data.
+    "HDFC HOUSING": "HDFC Bank",
+    "HDFC HOUSING DEVELOPMENT FINANCE CORPORATION": "HDFC Bank",
+    # Canara
+    "CANARA": "Canara Bank",
+    "CANNARA": "Canara Bank",
+    # SBI
+    "SBI": "State Bank of India",
+    "STATE BANK OF INDIA": "State Bank of India",
+    "STATE BANK": "State Bank of India",
+    # ICICI
+    "ICICI": "ICICI Bank",
+    # Axis
+    "AXIS": "Axis Bank",
+    # Kotak
+    "KOTAK": "Kotak Mahindra Bank",
+    "KOTAK MAHINDRA": "Kotak Mahindra Bank",
+    # IDBI / IDFC
+    "IDBI": "IDBI Bank",
+    "IDFC": "IDFC First Bank",
+    "IDFC FIRST": "IDFC First Bank",
+    # Public sector
+    "PNB": "Punjab National Bank",
+    "PUNJAB NATIONAL": "Punjab National Bank",
+    "UNION": "Union Bank of India",
+    "UNION BANK OF INDIA": "Union Bank of India",
+    "INDIAN": "Indian Bank",
+    "INDIAN OVERSEAS": "Indian Overseas Bank",
+    "IOB": "Indian Overseas Bank",
+    "UCO": "UCO Bank",
+    "CENTRAL": "Central Bank of India",
+    "CENTRAL BANK OF INDIA": "Central Bank of India",
+    "BANK OF INDIA": "Bank of India",
+    "BOI": "Bank of India",
+    "BANK OF MAHARASHTRA": "Bank of Maharashtra",
+    "BOM": "Bank of Maharashtra",
+    # Private
+    "YES": "Yes Bank",
+    "FEDERAL": "Federal Bank",
+    "SOUTH INDIAN": "South Indian Bank",
+    "KARNATAKA": "Karnataka Bank",
+    "KARUR VYSYA": "Karur Vysya Bank",
+    "RBL": "RBL Bank",
+    "INDUSIND": "IndusInd Bank",
+    # NBFCs commonly used for home loans
+    "LIC HOUSING": "LIC Housing Finance",
+    "LICHFL": "LIC Housing Finance",
+    "TATA CAPITAL": "Tata Capital",
+    "TATA CAPITAL HOUSING": "Tata Capital",
+    "BAJAJ": "Bajaj Finance",
+    "BAJAJ HOUSING": "Bajaj Housing Finance",
+    "BAJAJ FINSERV": "Bajaj Finance",
+    "PIRAMAL": "Piramal Finance",
+    "PNB HOUSING": "PNB Housing Finance",
+    "GRUH": "GRUH Finance",
+    "DHFL": "DHFL",
+    # Placeholder
+    "UNSPECIFIED": "Unspecified",
+}
+
+
+def _normalize_bank(raw: Optional[str]) -> str:
+    """Collapse bank-name variants into a canonical display label.
+
+    Pipeline:
+      1. Uppercase + trim (also normalize interior whitespace).
+      2. Iteratively strip loan/product/corporate suffixes
+         ("BANK", "LOAN", "HOME LOAN", "LTD.", "LIMITED", "FINANCE" etc.)
+         until the string stops changing.
+      3. Look the residue up in ``_BANK_CANONICAL_MAP``; if found, return
+         the pretty label. Otherwise return the stripped uppercase residue
+         so unknown banks still surface (rather than getting bucketed into
+         a catch-all).
+    """
+    if not raw:
+        return _BANK_CANONICAL_MAP["UNSPECIFIED"]
+    s = " ".join(str(raw).strip().upper().split())
+    if not s:
+        return _BANK_CANONICAL_MAP["UNSPECIFIED"]
+    changed = True
+    while changed:
+        changed = False
+        for suf in _BANK_SUFFIXES_TO_STRIP:
+            if s.endswith(suf):
+                s = s[: -len(suf)].strip()
+                changed = True
+    if not s:
+        return _BANK_CANONICAL_MAP["UNSPECIFIED"]
+    return _BANK_CANONICAL_MAP.get(s, s.title())
+
+
+@router.get("/disbursement-summary")
+async def get_disbursement_summary(user: dict = Depends(get_current_user)):
+    """Per-bank disbursement snapshot for the main dashboard (admin only).
+
+    Aggregates a per-bank row (grouped on the *normalized* canonical bank
+    name) with these columns:
+      • **Loans** (``customer_count``) — count of UNIQUE customers whose
+        ``finance_bank`` normalizes to this bank. A customer is counted
+        even when ``loan_amount`` is null / 0 / missing — the "loan"
+        column represents "how many customers has this bank been assigned
+        to on the CRM", not just fully-captured records. This matches how
+        accounts teams read the widget.
+      • **Sanctioned** (``loan_amount``) — SUM of ``customers.loan_amount``
+        for every customer assigned to this bank (skips null / 0 fields).
+        No filter on ``finance_type``.
+      • **Total Disbursed** — SUM(amount) of ``payment_transactions``
+        rows whose ``transaction_stage == 'scheduled_disbursement'``,
+        grouped by the bank (customer's ``finance_bank`` preferred,
+        transaction's own ``bank_name`` as fallback for txns whose
+        customer has no finance_bank set).
+      • **Pending** — ``max(SUM(customers.total_price) − Total Disbursed, 0)``
+        per bank. Represents remaining flat value still to be disbursed.
+
+    Orphan scheduled_disbursement rows (customer_id no longer in the
+    customers collection) are surfaced separately under ``unmatched``.
+    """
+    if user.get("role") != "admin":
+        return {"error": "Admin role required."}
+
+    db = get_database()
+
+    # 1. Index EVERY customer that carries a finance_bank — regardless of
+    #    loan_amount / finance_type / paperwork completeness. In production
+    #    the accounts team routinely captures ``finance_bank`` but leaves
+    #    ``loan_amount`` blank; those customers must still show up in the
+    #    Loans + Pending columns.
+    bank_customers = await db.customers.find(
+        {"finance_bank": {"$nin": [None, ""]}},
+        {"_id": 0, "id": 1, "name": 1, "unit_number": 1, "project": 1,
+         "finance_bank": 1, "loan_amount": 1, "total_price": 1,
+         "finance_type": 1},
+    ).to_list(10000)
+    customer_index = {c.get("id"): c for c in bank_customers}
+
+    # 2. Index the full customer set (for orphan detection on transactions).
+    all_customer_ids: set = set()
+    async for c in db.customers.find({}, {"_id": 0, "id": 1}):
+        all_customer_ids.add(c.get("id"))
+
+    # 3. Pull every scheduled_disbursement transaction.
+    txns = await db.payment_transactions.find(
+        {"transaction_stage": "scheduled_disbursement"},
+        {"_id": 0, "id": 1, "customer_id": 1, "amount": 1, "bank_name": 1,
+         "transaction_date": 1, "transaction_number": 1, "notes": 1},
+    ).to_list(100000)
+
+    per_bank: dict[str, dict] = {}
+    unmatched: list[dict] = []
+    unmatched_total = 0.0
+
+    def _bucket(name: str) -> dict:
+        return per_bank.setdefault(
+            name,
+            {"bank": name, "total_disbursed": 0.0, "flat_value_total": 0.0,
+             "loan_amount": 0.0, "customer_ids": set()},
+        )
+
+    # 4. Roll up customer-level fields FIRST — this creates the bank
+    #    buckets even for banks that have zero disbursements yet, and
+    #    guarantees Loans / Sanctioned / Pending are computed from the
+    #    customer index (never inflated by orphan txns).
+    grand_loan = 0.0
+    grand_flat_value = 0.0
+    for c in bank_customers:
+        cid = c.get("id")
+        loan = float(c.get("loan_amount") or 0)
+        flat_value = float(c.get("total_price") or 0)
+        bank = _normalize_bank(c.get("finance_bank"))
+        row = _bucket(bank)
+        row["loan_amount"] += loan
+        row["flat_value_total"] += flat_value
+        if cid:
+            row["customer_ids"].add(cid)
+        grand_loan += loan
+        grand_flat_value += flat_value
+
+    # 5. Roll up transaction amounts on top. Prefer the customer's
+    #    finance_bank (canonical) so a mistyped bank_name on the txn
+    #    doesn't split the row.
+    for t in txns:
+        amt = float(t.get("amount") or 0)
+        cid = t.get("customer_id")
+        cust = customer_index.get(cid)
+        raw_bank = (cust or {}).get("finance_bank") or t.get("bank_name")
+        bank = _normalize_bank(raw_bank)
+
+        if cid and cid not in all_customer_ids:
+            unmatched.append({
+                "transaction_id": t.get("id"),
+                "customer_id": cid,
+                "amount": amt,
+                "bank_name": t.get("bank_name") or "",
+                "transaction_date": t.get("transaction_date") or "",
+                "transaction_number": t.get("transaction_number") or "",
+                "notes": t.get("notes") or "",
+            })
+            unmatched_total += amt
+            continue
+
+        _bucket(bank)["total_disbursed"] += amt
+
+    # 6. Finalize each bank row.
+    grand_pending = 0.0
+    banks: list[dict] = []
+    for b in per_bank.values():
+        disbursed = b["total_disbursed"]
+        flat_value = b["flat_value_total"]
+        pending = max(flat_value - disbursed, 0.0)
+        grand_pending += pending
+        banks.append({
+            "bank": b["bank"],
+            "total_disbursed": round(disbursed, 2),
+            "pending_disbursement": round(pending, 2),
+            "loan_amount": round(b["loan_amount"], 2),
+            "flat_value_total": round(flat_value, 2),
+            "customer_count": len(b["customer_ids"]),
+        })
+
+    banks.sort(key=lambda r: r["pending_disbursement"], reverse=True)
+    grand_disbursed = sum(b["total_disbursed"] for b in banks)
+
+    unmatched.sort(key=lambda o: o["amount"] or 0, reverse=True)
+
+    return {
+        "grand_total_disbursed": round(grand_disbursed, 2),
+        "grand_total_pending": round(grand_pending, 2),
+        "grand_total_loan": round(grand_loan, 2),
+        "grand_total_flat_value": round(grand_flat_value, 2),
+        "banks": banks,
+        "unmatched_total": round(unmatched_total, 2),
+        "unmatched_count": len(unmatched),
+        "unmatched": unmatched[:50],
+    }
+
+
+# ---------------------------------------------------------------------------
+# One-shot legacy backfill endpoint
+# ---------------------------------------------------------------------------
+# Purpose: for customers created between two ISO-date-strings (typically the
+# early-onboarding batch RRL-00025..RRL-00035 created 2026-03-20 → 2026-03-22),
+# explicitly set ``club_house_charges`` and ``additional_parking_charges``
+# to 0 when they are currently null / missing / empty-string. This is a
+# read-repair for legacy records that predate the "0 is respected" fix, so
+# their UI cards and Price Breakup PDFs agree on the exact same numbers.
+#
+# Design guarantees:
+#   1. Admin-only.
+#   2. Idempotent — only touches rows where the field is null/missing/"";
+#      any non-null value (even if it's 0 already) is left alone.
+#   3. Dry-run by default — must pass ``?apply=true`` to actually mutate.
+#   4. Returns a full audit trail (candidate ids, modified counts, verify pass).
+# ---------------------------------------------------------------------------
+@router.post("/backfill/legacy-zero-charges")
+async def backfill_legacy_zero_charges(
+    start_date: str = "2026-03-20",
+    end_date_exclusive: str = "2026-03-23",
+    apply: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    """Backfill null club_house_charges / additional_parking_charges → 0 for
+    customers created in ``[start_date, end_date_exclusive)``.
+
+    Args (query string):
+      • ``start_date`` (inclusive, YYYY-MM-DD)   — default 2026-03-20
+      • ``end_date_exclusive`` (YYYY-MM-DD)      — default 2026-03-23
+      • ``apply`` (bool)                          — default false (dry-run)
+
+    Response:
+      ``{"candidates": [...], "would_update": {...}, "applied": {...} | null,
+         "verify": {"in_window": N, "still_null": M}}``
+    """
+    if user.get("role") != "admin":
+        return {"error": "Admin role required."}
+
+    db = get_database()
+    date_filter = {"created_at": {"$gte": start_date, "$lt": end_date_exclusive}}
+
+    # Candidates: any row in window with at least one null/missing charge field.
+    null_or_missing_or_empty = {"$in": [None, ""]}
+    candidate_q = {
+        **date_filter,
+        "$or": [
+            {"club_house_charges": null_or_missing_or_empty},
+            {"additional_parking_charges": null_or_missing_or_empty},
+            {"club_house_charges": {"$exists": False}},
+            {"additional_parking_charges": {"$exists": False}},
+        ],
+    }
+    candidates = await db.customers.find(
+        candidate_q,
+        {"_id": 0, "id": 1, "customer_id": 1, "name": 1, "created_at": 1,
+         "club_house_charges": 1, "additional_parking_charges": 1},
+    ).to_list(1000)
+
+    # Per-field candidate counts (what an update_many WOULD hit).
+    club_would = await db.customers.count_documents({
+        **date_filter,
+        "$or": [
+            {"club_house_charges": None},
+            {"club_house_charges": ""},
+            {"club_house_charges": {"$exists": False}},
+        ],
+    })
+    parking_would = await db.customers.count_documents({
+        **date_filter,
+        "$or": [
+            {"additional_parking_charges": None},
+            {"additional_parking_charges": ""},
+            {"additional_parking_charges": {"$exists": False}},
+        ],
+    })
+
+    applied = None
+    if apply:
+        club_result = await db.customers.update_many(
+            {
+                **date_filter,
+                "$or": [
+                    {"club_house_charges": None},
+                    {"club_house_charges": ""},
+                    {"club_house_charges": {"$exists": False}},
+                ],
+            },
+            {"$set": {"club_house_charges": 0}},
+        )
+        parking_result = await db.customers.update_many(
+            {
+                **date_filter,
+                "$or": [
+                    {"additional_parking_charges": None},
+                    {"additional_parking_charges": ""},
+                    {"additional_parking_charges": {"$exists": False}},
+                ],
+            },
+            {"$set": {"additional_parking_charges": 0}},
+        )
+        applied = {
+            "club_house_charges_modified": club_result.modified_count,
+            "additional_parking_charges_modified": parking_result.modified_count,
+        }
+
+    # Verify: after apply, count anything in-window that STILL has null.
+    in_window = await db.customers.count_documents(date_filter)
+    still_null = await db.customers.count_documents({
+        **date_filter,
+        "$or": [
+            {"club_house_charges": null_or_missing_or_empty},
+            {"additional_parking_charges": null_or_missing_or_empty},
+            {"club_house_charges": {"$exists": False}},
+            {"additional_parking_charges": {"$exists": False}},
+        ],
+    })
+
+    return {
+        "dry_run": not apply,
+        "window": {"start": start_date, "end_exclusive": end_date_exclusive},
+        "candidates": [
+            {
+                "customer_id": c.get("customer_id") or c.get("id"),
+                "name": c.get("name"),
+                "created_at": c.get("created_at"),
+                "club_house_charges": c.get("club_house_charges"),
+                "additional_parking_charges": c.get("additional_parking_charges"),
+            }
+            for c in candidates
+        ],
+        "would_update": {
+            "club_house_charges": club_would,
+            "additional_parking_charges": parking_would,
+        },
+        "applied": applied,
+        "verify": {"in_window": in_window, "still_null": still_null},
+    }

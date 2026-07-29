@@ -7,8 +7,9 @@ import { logError } from "../utils/logger";
 import {
   StatsCards, RevenueCards, PaymentStageCard, ExportDataCard,
   PaymentStatusChart, UpcomingPayments, DueDateCountdown, RecentActivity,
-  ReconciliationCard,
+  ReconciliationCard, DisbursementSummaryCard,
 } from "../components/dashboard";
+import ConstructionUpdateDialog from "../components/common/ConstructionUpdateDialog";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -130,6 +131,10 @@ const DashboardPage = () => {
       <StatsCards stats={stats} />
 
       {hasRole("admin") && <RevenueCards stats={stats} formatCurrency={formatCurrency} />}
+
+      {/* Bank Disbursement Summary — admin-only. Sits right after Revenue so
+          finance leadership can see loan-money exposure at a glance. */}
+      {hasRole("admin") && <DisbursementSummaryCard />}
 
       {hasRole("admin") && (
         <PaymentStageCard
