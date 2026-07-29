@@ -251,11 +251,66 @@ const PropertyPricingCard = ({
             </div>
             <div>
               <Label>Labour Cess (0.70%)</Label>
-              <p className="text-slate-700 mt-1" data-testid="labour-cess-value">
-                {editing && liveCalc && !legacyPricing
-                  ? formatCurrency(liveCalc.labourCess)
-                  : formatCurrency(customer.labour_cess ?? 0)}
-              </p>
+              {editing ? (
+                <>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={
+                        editData.labour_cess_manual
+                          ? (editData.labour_cess ?? 0)
+                          : (liveCalc ? liveCalc.labourCess : (customer.labour_cess ?? 0))
+                      }
+                      disabled={!editData.labour_cess_manual}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          labour_cess: parseFloat(e.target.value) || 0,
+                          labour_cess_manual: true,
+                        })
+                      }
+                      className="flex-1"
+                      data-testid="labour-cess-input"
+                    />
+                    <label
+                      className="flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap cursor-pointer"
+                      title="Toggle to enter a custom value; untick to auto-compute at 0.70% of subtotal"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editData.labour_cess_manual)}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            labour_cess_manual: e.target.checked,
+                            // Seed the manual value with the currently-shown auto value so admin has a sensible starting point.
+                            labour_cess: e.target.checked
+                              ? (liveCalc ? liveCalc.labourCess : (customer.labour_cess ?? 0))
+                              : editData.labour_cess,
+                          })
+                        }
+                        data-testid="labour-cess-manual-toggle"
+                      />
+                      Manual
+                    </label>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {editData.labour_cess_manual
+                      ? "Manual override active · auto value would be " +
+                        formatCurrency(liveCalc ? liveCalc.autoLabourCess : 0)
+                      : "Auto-computed as 0.70% of subtotal · tick Manual to override"}
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-700 mt-1" data-testid="labour-cess-value">
+                  {formatCurrency(customer.labour_cess ?? 0)}
+                  {customer.labour_cess_manual && (
+                    <span className="text-xs text-amber-700 ml-2">(manual override)</span>
+                  )}
+                </p>
+              )}
             </div>
             <div>
               <Label>GST (5%)</Label>

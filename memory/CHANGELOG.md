@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-02-28 (feature) — Labour Cess manual-override on Customer Profile
+- **What** — Labour Cess field on the Property & Pricing card is now editable. A "Manual" checkbox toggles between the default 0.7%-of-subtotal auto-calc and an admin-entered value. Manual mode is respected on save (0 is honoured); a helper caption always shows what the auto value *would* be for reference.
+- **Files**:
+  - `frontend/src/hooks/useCustomerPage.js` — `calculateLivePrice` now honours `data.labour_cess_manual`: when true, uses `numOr(data.labour_cess, 0)`; when false, computes `subtotal * 0.007`. Return object gained `labourCessManual` + `autoLabourCess` for the UI. `handleSaveCustomer` includes both in the PUT payload.
+  - `frontend/src/components/customer/details/PropertyPricingCard.jsx` — replaced the readonly Labour Cess `<p>` with an `<Input>` + `Manual` checkbox. Auto mode disables the input and shows the live-computed value; Manual mode enables it and seeds with the current auto value. View mode adds "(manual override)" tag when applicable. Test IDs: `labour-cess-input`, `labour-cess-manual-toggle`, `labour-cess-value`.
+  - `backend/customers/models.py` — added `labour_cess_manual: bool = False` to `CustomerBase` alongside the existing `labour_cess` float.
+- **Verified** — Playwright: Auto→Manual toggle switches disabled state, input accepts a custom value (₹99,999 test). Curl PUT `{labour_cess: 12345, labour_cess_manual: true}` → GET confirms both persist; setting `labour_cess_manual: false` cleanly reverts to auto.
+- Files touched: `frontend/src/hooks/useCustomerPage.js`, `frontend/src/components/customer/details/PropertyPricingCard.jsx`, `backend/customers/models.py`.
+
+
+
 ## 2026-02-28 (bug fix) — Disbursement Summary: Loans / Pending / Sanctioned columns were empty
 - **Symptom (production)** — On `rrlcrm.com/dashboard`, every row of the Bank Disbursement Summary showed `Loans = 0`, `Sanctioned = —`, `Pending = ₹0` (even though `Disbursed` had real amounts). Users saw "across 10 banks" but no per-bank counts.
 - **Root cause** — Yesterday's rewrite indexed only customers with `loan_amount > 0`. In production, the accounts team routinely captures `finance_bank` on customer records but leaves `loan_amount` blank/0 (they log disbursements as transactions instead). So every prod customer was excluded from the per-bank rollup — Loans count fell to 0, Sanctioned stayed at 0 (`—` in UI), and Pending never got a `flat_value_total` to subtract from.

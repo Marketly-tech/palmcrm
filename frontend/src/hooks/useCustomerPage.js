@@ -187,7 +187,14 @@ export function useCustomerPage(id) {
     const bescomRate = numOr(data.bescom_rate, 0);
     const bescomAmount = bescomRate * saleableArea;
     const subtotal = basePrice + floorRiseTotal + clubHouse + parkingCharges + additionalCharges + bescomAmount;
-    const labourCess = subtotal * 0.007;
+    // Labour Cess: default is 0.7% of subtotal. Admin can override manually
+    // for legacy / negotiated records — an override is signalled by
+    // ``labour_cess_manual === true`` on editData. When manual, honour the
+    // explicit ``labour_cess`` value (0 is respected); when auto, recompute.
+    const autoLabourCess = subtotal * 0.007;
+    const labourCess = data.labour_cess_manual
+      ? numOr(data.labour_cess, 0)
+      : autoLabourCess;
     const gst = subtotal * 0.05;
     // Interest is a manual flat add-on AFTER GST (non GST-taxable). Only added
     // when the customer has explicitly entered a POSITIVE value — a null/0
@@ -210,6 +217,8 @@ export function useCustomerPage(id) {
       bescomAmount: Math.round(bescomAmount),
       subtotal: Math.round(subtotal),
       labourCess: Math.round(labourCess),
+      labourCessManual: Boolean(data.labour_cess_manual),
+      autoLabourCess: Math.round(autoLabourCess),
       gst: Math.round(gst),
       interestAmount: Math.round(interestAmount),
       total: Math.round(total),
@@ -256,6 +265,7 @@ export function useCustomerPage(id) {
           bescom_rate: liveCalc.bescomRate,
           bescom_amount: liveCalc.bescomAmount,
           labour_cess: liveCalc.labourCess,
+          labour_cess_manual: liveCalc.labourCessManual,
           gst_amount: liveCalc.gst,
           interest_amount: liveCalc.interestAmount,
           total_price: liveCalc.total,
