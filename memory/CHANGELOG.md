@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-02-28 (bug fix) — Disbursement Summary logic rewrite
+- **Symptom** — Dashboard Bank Disbursement widget had five defects:
+  1. `BOB BANK LOAN`, `BOB LOAN`, `BOB` showed as separate rows (same for HDFC / Canara variants).
+  2. **Sanctioned** column was empty (`—`) because query filtered `finance_type IN {loan, mixed}` — records saved as `self` or blank were excluded even when they carried a real `loan_amount`.
+  3. **Loans** column used a per-customer counter — a duplicate index entry could inflate the count.
+  4. **Pending** was `loan_amount − disbursed`, which under-represents the collectible from each lender's book.
+  5. "across N banks" summary showed the raw pre-normalization count.
+- **Fix (`backend/dashboard/routes.py`)** — rewrote `_normalize_bank()` + `get_disbursement_summary()`:
+  1. **Normalization** — expanded `_BANK_SUFFIXES_TO_STRIP` to also strip `LOAN`, `HOME LOAN`, `HOUSING LOAN`, `HOUSING FINANCE`, `HOME FINANCE`, `FINANCE`. Added a declarative `_BANK_CANONICAL_MAP` covering common variants (BOB → *Bank of Baroda*, HDFC/HDC → *HDFC Bank*, CANARA → *Canara Bank*, SBI, ICICI, AXIS, KOTAK, IDBI, IDFC, PNB, Union, Bank of India, Bank of Maharashtra, plus common NBFCs — LIC Housing, Tata Capital, Bajaj Housing, Piramal, PNB Housing). Unknown banks fall through as Title Case (nothing silently gets dropped).
+  2. **Sanctioned** — removed the `finance_type` filter. Now `SUM(loan_amount)` for every customer with `loan_amount > 0` regardless of finance_type.
+  3. **Loans** — now `len({customer_ids})` per bank (unique-by-id set), immune to duplicates.
+  4. **Pending** — recomputed as `max(SUM(total_price) − SUM(disbursed), 0)` per bank. Response now also includes `flat_value_total` per bank and `grand_total_flat_value` at the top for transparency.
+  5. **Summary bar** — the frontend already used `banks.length`; because that array is now the normalized set, "across N banks" reflects the post-merge count automatically.
+- **Verified** — 30-case unit test for `_normalize_bank` (BOB × 6 variants, HDFC × 6, Canara × 4, SBI × 3, ICICI, Axis, Kotak, edge cases — all pass). Synthetic end-to-end test seeded 6 customers across BOB/HDFC/Canara variants (mixed finance_type=self/blank/loan) + 4 disbursement transactions → endpoint returned 3 normalized bank rows with correct sanctioned totals (BOB 60L, HDFC 40L, Canara 18L), correct loans counts (3/2/1), correct pending (BOB=19.8M, Canara=6.5M).
+- Files touched: `backend/dashboard/routes.py`.
+
+
+
 ## 2026-02-28 (enhancement) — "Historical price (locked)" badge for legacy customers
 - **What** — Added an amber `🔒 Historical price (locked)` badge in the header of the Property & Pricing card whenever the customer's `created_at < 2026-06-02` (matches the legacy pricing cutoff enforced in `useCustomerPage.js`). Tooltip explains: *"This customer was created before 02 Jun 2026, when the pricing formula changed (BESCOM added to subtotal). Their original agreed total price is preserved and will NOT be recalculated on save."*
 - **Total Price row** — During edit mode on a legacy record, the row now shows *"(legacy — recalc skipped on save)"* in amber instead of the green "(live preview)" hint, so admins understand why the stored total won't move even if they tweak fields.

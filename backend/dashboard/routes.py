@@ -318,7 +318,15 @@ async def delete_orphan_transaction(transaction_id: str, user: dict = Depends(ge
 # ---------------------------------------------------------------------------
 # Bank Disbursement Summary (admin)
 # ---------------------------------------------------------------------------
+# Bank-name normalization
+# ---------------------------------------------------------------------------
+# Suffixes that are part of the corporate name / loan-product label but not
+# the bank identity. Stripped iteratively (case-insensitive, already upper).
 _BANK_SUFFIXES_TO_STRIP = (
+    " HOME LOAN",
+    " HOUSING LOAN",
+    " HOUSING FINANCE",
+    " HOME FINANCE",
     " BANK LTD.",
     " BANK LIMITED",
     " BANK LTD",
@@ -326,17 +334,101 @@ _BANK_SUFFIXES_TO_STRIP = (
     " LIMITED",
     " LTD.",
     " LTD",
+    " LOAN",
+    " FINANCE",
 )
+
+# Canonical display labels for common variants. The key is the *fully-stripped
+# uppercase* form (i.e. after suffix-strip); the value is the pretty display
+# label the dashboard renders. Add aliases here rather than fanning out the
+# suffix stripper — keeps the mapping declarative and grep-friendly.
+_BANK_CANONICAL_MAP: dict[str, str] = {
+    # Bank of Baroda
+    "BOB": "Bank of Baroda",
+    "BOB LOAN": "Bank of Baroda",
+    "BANK OF BARODA": "Bank of Baroda",
+    "BARODA": "Bank of Baroda",
+    # HDFC
+    "HDFC": "HDFC Bank",
+    "HDC": "HDFC Bank",  # Common data-entry typo captured from live data.
+    "HDFC HOUSING": "HDFC Bank",
+    "HDFC HOUSING DEVELOPMENT FINANCE CORPORATION": "HDFC Bank",
+    # Canara
+    "CANARA": "Canara Bank",
+    "CANNARA": "Canara Bank",
+    # SBI
+    "SBI": "State Bank of India",
+    "STATE BANK OF INDIA": "State Bank of India",
+    "STATE BANK": "State Bank of India",
+    # ICICI
+    "ICICI": "ICICI Bank",
+    # Axis
+    "AXIS": "Axis Bank",
+    # Kotak
+    "KOTAK": "Kotak Mahindra Bank",
+    "KOTAK MAHINDRA": "Kotak Mahindra Bank",
+    # IDBI / IDFC
+    "IDBI": "IDBI Bank",
+    "IDFC": "IDFC First Bank",
+    "IDFC FIRST": "IDFC First Bank",
+    # Public sector
+    "PNB": "Punjab National Bank",
+    "PUNJAB NATIONAL": "Punjab National Bank",
+    "UNION": "Union Bank of India",
+    "UNION BANK OF INDIA": "Union Bank of India",
+    "INDIAN": "Indian Bank",
+    "INDIAN OVERSEAS": "Indian Overseas Bank",
+    "IOB": "Indian Overseas Bank",
+    "UCO": "UCO Bank",
+    "CENTRAL": "Central Bank of India",
+    "CENTRAL BANK OF INDIA": "Central Bank of India",
+    "BANK OF INDIA": "Bank of India",
+    "BOI": "Bank of India",
+    "BANK OF MAHARASHTRA": "Bank of Maharashtra",
+    "BOM": "Bank of Maharashtra",
+    # Private
+    "YES": "Yes Bank",
+    "FEDERAL": "Federal Bank",
+    "SOUTH INDIAN": "South Indian Bank",
+    "KARNATAKA": "Karnataka Bank",
+    "KARUR VYSYA": "Karur Vysya Bank",
+    "RBL": "RBL Bank",
+    "INDUSIND": "IndusInd Bank",
+    # NBFCs commonly used for home loans
+    "LIC HOUSING": "LIC Housing Finance",
+    "LICHFL": "LIC Housing Finance",
+    "TATA CAPITAL": "Tata Capital",
+    "TATA CAPITAL HOUSING": "Tata Capital",
+    "BAJAJ": "Bajaj Finance",
+    "BAJAJ HOUSING": "Bajaj Housing Finance",
+    "BAJAJ FINSERV": "Bajaj Finance",
+    "PIRAMAL": "Piramal Finance",
+    "PNB HOUSING": "PNB Housing Finance",
+    "GRUH": "GRUH Finance",
+    "DHFL": "DHFL",
+    # Placeholder
+    "UNSPECIFIED": "Unspecified",
+}
 
 
 def _normalize_bank(raw: Optional[str]) -> str:
-    """Collapse bank-name variants so 'HDFC BANK' and 'HDFC' land in the same
-    bucket. Uppercases, trims, and strips common corporate suffixes. Empty
-    values collapse to 'UNSPECIFIED' so no group silently disappears."""
+    """Collapse bank-name variants into a canonical display label.
+
+    Pipeline:
+      1. Uppercase + trim (also normalize interior whitespace).
+      2. Iteratively strip loan/product/corporate suffixes
+         ("BANK", "LOAN", "HOME LOAN", "LTD.", "LIMITED", "FINANCE" etc.)
+         until the string stops changing.
+      3. Look the residue up in ``_BANK_CANONICAL_MAP``; if found, return
+         the pretty label. Otherwise return the stripped uppercase residue
+         so unknown banks still surface (rather than getting bucketed into
+         a catch-all).
+    """
     if not raw:
-        return "UNSPECIFIED"
-    s = str(raw).strip().upper()
-    # Iteratively strip suffixes until stable (handles "SBI BANK LIMITED" etc).
+        return _BANK_CANONICAL_MAP["UNSPECIFIED"]
+    s = " ".join(str(raw).strip().upper().split())
+    if not s:
+        return _BANK_CANONICAL_MAP["UNSPECIFIED"]
     changed = True
     while changed:
         changed = False
@@ -344,24 +436,35 @@ def _normalize_bank(raw: Optional[str]) -> str:
             if s.endswith(suf):
                 s = s[: -len(suf)].strip()
                 changed = True
-    return s or "UNSPECIFIED"
+    if not s:
+        return _BANK_CANONICAL_MAP["UNSPECIFIED"]
+    return _BANK_CANONICAL_MAP.get(s, s.title())
 
 
 @router.get("/disbursement-summary")
 async def get_disbursement_summary(user: dict = Depends(get_current_user)):
     """Per-bank disbursement snapshot for the main dashboard (admin only).
 
-    Aggregates two side-by-side series, joined on a *normalized* bank name:
-      • **Total Disbursed** — SUM(amount) of every payment_transaction whose
-        ``transaction_stage == 'scheduled_disbursement'``, grouped by bank.
-      • **Pending Disbursement** — for every customer with a financed loan
-        (``finance_type in {'loan', 'mixed'}`` and ``loan_amount > 0``),
-        ``max(loan_amount - disbursed_to_date, 0)`` grouped by the customer's
-        ``finance_bank``.
+    Aggregates a per-bank row (grouped on the *normalized* canonical bank
+    name) with these columns:
+      • **Sanctioned** (``loan_amount``) — SUM of ``customers.loan_amount``
+        for every customer with a positive ``loan_amount``. NO filter on
+        ``finance_type`` — a record entered as ``self`` or blank still
+        counts if the admin captured a loan figure, so lenders' books
+        match the CRM.
+      • **Loans** (``customer_count``) — unique customer count per bank.
+      • **Total Disbursed** — SUM(amount) of ``payment_transactions`` rows
+        whose ``transaction_stage == 'scheduled_disbursement'``, grouped
+        by the bank (customer's ``finance_bank`` preferred, transaction's
+        own ``bank_name`` as fallback).
+      • **Pending** — ``max(SUM(customers.total_price) − Total Disbursed, 0)``
+        per bank. Formulated as "total flat value assigned to this bank
+        minus what the bank has already disbursed" so accounts sees the
+        remaining amount they still have to collect from each lender.
 
-    Orphan scheduled_disbursement rows (customer_id no longer in the customers
-    collection) are surfaced separately under ``unmatched`` so the grand total
-    stays accurate and an admin can clean them up via
+    Orphan scheduled_disbursement rows (customer_id no longer in the
+    customers collection) are surfaced separately under ``unmatched`` so
+    the grand total stays accurate and an admin can clean them up via
     ``POST /api/dashboard/reconciliation/delete-orphan/{transaction_id}``.
     """
     if user.get("role") != "admin":
@@ -369,12 +472,15 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
 
     db = get_database()
 
-    # 1. Index every customer with a loan so we can compute per-customer pending.
+    # 1. Index every customer that has a positive loan_amount — regardless of
+    #    finance_type (some records are booked as 'self' but still carry a
+    #    partial loan figure that the bank has sanctioned).
     financed_customers = await db.customers.find(
-        {"finance_type": {"$in": ["loan", "mixed"]}, "loan_amount": {"$gt": 0}},
+        {"loan_amount": {"$gt": 0}},
         {"_id": 0, "id": 1, "name": 1, "unit_number": 1, "project": 1,
-         "finance_bank": 1, "loan_amount": 1},
-    ).to_list(5000)
+         "finance_bank": 1, "loan_amount": 1, "total_price": 1,
+         "finance_type": 1},
+    ).to_list(10000)
     customer_index = {c.get("id"): c for c in financed_customers}
 
     # 2. Index the full customer set (for orphan detection).
@@ -382,9 +488,7 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
     async for c in db.customers.find({}, {"_id": 0, "id": 1}):
         all_customer_ids.add(c.get("id"))
 
-    # 3. Pull every scheduled_disbursement transaction. We hydrate each row's
-    #    bank via its own bank_name, falling back to the customer's finance_bank
-    #    so mismatched postings still land in the right bucket.
+    # 3. Pull every scheduled_disbursement transaction.
     txns = await db.payment_transactions.find(
         {"transaction_stage": "scheduled_disbursement"},
         {"_id": 0, "id": 1, "customer_id": 1, "amount": 1, "bank_name": 1,
@@ -399,8 +503,8 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
     def _bucket(name: str) -> dict:
         return per_bank.setdefault(
             name,
-            {"bank": name, "total_disbursed": 0.0, "pending_disbursement": 0.0,
-             "loan_amount": 0.0, "customer_count": 0},
+            {"bank": name, "total_disbursed": 0.0, "flat_value_total": 0.0,
+             "loan_amount": 0.0, "customer_count": 0, "customer_ids": set()},
         )
 
     for t in txns:
@@ -428,45 +532,54 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
         if cid:
             disbursed_by_customer[cid] = disbursed_by_customer.get(cid, 0.0) + amt
 
-    # 4. Compute pending per financed customer and roll up by (normalized) bank.
-    grand_pending = 0.0
+    # 4. Roll up per-customer sanctioned & flat_value → bank buckets. Use a
+    #    set to compute a unique customer_count in case the same customer
+    #    somehow gets indexed twice.
     grand_loan = 0.0
+    grand_flat_value = 0.0
     for c in financed_customers:
         cid = c.get("id")
         loan = float(c.get("loan_amount") or 0)
-        disbursed = disbursed_by_customer.get(cid, 0.0)
-        pending = max(loan - disbursed, 0.0)
+        flat_value = float(c.get("total_price") or 0)
         bank = _normalize_bank(c.get("finance_bank"))
         row = _bucket(bank)
-        row["pending_disbursement"] += pending
         row["loan_amount"] += loan
-        row["customer_count"] += 1
-        grand_pending += pending
+        row["flat_value_total"] += flat_value
+        if cid:
+            row["customer_ids"].add(cid)
         grand_loan += loan
+        grand_flat_value += flat_value
 
-    # 5. Round + sort banks so the heaviest pending exposure appears first —
-    #    that's the row an admin cares about at a glance.
-    banks = [
-        {
+    # 5. Finalize each bank row.
+    grand_pending = 0.0
+    banks: list[dict] = []
+    for b in per_bank.values():
+        disbursed = b["total_disbursed"]
+        flat_value = b["flat_value_total"]
+        # Pending = remaining flat value still to be disbursed by this bank.
+        # Floor at 0 so an over-disbursed edge case doesn't show a negative.
+        pending = max(flat_value - disbursed, 0.0)
+        grand_pending += pending
+        banks.append({
             "bank": b["bank"],
-            "total_disbursed": round(b["total_disbursed"], 2),
-            "pending_disbursement": round(b["pending_disbursement"], 2),
+            "total_disbursed": round(disbursed, 2),
+            "pending_disbursement": round(pending, 2),
             "loan_amount": round(b["loan_amount"], 2),
-            "customer_count": b["customer_count"],
-        }
-        for b in per_bank.values()
-    ]
+            "flat_value_total": round(flat_value, 2),
+            "customer_count": len(b["customer_ids"]),
+        })
+
     banks.sort(key=lambda r: r["pending_disbursement"], reverse=True)
 
     grand_disbursed = sum(b["total_disbursed"] for b in banks)
 
-    # Cap unmatched list so the response stays bounded even in worst case.
     unmatched.sort(key=lambda o: o["amount"] or 0, reverse=True)
 
     return {
         "grand_total_disbursed": round(grand_disbursed, 2),
         "grand_total_pending": round(grand_pending, 2),
         "grand_total_loan": round(grand_loan, 2),
+        "grand_total_flat_value": round(grand_flat_value, 2),
         "banks": banks,
         "unmatched_total": round(unmatched_total, 2),
         "unmatched_count": len(unmatched),
