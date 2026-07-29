@@ -447,43 +447,45 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
 
     Aggregates a per-bank row (grouped on the *normalized* canonical bank
     name) with these columns:
+      • **Loans** (``customer_count``) — count of UNIQUE customers whose
+        ``finance_bank`` normalizes to this bank. A customer is counted
+        even when ``loan_amount`` is null / 0 / missing — the "loan"
+        column represents "how many customers has this bank been assigned
+        to on the CRM", not just fully-captured records. This matches how
+        accounts teams read the widget.
       • **Sanctioned** (``loan_amount``) — SUM of ``customers.loan_amount``
-        for every customer with a positive ``loan_amount``. NO filter on
-        ``finance_type`` — a record entered as ``self`` or blank still
-        counts if the admin captured a loan figure, so lenders' books
-        match the CRM.
-      • **Loans** (``customer_count``) — unique customer count per bank.
-      • **Total Disbursed** — SUM(amount) of ``payment_transactions`` rows
-        whose ``transaction_stage == 'scheduled_disbursement'``, grouped
-        by the bank (customer's ``finance_bank`` preferred, transaction's
-        own ``bank_name`` as fallback).
+        for every customer assigned to this bank (skips null / 0 fields).
+        No filter on ``finance_type``.
+      • **Total Disbursed** — SUM(amount) of ``payment_transactions``
+        rows whose ``transaction_stage == 'scheduled_disbursement'``,
+        grouped by the bank (customer's ``finance_bank`` preferred,
+        transaction's own ``bank_name`` as fallback for txns whose
+        customer has no finance_bank set).
       • **Pending** — ``max(SUM(customers.total_price) − Total Disbursed, 0)``
-        per bank. Formulated as "total flat value assigned to this bank
-        minus what the bank has already disbursed" so accounts sees the
-        remaining amount they still have to collect from each lender.
+        per bank. Represents remaining flat value still to be disbursed.
 
     Orphan scheduled_disbursement rows (customer_id no longer in the
-    customers collection) are surfaced separately under ``unmatched`` so
-    the grand total stays accurate and an admin can clean them up via
-    ``POST /api/dashboard/reconciliation/delete-orphan/{transaction_id}``.
+    customers collection) are surfaced separately under ``unmatched``.
     """
     if user.get("role") != "admin":
         return {"error": "Admin role required."}
 
     db = get_database()
 
-    # 1. Index every customer that has a positive loan_amount — regardless of
-    #    finance_type (some records are booked as 'self' but still carry a
-    #    partial loan figure that the bank has sanctioned).
-    financed_customers = await db.customers.find(
-        {"loan_amount": {"$gt": 0}},
+    # 1. Index EVERY customer that carries a finance_bank — regardless of
+    #    loan_amount / finance_type / paperwork completeness. In production
+    #    the accounts team routinely captures ``finance_bank`` but leaves
+    #    ``loan_amount`` blank; those customers must still show up in the
+    #    Loans + Pending columns.
+    bank_customers = await db.customers.find(
+        {"finance_bank": {"$nin": [None, ""]}},
         {"_id": 0, "id": 1, "name": 1, "unit_number": 1, "project": 1,
          "finance_bank": 1, "loan_amount": 1, "total_price": 1,
          "finance_type": 1},
     ).to_list(10000)
-    customer_index = {c.get("id"): c for c in financed_customers}
+    customer_index = {c.get("id"): c for c in bank_customers}
 
-    # 2. Index the full customer set (for orphan detection).
+    # 2. Index the full customer set (for orphan detection on transactions).
     all_customer_ids: set = set()
     async for c in db.customers.find({}, {"_id": 0, "id": 1}):
         all_customer_ids.add(c.get("id"))
@@ -496,7 +498,6 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
     ).to_list(100000)
 
     per_bank: dict[str, dict] = {}
-    disbursed_by_customer: dict[str, float] = {}
     unmatched: list[dict] = []
     unmatched_total = 0.0
 
@@ -504,14 +505,35 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
         return per_bank.setdefault(
             name,
             {"bank": name, "total_disbursed": 0.0, "flat_value_total": 0.0,
-             "loan_amount": 0.0, "customer_count": 0, "customer_ids": set()},
+             "loan_amount": 0.0, "customer_ids": set()},
         )
 
+    # 4. Roll up customer-level fields FIRST — this creates the bank
+    #    buckets even for banks that have zero disbursements yet, and
+    #    guarantees Loans / Sanctioned / Pending are computed from the
+    #    customer index (never inflated by orphan txns).
+    grand_loan = 0.0
+    grand_flat_value = 0.0
+    for c in bank_customers:
+        cid = c.get("id")
+        loan = float(c.get("loan_amount") or 0)
+        flat_value = float(c.get("total_price") or 0)
+        bank = _normalize_bank(c.get("finance_bank"))
+        row = _bucket(bank)
+        row["loan_amount"] += loan
+        row["flat_value_total"] += flat_value
+        if cid:
+            row["customer_ids"].add(cid)
+        grand_loan += loan
+        grand_flat_value += flat_value
+
+    # 5. Roll up transaction amounts on top. Prefer the customer's
+    #    finance_bank (canonical) so a mistyped bank_name on the txn
+    #    doesn't split the row.
     for t in txns:
         amt = float(t.get("amount") or 0)
         cid = t.get("customer_id")
         cust = customer_index.get(cid)
-        # Bank preference: financed customer's bank > txn's own bank_name.
         raw_bank = (cust or {}).get("finance_bank") or t.get("bank_name")
         bank = _normalize_bank(raw_bank)
 
@@ -529,35 +551,13 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
             continue
 
         _bucket(bank)["total_disbursed"] += amt
-        if cid:
-            disbursed_by_customer[cid] = disbursed_by_customer.get(cid, 0.0) + amt
 
-    # 4. Roll up per-customer sanctioned & flat_value → bank buckets. Use a
-    #    set to compute a unique customer_count in case the same customer
-    #    somehow gets indexed twice.
-    grand_loan = 0.0
-    grand_flat_value = 0.0
-    for c in financed_customers:
-        cid = c.get("id")
-        loan = float(c.get("loan_amount") or 0)
-        flat_value = float(c.get("total_price") or 0)
-        bank = _normalize_bank(c.get("finance_bank"))
-        row = _bucket(bank)
-        row["loan_amount"] += loan
-        row["flat_value_total"] += flat_value
-        if cid:
-            row["customer_ids"].add(cid)
-        grand_loan += loan
-        grand_flat_value += flat_value
-
-    # 5. Finalize each bank row.
+    # 6. Finalize each bank row.
     grand_pending = 0.0
     banks: list[dict] = []
     for b in per_bank.values():
         disbursed = b["total_disbursed"]
         flat_value = b["flat_value_total"]
-        # Pending = remaining flat value still to be disbursed by this bank.
-        # Floor at 0 so an over-disbursed edge case doesn't show a negative.
         pending = max(flat_value - disbursed, 0.0)
         grand_pending += pending
         banks.append({
@@ -570,7 +570,6 @@ async def get_disbursement_summary(user: dict = Depends(get_current_user)):
         })
 
     banks.sort(key=lambda r: r["pending_disbursement"], reverse=True)
-
     grand_disbursed = sum(b["total_disbursed"] for b in banks)
 
     unmatched.sort(key=lambda o: o["amount"] or 0, reverse=True)

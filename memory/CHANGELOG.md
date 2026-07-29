@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-02-28 (bug fix) — Disbursement Summary: Loans / Pending / Sanctioned columns were empty
+- **Symptom (production)** — On `rrlcrm.com/dashboard`, every row of the Bank Disbursement Summary showed `Loans = 0`, `Sanctioned = —`, `Pending = ₹0` (even though `Disbursed` had real amounts). Users saw "across 10 banks" but no per-bank counts.
+- **Root cause** — Yesterday's rewrite indexed only customers with `loan_amount > 0`. In production, the accounts team routinely captures `finance_bank` on customer records but leaves `loan_amount` blank/0 (they log disbursements as transactions instead). So every prod customer was excluded from the per-bank rollup — Loans count fell to 0, Sanctioned stayed at 0 (`—` in UI), and Pending never got a `flat_value_total` to subtract from.
+- **Fix (`backend/dashboard/routes.py`)**:
+  - Customer index now selects `{finance_bank: {$nin: [None, ""]}}` — any customer with a bank assigned, regardless of `loan_amount` / `finance_type` / paperwork state.
+  - Bank buckets are built from customer records FIRST (so a bank shows up in the widget the moment a customer is assigned to it, even before any disbursements or before `loan_amount` is captured).
+  - Transaction rollup layers `total_disbursed` on top of the customer-built buckets, preferring the customer's `finance_bank` over the transaction's own `bank_name` so mistyped txn banks don't split a row.
+- **Verified** — Synthetic reproduction of the production pattern: 5 customers (3 BOB variants + 2 HDFC) with `loan_amount=null/0`, 4 disbursement transactions. Endpoint returns Loans=3/2, Sanctioned=0 (correctly — nothing was captured), Pending computed from `SUM(total_price) − SUM(disbursed)`. Bank variants merged into single canonical rows.
+- Files touched: `backend/dashboard/routes.py`.
+
+
+
 ## 2026-02-28 (bug fix) — Zero values now accepted on Customer Profile edit
 - **Symptom** — Admins couldn't reliably set Club House / Car Parking / Additional Charges to ₹0 on the Customer Profile. When a legacy customer had those fields as `null` in DB, the UI silently showed the pre-Jun-2026 defaults (₹3L / ₹2L) in both view and edit modes, and the very next save persisted those phantom defaults into the DB — corrupting the record. The Price Breakup PDF then diverged from the customer card (PDF read real DB values → ₹0; card read defaulted UI values → ₹2L/₹3L).
 - **Fixes** (all in preview):
