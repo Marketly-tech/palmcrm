@@ -132,13 +132,16 @@ const PropertyPricingCard = ({
                 <Input
                   type="number"
                   min="0"
-                  value={editData.additional_parking_charges ?? 200000}
+                  value={editData.additional_parking_charges ?? 0}
                   onChange={(e) => setEditData({ ...editData, additional_parking_charges: parseFloat(e.target.value) || 0 })}
                   className="mt-1"
                   data-testid="car-parking-charges-input"
+                  placeholder="Enter 0 if not applicable"
                 />
               ) : (
-                <p className="text-slate-700 mt-1">{formatCurrency(customer.additional_parking_charges ?? 200000)}</p>
+                <p className="text-slate-700 mt-1" data-testid="car-parking-charges-value">
+                  {formatCurrency(customer.additional_parking_charges ?? 0)}
+                </p>
               )}
             </div>
             <div>
@@ -171,14 +174,18 @@ const PropertyPricingCard = ({
             </div>
             <div>
               <Label>Base Price</Label>
-              <p className="text-slate-700 mt-1">
-                {editing && liveCalc ? formatCurrency(liveCalc.basePrice) : formatCurrency(customer.base_price)}
+              <p className="text-slate-700 mt-1" data-testid="base-price-value">
+                {editing && liveCalc && !legacyPricing
+                  ? formatCurrency(liveCalc.basePrice)
+                  : formatCurrency(customer.base_price ?? 0)}
               </p>
             </div>
             <div>
               <Label>Floor Rise Total</Label>
-              <p className="text-slate-700 mt-1">
-                {editing && liveCalc ? formatCurrency(liveCalc.floorRiseTotal) : formatCurrency(customer.custom_fields?.floor_rise_total || 0)}
+              <p className="text-slate-700 mt-1" data-testid="floor-rise-total-value">
+                {editing && liveCalc && !legacyPricing
+                  ? formatCurrency(liveCalc.floorRiseTotal)
+                  : formatCurrency(customer.custom_fields?.floor_rise_total ?? 0)}
               </p>
             </div>
             <div>
@@ -186,12 +193,17 @@ const PropertyPricingCard = ({
               {editing ? (
                 <Input
                   type="number"
-                  value={editData.club_house_charges ?? 300000}
+                  min="0"
+                  value={editData.club_house_charges ?? 0}
                   onChange={(e) => setEditData({ ...editData, club_house_charges: parseFloat(e.target.value) || 0 })}
                   className="mt-1"
+                  data-testid="club-house-input"
+                  placeholder="Enter 0 if not applicable"
                 />
               ) : (
-                <p className="text-slate-700 mt-1">{formatCurrency(customer.club_house_charges)}</p>
+                <p className="text-slate-700 mt-1" data-testid="club-house-value">
+                  {formatCurrency(customer.club_house_charges ?? 0)}
+                </p>
               )}
             </div>
             <div>
@@ -239,14 +251,18 @@ const PropertyPricingCard = ({
             </div>
             <div>
               <Label>Labour Cess (0.70%)</Label>
-              <p className="text-slate-700 mt-1">
-                {editing && liveCalc ? formatCurrency(liveCalc.labourCess) : formatCurrency(customer.labour_cess)}
+              <p className="text-slate-700 mt-1" data-testid="labour-cess-value">
+                {editing && liveCalc && !legacyPricing
+                  ? formatCurrency(liveCalc.labourCess)
+                  : formatCurrency(customer.labour_cess ?? 0)}
               </p>
             </div>
             <div>
               <Label>GST (5%)</Label>
-              <p className="text-slate-700 mt-1">
-                {editing && liveCalc ? formatCurrency(liveCalc.gst) : formatCurrency(customer.gst_amount)}
+              <p className="text-slate-700 mt-1" data-testid="gst-value">
+                {editing && liveCalc && !legacyPricing
+                  ? formatCurrency(liveCalc.gst)
+                  : formatCurrency(customer.gst_amount ?? 0)}
               </p>
             </div>
             <div>

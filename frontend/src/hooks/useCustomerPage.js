@@ -175,11 +175,14 @@ export function useCustomerPage(id) {
     const floorRiseCost = numOr(data.floor_rise_cost, 0);
     const basePrice = saleableArea * ratePerSqft;
     const floorRiseTotal = saleableArea * floorRiseCost;
-    // Club House & Parking defaults ONLY apply when the field is missing
-    // from the customer record (fresh booking). An explicit 0 is respected.
-    const clubHouse = numOr(data.club_house_charges, 300000);
+    // Club House & Parking: an EXPLICIT admin-entered value (including 0)
+    // is always respected. A missing/null value on the customer record
+    // (legacy imports, incomplete bookings) falls back to 0 rather than
+    // silently persisting the pre-Jun 2026 defaults on next save — those
+    // defaults now live only in the fresh-booking form, not in edit paths.
+    const clubHouse = numOr(data.club_house_charges, 0);
     const additionalCharges = numOr(data.additional_charges, 0);
-    const parkingCharges = numOr(data.additional_parking_charges, 200000);
+    const parkingCharges = numOr(data.additional_parking_charges, 0);
     // BESCOM: rate per sqft × saleable area → adds to subtotal (before GST/labour cess)
     const bescomRate = numOr(data.bescom_rate, 0);
     const bescomAmount = bescomRate * saleableArea;

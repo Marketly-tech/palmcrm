@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2026-02-28 (bug fix) — Zero values now accepted on Customer Profile edit
+- **Symptom** — Admins couldn't reliably set Club House / Car Parking / Additional Charges to ₹0 on the Customer Profile. When a legacy customer had those fields as `null` in DB, the UI silently showed the pre-Jun-2026 defaults (₹3L / ₹2L) in both view and edit modes, and the very next save persisted those phantom defaults into the DB — corrupting the record. The Price Breakup PDF then diverged from the customer card (PDF read real DB values → ₹0; card read defaulted UI values → ₹2L/₹3L).
+- **Fixes** (all in preview):
+  1. `frontend/src/components/customer/details/PropertyPricingCard.jsx` — replaced the `?? 200000` / `?? 300000` fallbacks on Car Parking + Club House with `?? 0` in both view and edit modes. Both inputs now placeholder-hint *"Enter 0 if not applicable"*. Added test IDs `car-parking-charges-value` / `club-house-value` / `club-house-input`, plus `labour-cess-value`, `gst-value`, `base-price-value`, `floor-rise-total-value`.
+  2. Same file — Base Price, Floor Rise Total, Labour Cess, and GST view-mode readouts now `?? 0` any null field (previously would render as `₹NaN` or the misleading live-preview even for legacy records) and *skip* the live-preview branch entirely when `legacyPricing === true`.
+  3. `frontend/src/hooks/useCustomerPage.js` — `calculateLivePrice` fallback for `club_house_charges` / `additional_parking_charges` changed from 300000/200000 → 0. Combined with the earlier "0 is respected" `numOr` helper, this means: a null field now saves as `0` on the next edit (rather than silently persisting the default), and an explicit admin-typed `0` is always honored.
+- **Legacy-record safety** — customers with `created_at < 2026-06-02` still bypass the recalc branch entirely, so their stored `total_price` remains unchanged. The pricing calculator is only used to preview subtotals during edit.
+- **Verified** —
+  - Playwright: JAYANTHI S (legacy) — view shows Car Parking `₹0` (not `₹2,00,000` anymore); edit mode accepts explicit `0` in both fields; Historical price badge still displayed.
+  - Curl PUT on a non-legacy customer with `{club_house_charges: 0, additional_parking_charges: 0, additional_charges: 0}` → GET confirms all three persist as `0`; labour_cess and gst_amount computed fresh (no phantom defaults).
+- Files touched: `frontend/src/components/customer/details/PropertyPricingCard.jsx`, `frontend/src/hooks/useCustomerPage.js`.
+
+
+
 ## 2026-02-28 (admin ops) — Legacy zero-charges backfill endpoint
 - **Purpose** — For customers created 2026-03-20 → 2026-03-22 (RRL-00025..RRL-00035 in production) whose `club_house_charges` / `additional_parking_charges` were stored as `null` (predating the "0 is respected" pricing fix), give admins a safe one-shot way to explicitly set both fields to `0` so their UI cards and Price Breakup PDFs render identical numbers.
 - **Endpoint** — `POST /api/dashboard/backfill/legacy-zero-charges` (admin-only). Query params: `start_date` (default 2026-03-20, inclusive), `end_date_exclusive` (default 2026-03-23), `apply` (default `false` = dry-run). Response includes the full candidate list, per-field would-update counts, applied counts (only when `apply=true`), and a post-run verify block. Idempotent — only touches rows whose target field is `null` / `""` / missing; a non-null value (even `0`) is left untouched.
