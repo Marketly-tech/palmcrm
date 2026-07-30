@@ -280,6 +280,14 @@ export function useCustomerPage(id) {
         // Legacy: never let a stale liveCalc.total overwrite the historical
         // price, even if the admin briefly hovered on the edit form.
         delete dataToSave.total_price;
+        // Manual labour cess is still honoured on legacy records — admin can
+        // toggle Manual + enter 0 (or any value) and we persist that verbatim.
+        // liveCalc already respects the manual flag (respects 0), so mirror it
+        // onto the payload to avoid any stale editData drift.
+        if (liveCalc) {
+          dataToSave.labour_cess = liveCalc.labourCess;
+          dataToSave.labour_cess_manual = liveCalc.labourCessManual;
+        }
       }
       const protectedFields = [
         "booking_amount", "booking_date", "transaction_date", "transaction_bank",

@@ -71,6 +71,12 @@ class PriceCalculation(BaseModel):
     additional_parking_rate: float = 300000
     gst_percentage: float = 5
     labour_cess_percentage: float = 0.70
+    # Manual labour cess override. When ``labour_cess_manual`` is True, the
+    # server MUST honour ``labour_cess_override`` verbatim (0 included) rather
+    # than recomputing from ``labour_cess_percentage``. Mirrors the frontend
+    # editData semantics in useCustomerPage.js#calculateLivePrice.
+    labour_cess_manual: bool = False
+    labour_cess_override: Optional[float] = None
 
 
 class PriceResult(BaseModel):
