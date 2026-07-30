@@ -277,16 +277,38 @@ export function useCustomerPage(id) {
           },
         };
       } else if (legacy) {
-        // Legacy: never let a stale liveCalc.total overwrite the historical
-        // price, even if the admin briefly hovered on the edit form.
-        delete dataToSave.total_price;
-        // Manual labour cess is still honoured on legacy records — admin can
-        // toggle Manual + enter 0 (or any value) and we persist that verbatim.
-        // liveCalc already respects the manual flag (respects 0), so mirror it
-        // onto the payload to avoid any stale editData drift.
-        if (liveCalc) {
-          dataToSave.labour_cess = liveCalc.labourCess;
-          dataToSave.labour_cess_manual = liveCalc.labourCessManual;
+        // Legacy: by default DO NOT let liveCalc.total overwrite the
+        // historical price — that would silently rewrite historically-agreed
+        // numbers whenever admin edits a non-pricing field (phone, address).
+        // BUT — when admin has EXPLICITLY toggled Manual on Labour Cess, that
+        // is a deliberate override signalling "I want the total to reflect
+        // this new cess value". In that case we DO recompute total_price
+        // (and mirror all live-calc components) so the profile card, Price
+        // Breakup PDF and payment schedule all stay consistent.
+        if (liveCalc && liveCalc.labourCessManual) {
+          dataToSave = {
+            ...dataToSave,
+            base_price: liveCalc.basePrice,
+            club_house_charges: liveCalc.clubHouse,
+            additional_charges: liveCalc.additionalCharges,
+            additional_parking_charges: liveCalc.parkingCharges,
+            bescom_rate: liveCalc.bescomRate,
+            bescom_amount: liveCalc.bescomAmount,
+            labour_cess: liveCalc.labourCess,
+            labour_cess_manual: liveCalc.labourCessManual,
+            gst_amount: liveCalc.gst,
+            interest_amount: liveCalc.interestAmount,
+            total_price: liveCalc.total,
+            uds: liveCalc.uds,
+            custom_fields: {
+              ...(customer.custom_fields || {}),
+              floor_rise_cost: editData.floor_rise_cost || 0,
+              floor_rise_total: liveCalc.floorRiseTotal || 0,
+            },
+          };
+        } else {
+          // No explicit override — preserve the historical total_price.
+          delete dataToSave.total_price;
         }
       }
       const protectedFields = [
@@ -301,7 +323,9 @@ export function useCustomerPage(id) {
       setLiveCalc(null);
       toast.success(
         legacy
-          ? "Customer updated (historical price preserved — pre-Jun 2026 record)"
+          ? (liveCalc && liveCalc.labourCessManual
+              ? "Customer updated (Labour Cess override applied — total recalculated)"
+              : "Customer updated (historical price preserved — pre-Jun 2026 record)")
           : "Customer updated with recalculated prices"
       );
     } catch {
