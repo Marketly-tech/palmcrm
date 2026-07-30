@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-02-28 (bug fix) — Legacy customer Total Price now recomputes when Labour Cess is manually overridden (P0 follow-up)
+- **Symptom** — On a LEGACY customer (created before 2026-06-02, shows "Historical price (locked)" badge), setting Labour Cess = 0 via Manual toggle correctly persisted `labour_cess=0` and displayed ₹0 on the Labour Cess row, BUT the **Total Price** kept showing the old historical value which still had the ~₹68 K labour cess baked in. Line items no longer summed to Total → confused admins ("What nonsense…").
+- **Root cause** — `useCustomerPage.js#handleSaveCustomer` legacy branch always did `delete dataToSave.total_price` to protect historical prices from silent BESCOM-formula recalculation. That protection over-fired even when the admin had **explicitly** overridden Labour Cess via the Manual toggle.
+- **Fix** (`frontend/src/hooks/useCustomerPage.js`) — Legacy branch now checks `liveCalc.labourCessManual`:
+  - **Manual ON** → recompute total by mirroring all liveCalc components (base, club, parking, bescom, labour_cess, gst, interest, total_price, uds) onto the PUT payload. Toast: *"Customer updated (Labour Cess override applied — total recalculated)"*.
+  - **Manual OFF** → preserve historical `total_price` as before. Toast: *"Customer updated (historical price preserved…)"*.
+- **Verified end-to-end** (iteration_57): On Ramya test lead, Total Price recomputed ₹2,11,656 → ₹3,15,254 (= base 242 + club 3,00,000 + GST 15,012); GST also recomputed to 5% of new subtotal; Labour Cess row shows ₹0 with "(manual override)" tag; Historical badge still visible; correct toast fired.
+- Files touched: `frontend/src/hooks/useCustomerPage.js`.
+
+
 ## 2026-02-28 (bug fix) — Manual Labour Cess override respected end-to-end (P0)
 - **Symptom** — When admin toggled Manual on Labour Cess and entered 0, the value was persisted in the DB but the standalone `/api/calculator/price` endpoint (used by the New Booking form + external tests) still auto-computed `subtotal × 0.7%`, ignoring the manual flag. On legacy customer records the save path also didn't proactively mirror liveCalc's labour_cess/labour_cess_manual onto the payload — relying on editData spread.
 - **Fix**:
