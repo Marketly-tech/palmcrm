@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-02-28 (bug fix) — Manual Labour Cess override respected end-to-end (P0)
+- **Symptom** — When admin toggled Manual on Labour Cess and entered 0, the value was persisted in the DB but the standalone `/api/calculator/price` endpoint (used by the New Booking form + external tests) still auto-computed `subtotal × 0.7%`, ignoring the manual flag. On legacy customer records the save path also didn't proactively mirror liveCalc's labour_cess/labour_cess_manual onto the payload — relying on editData spread.
+- **Fix**:
+  - `backend/payments/models.py` — `PriceCalculation` gained `labour_cess_manual: bool = False` and `labour_cess_override: Optional[float] = None`.
+  - `backend/payments/routes.py::calculate_price` — when `labour_cess_manual=true` AND `labour_cess_override` is provided, honour it verbatim (0 respected); else fall back to standard `subtotal × labour_cess_percentage / 100`.
+  - `frontend/src/hooks/useCustomerPage.js::handleSaveCustomer` — legacy branch now explicitly writes `labour_cess` and `labour_cess_manual` from `liveCalc` onto the payload (in addition to preserving the historical `total_price`).
+- **Verified** — 8/8 pytest cases pass (`/app/backend/tests/test_labour_cess_manual_iter56.py`): calculator/price returns 0 on manual override 0, returns 12345 on manual override 12345, auto path returns 36400 on the standard 5.2 M subtotal, PUT + GET on Ramya test lead persists `labour_cess=0` + `labour_cess_manual=true`, `price_breakup` HTML renders `₹0.00` on the Labour Cess row, and `generate-schedule` still returns 13 items summing to Ramya's preserved `211655.79`.
+- Files touched: `backend/payments/models.py`, `backend/payments/routes.py`, `frontend/src/hooks/useCustomerPage.js`.
+
+
 ## 2026-02-28 (feature) — Labour Cess manual-override on Customer Profile
 - **What** — Labour Cess field on the Property & Pricing card is now editable. A "Manual" checkbox toggles between the default 0.7%-of-subtotal auto-calc and an admin-entered value. Manual mode is respected on save (0 is honoured); a helper caption always shows what the auto value *would* be for reference.
 - **Files**:
