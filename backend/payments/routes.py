@@ -368,8 +368,13 @@ async def calculate_price(data: PriceCalculation):
     # Subtotal before taxes
     subtotal = base_price + club_house + additional_charges
     
-    # Labour cess (0.70% of subtotal)
-    labour_cess = subtotal * (data.labour_cess_percentage / 100)
+    # Labour cess: honour a manual override (including 0) when the caller
+    # signals it via ``labour_cess_manual`` — mirrors the customer profile's
+    # Manual toggle. Falls back to the standard 0.70%-of-subtotal formula.
+    if data.labour_cess_manual and data.labour_cess_override is not None:
+        labour_cess = data.labour_cess_override
+    else:
+        labour_cess = subtotal * (data.labour_cess_percentage / 100)
     
     # GST (5% of subtotal)
     gst_amount = subtotal * (data.gst_percentage / 100)

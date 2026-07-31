@@ -1,0 +1,22 @@
+{
+  "summary": "Backend-only testing for P0 fix: manual labour_cess=0 must persist and not be recomputed. Wrote pytest suite /app/backend/tests/test_labour_cess_manual_iter56.py covering: (1) /api/calculator/price with labour_cess_manual + labour_cess_override (values 0, 12345, absent, and manual-without-override fallback); (2) PUT /api/customers/{id} persistence of labour_cess=0 + labour_cess_manual=true on Ramya test lead (6d902613-5106-4294-bc3e-b907f85127f7) verified via GET; (3) POST /api/documents/generate price_breakup HTML shows Labour Cess with ₹0.00 row; (4) POST /api/calculator/generate-schedule/{id} still returns 13 items summing to preserved 211655.79 even with labour_cess=0. All 8 tests PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_labour_cess_manual_iter56.py",
+    "/app/test_reports/pytest/iter56_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "payments/routes.py calculate_price fallback logic: if labour_cess_manual=true but labour_cess_override is None it silently falls back to formula. Consider raising 422 or logging a warning to help catch frontend bugs where the toggle is on but the value wasn't sent.",
+    "PriceCalculation.labour_cess_override is Optional[float] and defaults to None — good; but there's no server-side validation that override is non-negative. A negative override would flow through unchanged."
+  ],
+  "updated_files": ["/app/backend/tests/test_labour_cess_manual_iter56.py"],
+  "success_rate": {"backend": "100%", "frontend": "not tested (per request)"},
+  "test_credentials": "Admin crm@rrlbuildersanddevelopers.com / #RRLnew2026 (from review_request; /app/memory/test_credentials.md not consulted since creds were explicit).",
+  "seed_data_creation": "None. Test mutates Ramya test lead (labour_cess, labour_cess_manual) and restores original values after the persistence test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Response shapes verified: /api/calculator/generate-schedule/{id} returns {message, schedule:{items:[...], ...}} (13 items for Ramya legacy). /api/documents/generate returns HTML under one of: 'html', 'content', 'html_content', or nested document.{html,content}. Ramya's preserved total_price=211655.79. Auth uses 'access_token' key in login response (with 'token' fallback in the fixture).",
+  "rca of the issue": "P0 bug root cause was in /api/calculator/price which unconditionally computed labour_cess = subtotal * labour_cess_percentage / 100, ignoring any manual override. The customer PUT endpoint had no recompute logic, but the calculator was still being called elsewhere (booking form + tests). Fix (already applied by E1) adds labour_cess_manual + labour_cess_override to PriceCalculation model and gates the auto-formula on them in routes.py lines 372-381. Verified persistence via GET after PUT and via price_breakup document HTML rendering ₹0.00."
+}
